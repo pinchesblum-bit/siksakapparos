@@ -1135,7 +1135,7 @@
       confirmMessage.textContent = message;
       confirmModal.classList.add('open');
       confirmModal.setAttribute('aria-hidden', 'false');
-      setTimeout(() => confirmNoBtn.focus(), 0);
+      setTimeout(() => confirmYesBtn.focus(), 0);
       return new Promise(resolve => {
         confirmationResolver = resolve;
       });
@@ -1855,8 +1855,6 @@
         return;
       }
 
-      if (state.editingSaleId && !(await askConfirmation(CHANGE_CONFIRMATION))) return;
-
       const customFieldValues = {};
       customSaleFields.querySelectorAll('[data-custom-sale-field]').forEach(input => {
         customFieldValues[input.dataset.customSaleField] = input.value.trim();
@@ -1865,6 +1863,26 @@
       if (state.editingSaleId) {
         const index = state.sales.findIndex(item => item.id === state.editingSaleId);
         if (index === -1) return;
+        const currentSale = state.sales[index];
+        const normalizedOtherDetails = selectedMethodNeedsDetails ? otherPaymentDetails : '';
+        const customFieldsUnchanged = state.settings.customFields.every(field =>
+          String(currentSale.customFields?.[field.id] || '').trim() === String(customFieldValues[field.id] || '').trim()
+        );
+        const saleUnchanged = String(currentSale.fullName || '').trim() === fullName
+          && String(currentSale.phone || '').replace(/\D/g, '') === phone
+          && (currentSale.status || 'paid') === status
+          && Number(currentSale.quantity || 0) === qty
+          && Number(currentSale.price || 0) === price
+          && String(currentSale.paymentType || '') === selectedPaymentType
+          && String(currentSale.otherDetails || '').trim() === normalizedOtherDetails
+          && Boolean(currentSale.geschlagen) === geschlagen
+          && customFieldsUnchanged;
+        if (saleUnchanged) {
+          closeModal();
+          showToast('No changes to save');
+          return;
+        }
+        if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
         state.sales[index] = {
           ...state.sales[index],
           fullName,
@@ -1873,7 +1891,7 @@
           quantity: qty,
           price,
           paymentType: selectedPaymentType,
-          otherDetails: selectedMethodNeedsDetails ? otherPaymentDetails : '',
+          otherDetails: normalizedOtherDetails,
           geschlagen,
           customFields: customFieldValues,
           updatedAt: new Date().toISOString()
@@ -2169,6 +2187,11 @@
     });
 
     document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && confirmModal.classList.contains('open')) {
+        e.preventDefault();
+        finishConfirmation(true);
+        return;
+      }
       if (e.key === 'Escape') {
         if (confirmModal.classList.contains('open')) {
           finishConfirmation(false);

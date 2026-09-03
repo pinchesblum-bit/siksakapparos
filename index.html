@@ -260,7 +260,11 @@
     tbody tr:hover { background: #fffaf2; }
     tbody tr.sale-row { cursor: pointer; }
     tbody tr.sale-row:focus { outline: 3px solid rgba(157,119,90,.20); outline-offset: -3px; }
-    .sale-name { font-weight: 850; }
+    .sale-name {
+      font-family: Arial, "Helvetica Neue", sans-serif;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
     .status-pill {
       display: inline-flex;
       align-items: center;
@@ -491,6 +495,52 @@
     .password-toggle { display: flex; align-items: center; gap: 9px; margin-top: 14px; font-weight: 700; }
     .password-toggle.field { display: flex; }
     .password-toggle input { width: auto; }
+    .settings-switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fbf8f2;
+      font-weight: 750;
+      cursor: pointer;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 48px;
+      height: 27px;
+      flex: 0 0 auto;
+    }
+    .toggle-switch input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #cfc5b8;
+      transition: .18s ease;
+    }
+    .toggle-slider::after {
+      content: '';
+      position: absolute;
+      width: 21px;
+      height: 21px;
+      top: 3px;
+      left: 3px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,.22);
+      transition: .18s ease;
+    }
+    .toggle-switch input:checked + .toggle-slider { background: var(--success); }
+    .toggle-switch input:checked + .toggle-slider::after { transform: translateX(21px); }
+    .toggle-switch input:focus-visible + .toggle-slider { box-shadow: 0 0 0 3px rgba(66,100,71,.22); }
 
     .confirm-modal { width: min(460px, 100%); text-align: center; }
     .confirm-message { margin: 4px 0 24px; font-size: 21px; line-height: 1.55; font-weight: 750; direction: rtl; }
@@ -541,6 +591,7 @@
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
     .custom-sale-fields { grid-column: 1 / -1; display: grid; gap: 15px; }
     .field { display: grid; gap: 7px; }
+    .field[hidden] { display: none !important; }
     .field.full { grid-column: 1 / -1; }
     label { font-size: 13px; font-weight: 750; color: #4e463f; }
     input, select {
@@ -800,9 +851,12 @@
                 <label for="settingSubtitle">Website subtitle</label>
                 <input id="settingSubtitle" required />
               </div>
-              <label class="password-toggle field full">
-                <input type="checkbox" id="settingShowNeedsSaved" />
-                Show this total on the Sales homepage
+              <label class="settings-switch-row field full">
+                <span>Show this total on the Sales homepage</span>
+                <span class="toggle-switch">
+                  <input type="checkbox" id="settingShowNeedsSaved" />
+                  <span class="toggle-slider" aria-hidden="true"></span>
+                </span>
               </label>
               <div class="field">
                 <label for="settingHomeSummaryLabel">Homepage wording</label>
@@ -1384,7 +1438,8 @@
     function getNeedsReservedTotal() {
       return state.sales.reduce((sum, sale) => {
         const isCountedStatus = ['paid', 'reserved'].includes(sale.status || 'paid');
-        return isCountedStatus && !sale.geschlagen ? sum + Number(sale.quantity || 0) : sum;
+        const isBanshak = isBanshakPayment(sale.paymentType);
+        return isCountedStatus && !isBanshak && !sale.geschlagen ? sum + Number(sale.quantity || 0) : sum;
       }, 0);
     }
 
@@ -1455,7 +1510,7 @@
     }
 
     function updatePaymentFieldsForStatus() {
-      const usesPlan = ['reserved', 'expired'].includes(saleStatus.value);
+      const usesPlan = saleStatus.value === 'reserved' || (Boolean(state.editingSaleId) && saleStatus.value === 'expired');
       paymentTypeWrap.hidden = usesPlan;
       paymentType.disabled = usesPlan;
       paymentType.required = !usesPlan;
@@ -1575,6 +1630,7 @@
       }[section];
       if (!form) return;
       form.querySelectorAll('input, select, button').forEach(control => { control.disabled = !editing; });
+      if (section === 'website') settingShowNeedsSaved.disabled = false;
       document.querySelector(`[data-settings-actions="${section}"]`).hidden = !editing;
       document.querySelector(`[data-edit-settings="${section}"]`).hidden = editing;
       if (section === 'login' && !editing) {
@@ -1646,6 +1702,25 @@
       }
     }
 
+    function getNameScriptRank(name) {
+      const firstLetter = String(name || '').trim().match(/[\p{L}\p{N}]/u)?.[0] || '';
+      if (/[\u0590-\u05ff]/.test(firstLetter)) return 0;
+      if (/[a-z]/i.test(firstLetter)) return 1;
+      return 2;
+    }
+
+    const hebrewNameCollator = new Intl.Collator('he', { sensitivity: 'base', numeric: true });
+    const englishNameCollator = new Intl.Collator('en', { sensitivity: 'base', numeric: true });
+
+    function compareSalesForHome(a, b) {
+      const geschlagenOrder = Number(Boolean(a.geschlagen)) - Number(Boolean(b.geschlagen));
+      if (geschlagenOrder) return geschlagenOrder;
+      const scriptOrder = getNameScriptRank(a.fullName) - getNameScriptRank(b.fullName);
+      if (scriptOrder) return scriptOrder;
+      const collator = getNameScriptRank(a.fullName) === 0 ? hebrewNameCollator : englishNameCollator;
+      return collator.compare(String(a.fullName || ''), String(b.fullName || ''));
+    }
+
     function renderSales() {
       const wrap = document.getElementById('salesTableWrap');
       expirePastReservations();
@@ -1684,7 +1759,7 @@
 
       const rows = matchingSales
         .slice()
-        .reverse()
+        .sort(compareSalesForHome)
         .map(sale => {
           const notes = getNotesValue(sale);
           return `
@@ -1987,6 +2062,24 @@
       btn.addEventListener('click', () => showPage('sales'));
     });
 
+    settingShowNeedsSaved.addEventListener('change', async () => {
+      const previousValue = Boolean(state.settings.showNeedsSavedOnHome);
+      const nextValue = settingShowNeedsSaved.checked;
+      if (nextValue === previousValue) return;
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) {
+        settingShowNeedsSaved.checked = previousValue;
+        return;
+      }
+      state.settings.showNeedsSavedOnHome = nextValue;
+      saveSettings();
+      updateHomeSummary();
+      websiteSettingsMessage.style.color = '#426447';
+      websiteSettingsMessage.textContent = nextValue
+        ? 'Homepage total is now visible.'
+        : 'Homepage total is now hidden.';
+      showToast(nextValue ? 'Homepage total turned on' : 'Homepage total turned off');
+    });
+
     showSettingsPasswords.addEventListener('change', () => {
       const type = showSettingsPasswords.checked ? 'text' : 'password';
       [settingCurrentPassword, settingPassword, settingConfirmPassword].forEach(input => { input.type = type; });
@@ -2041,7 +2134,7 @@
       const selectedPaymentPlan = String(fd.get('plannedPaymentType') || '').trim();
       const selectedPaymentDate = String(fd.get('plannedPaymentDate') || '').trim();
       const geschlagen = geschlagenInput.checked;
-      const usesPlan = ['reserved', 'expired'].includes(status);
+      const usesPlan = status === 'reserved' || (Boolean(state.editingSaleId) && status === 'expired');
 
       if (!fullName || !phone || !['paid', 'reserved', 'expired'].includes(status) || !Number.isFinite(qty) || qty < 1 || !Number.isFinite(price) || price < 0 || (!usesPlan && !selectedPaymentType) || (usesPlan && !selectedPaymentPlan)) {
         showToast('Please fill out every required field');

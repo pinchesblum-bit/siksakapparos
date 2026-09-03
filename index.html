@@ -275,6 +275,7 @@
     }
     .status-pill.paid { color: #285c35; background: #dceddf; }
     .status-pill.reserved { color: #80581e; background: #f6e8c8; }
+    .status-pill.expired { color: #8b2e26; background: #f7d7d2; }
     .status-pill.geschlagen { color: #285c35; background: #dceddf; direction: rtl; }
     .note-cell {
       overflow: hidden;
@@ -440,8 +441,8 @@
     .settings-section h3 { margin: 0 0 14px; font-size: 18px; }
     .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
     .report-settings-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: end; }
-    .payment-methods-list { display: grid; gap: 10px; }
-    .payment-method-row {
+    .payment-methods-list, .payment-plans-list { display: grid; gap: 10px; }
+    .payment-method-row, .payment-plan-row {
       display: grid;
       grid-template-columns: 1fr auto;
       align-items: end;
@@ -451,6 +452,7 @@
       border-radius: 14px;
       background: #fbf8f2;
     }
+    .payment-plan-row { grid-template-columns: 1fr auto auto; }
     .custom-field-list { display: grid; gap: 10px; }
     .custom-field-row {
       display: grid;
@@ -566,6 +568,10 @@
     }
     .price-wrap input { padding-left: 30px; }
     #quantity, #price { height: 44px; min-height: 44px; }
+    .quantity-price-field { align-self: start; }
+    .quantity-price-field > input,
+    .quantity-price-field > .price-wrap,
+    .quantity-price-field > .price-wrap input { height: 44px; min-height: 44px; }
     .helper { font-size: 12px; color: var(--muted); }
     .other-details { display: none; }
     .other-details.show { display: grid; }
@@ -619,7 +625,7 @@
       .report-summary-grid { grid-template-columns: 1fr; }
       .settings-grid { grid-template-columns: 1fr; }
       .settings-cards { grid-template-columns: 1fr; }
-      .custom-field-row { grid-template-columns: 1fr; align-items: stretch; }
+      .custom-field-row, .payment-plan-row { grid-template-columns: 1fr; align-items: stretch; }
       .form-grid { grid-template-columns: 1fr; }
       .field.full { grid-column: auto; }
       th, td { padding: 14px; }
@@ -840,6 +846,12 @@
               <button type="button" class="secondary-btn" id="addPaymentMethodBtn">+ Add payment method</button>
             </div>
             <div class="settings-section">
+              <h3>Reserved Payment Plans</h3>
+              <p class="small-note">These choices appear under פלאנט צו באצהלן when a sale is Reserved.</p>
+              <div class="payment-plans-list" id="paymentPlansList"></div>
+              <button type="button" class="secondary-btn" id="addPaymentPlanBtn">+ Add plan type</button>
+            </div>
+            <div class="settings-section">
               <h3>Sale Fields</h3>
               <p class="small-note">Add fields such as Notes and choose whether they must be filled out on every sale.</p>
               <div class="custom-field-list" id="customFieldsList"></div>
@@ -944,15 +956,16 @@
             <select id="saleStatus" name="status" required>
               <option value="paid">Paid</option>
               <option value="reserved">Reserved</option>
+              <option value="expired">Expired</option>
             </select>
           </div>
 
-          <div class="field">
+          <div class="field quantity-price-field">
             <label for="quantity">כפרה <span class="required-mark">*</span></label>
             <input id="quantity" name="quantity" type="number" min="1" step="1" value="1" required />
           </div>
 
-          <div class="field">
+          <div class="field quantity-price-field">
             <label for="price">Price <span class="required-mark">*</span></label>
             <div class="price-wrap">
               <span>$</span>
@@ -961,11 +974,23 @@
             <div class="helper" id="priceHelper">Default: $23 per כפרה. You can click and edit the amount.</div>
           </div>
 
-          <div class="field full">
+          <div class="field full" id="paymentTypeWrap">
             <label for="paymentType">Payment type <span class="required-mark">*</span></label>
             <select id="paymentType" name="paymentType" required>
               <option value="" selected disabled>Select payment type</option>
             </select>
+          </div>
+
+          <div class="field full" id="plannedPaymentWrap" hidden>
+            <label for="plannedPaymentType">פלאנט צו באצהלן <span class="required-mark">*</span></label>
+            <select id="plannedPaymentType" name="plannedPaymentType">
+              <option value="" selected disabled>Select a plan</option>
+            </select>
+          </div>
+
+          <div class="field full" id="plannedPaymentDateWrap" hidden>
+            <label for="plannedPaymentDate">Pay on date <span class="required-mark">*</span></label>
+            <input id="plannedPaymentDate" name="plannedPaymentDate" type="date" />
           </div>
 
           <div class="field full other-details" id="otherDetailsWrap">
@@ -1025,6 +1050,10 @@
         { id: 'credit', label: 'Credit card' },
         { id: 'other', label: 'Other', needsDetails: true },
         { id: 'banshak', label: 'בנש״ק' }
+      ],
+      paymentPlans: [
+        { id: 'pay-on', label: 'Pay on', needsDate: true },
+        { id: 'erev-yom-kippur', label: 'Erev Yom Kippur', needsDate: false }
       ]
     };
 
@@ -1053,7 +1082,12 @@
     const quantityInput = document.getElementById('quantity');
     const priceInput = document.getElementById('price');
     const paymentType = document.getElementById('paymentType');
+    const paymentTypeWrap = document.getElementById('paymentTypeWrap');
     const saleStatus = document.getElementById('saleStatus');
+    const plannedPaymentWrap = document.getElementById('plannedPaymentWrap');
+    const plannedPaymentType = document.getElementById('plannedPaymentType');
+    const plannedPaymentDateWrap = document.getElementById('plannedPaymentDateWrap');
+    const plannedPaymentDate = document.getElementById('plannedPaymentDate');
     const otherDetailsWrap = document.getElementById('otherDetailsWrap');
     const otherDetails = document.getElementById('otherDetails');
     const toast = document.getElementById('toast');
@@ -1094,6 +1128,8 @@
     const settingReportNeedsSavedLabel = document.getElementById('settingReportNeedsSavedLabel');
     const paymentMethodsList = document.getElementById('paymentMethodsList');
     const addPaymentMethodBtn = document.getElementById('addPaymentMethodBtn');
+    const paymentPlansList = document.getElementById('paymentPlansList');
+    const addPaymentPlanBtn = document.getElementById('addPaymentPlanBtn');
     const customFieldsList = document.getElementById('customFieldsList');
     const addCustomFieldBtn = document.getElementById('addCustomFieldBtn');
     const customSaleFields = document.getElementById('customSaleFields');
@@ -1165,6 +1201,9 @@
         const savedMethods = Array.isArray(saved.paymentMethods)
           ? saved.paymentMethods.filter(method => method && method.id && method.label)
           : [];
+        const savedPaymentPlans = Array.isArray(saved.paymentPlans)
+          ? saved.paymentPlans.filter(plan => plan && plan.id && plan.label)
+          : [];
         const savedCustomFields = Array.isArray(saved.customFields)
           ? saved.customFields.filter(field => field && field.id && field.label)
           : [];
@@ -1197,10 +1236,22 @@
                 label: String(method.label),
                 needsDetails: Boolean(method.needsDetails || method.id === 'other')
               }))
-            : DEFAULT_SETTINGS.paymentMethods.map(method => ({ ...method }))
+            : DEFAULT_SETTINGS.paymentMethods.map(method => ({ ...method })),
+          paymentPlans: savedPaymentPlans.length
+            ? savedPaymentPlans.map(plan => ({
+                id: String(plan.id),
+                label: String(plan.label),
+                needsDate: Boolean(plan.needsDate)
+              }))
+            : DEFAULT_SETTINGS.paymentPlans.map(plan => ({ ...plan }))
         };
       } catch {
-        return { ...DEFAULT_SETTINGS, customFields: [], paymentMethods: DEFAULT_SETTINGS.paymentMethods.map(method => ({ ...method })) };
+        return {
+          ...DEFAULT_SETTINGS,
+          customFields: [],
+          paymentMethods: DEFAULT_SETTINGS.paymentMethods.map(method => ({ ...method })),
+          paymentPlans: DEFAULT_SETTINGS.paymentPlans.map(plan => ({ ...plan }))
+        };
       }
     }
 
@@ -1228,6 +1279,38 @@
 
     function getPaymentMethod(methodId) {
       return state.settings.paymentMethods.find(method => method.id === methodId);
+    }
+
+    function getPaymentPlan(planId) {
+      return state.settings.paymentPlans.find(plan => plan.id === planId);
+    }
+
+    function getLocalDateValue(date = new Date()) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function expirePastReservations() {
+      const today = getLocalDateValue();
+      let changed = false;
+      state.sales.forEach(sale => {
+        const plan = getPaymentPlan(sale.plannedPaymentType);
+        if (sale.status === 'reserved' && plan?.needsDate && sale.plannedPaymentDate && sale.plannedPaymentDate < today) {
+          sale.status = 'expired';
+          sale.updatedAt = new Date().toISOString();
+          changed = true;
+        }
+      });
+      if (changed) saveSales();
+      return changed;
+    }
+
+    function getStatusLabel(status) {
+      if (status === 'reserved') return 'Reserved';
+      if (status === 'expired') return 'Expired';
+      return 'Paid';
     }
 
     function isBanshakPayment(methodId) {
@@ -1306,7 +1389,40 @@
       paymentType.value = selectedValue || '';
     }
 
+    function renderPlannedPaymentSelect(selectedValue = '') {
+      const configuredOptions = state.settings.paymentPlans.map(plan =>
+        `<option value="${escapeHtml(plan.id)}">${escapeHtml(plan.label)}</option>`
+      ).join('');
+      const selectedExists = state.settings.paymentPlans.some(plan => plan.id === selectedValue);
+      const legacyOption = selectedValue && !selectedExists
+        ? `<option value="${escapeHtml(selectedValue)}">${escapeHtml(selectedValue)} (previous plan)</option>`
+        : '';
+      plannedPaymentType.innerHTML = '<option value="" disabled>Select a plan</option>' + configuredOptions + legacyOption;
+      plannedPaymentType.value = selectedValue || '';
+    }
+
+    function updatePaymentFieldsForStatus() {
+      const usesPlan = ['reserved', 'expired'].includes(saleStatus.value);
+      paymentTypeWrap.hidden = usesPlan;
+      paymentType.disabled = usesPlan;
+      paymentType.required = !usesPlan;
+      plannedPaymentWrap.hidden = !usesPlan;
+      plannedPaymentType.disabled = !usesPlan;
+      plannedPaymentType.required = usesPlan;
+
+      const needsDate = usesPlan && Boolean(getPaymentPlan(plannedPaymentType.value)?.needsDate);
+      plannedPaymentDateWrap.hidden = !needsDate;
+      plannedPaymentDate.disabled = !needsDate;
+      plannedPaymentDate.required = needsDate;
+
+      const isOther = !usesPlan && Boolean(getPaymentMethod(paymentType.value)?.needsDetails);
+      otherDetailsWrap.classList.toggle('show', isOther);
+      otherDetails.disabled = usesPlan || !isOther;
+      otherDetails.required = isOther;
+    }
+
     let settingsDraftMethods = [];
+    let settingsDraftPlans = [];
     let settingsDraftFields = [];
     const settingsEditMode = { website: false, sales: false, login: false, reports: false };
 
@@ -1320,6 +1436,23 @@
               <input id="paymentMethod${index}" class="payment-method-name" value="${escapeHtml(method.label)}" required ${settingsEditMode.sales ? '' : 'disabled'} />
             </div>
             <button type="button" class="remove-method-btn" data-remove-method="${escapeHtml(method.id)}" ${used || !settingsEditMode.sales ? 'disabled' : ''} ${used ? 'title="This method is used by an existing sale"' : ''}>Remove</button>
+          </div>`;
+      }).join('');
+    }
+
+    function renderPaymentPlansEditor() {
+      paymentPlansList.innerHTML = settingsDraftPlans.map((plan, index) => {
+        const used = state.sales.some(sale => sale.plannedPaymentType === plan.id);
+        return `
+          <div class="payment-plan-row" data-plan-id="${escapeHtml(plan.id)}">
+            <div class="field">
+              <label for="paymentPlan${index}">Plan type name</label>
+              <input id="paymentPlan${index}" class="payment-plan-name" value="${escapeHtml(plan.label)}" required ${settingsEditMode.sales ? '' : 'disabled'} />
+            </div>
+            <label class="required-toggle">
+              <input type="checkbox" class="payment-plan-needs-date" ${plan.needsDate ? 'checked' : ''} ${settingsEditMode.sales ? '' : 'disabled'} /> Calendar date
+            </label>
+            <button type="button" class="remove-method-btn" data-remove-plan="${escapeHtml(plan.id)}" ${used || !settingsEditMode.sales ? 'disabled' : ''} ${used ? 'title="This plan is used by an existing sale"' : ''}>Remove</button>
           </div>`;
       }).join('');
     }
@@ -1370,8 +1503,10 @@
       loginSettingsMessage.textContent = '';
       reportSettingsMessage.textContent = '';
       settingsDraftMethods = state.settings.paymentMethods.map(method => ({ ...method }));
+      settingsDraftPlans = state.settings.paymentPlans.map(plan => ({ ...plan }));
       settingsDraftFields = state.settings.customFields.map(field => ({ ...field }));
       renderPaymentMethodsEditor();
+      renderPaymentPlansEditor();
       renderCustomFieldsEditor();
       Object.keys(settingsEditMode).forEach(section => setSettingsEditMode(section, false));
       showSettingsHome();
@@ -1398,8 +1533,10 @@
       }
       if (section === 'sales') {
         addPaymentMethodBtn.disabled = !editing;
+        addPaymentPlanBtn.disabled = !editing;
         addCustomFieldBtn.disabled = !editing;
         renderPaymentMethodsEditor();
+        renderPaymentPlansEditor();
         renderCustomFieldsEditor();
       }
     }
@@ -1417,6 +1554,7 @@
         settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
         settingInventory.value = state.settings.inventory;
         settingsDraftMethods = state.settings.paymentMethods.map(method => ({ ...method }));
+        settingsDraftPlans = state.settings.paymentPlans.map(plan => ({ ...plan }));
         settingsDraftFields = state.settings.customFields.map(field => ({ ...field }));
         salesSettingsMessage.textContent = '';
       }
@@ -1457,6 +1595,7 @@
 
     function renderSales() {
       const wrap = document.getElementById('salesTableWrap');
+      expirePastReservations();
       updateHomeSummary();
       if (!state.sales.length) {
         wrap.innerHTML = '<div class="empty-state">No sales yet. Click <strong>Add Sale</strong> to add the first one.</div>';
@@ -1474,6 +1613,9 @@
               sale.price,
               sale.paymentType,
               getPaymentMethod(sale.paymentType)?.label || '',
+              sale.plannedPaymentType,
+              getPaymentPlan(sale.plannedPaymentType)?.label || '',
+              sale.plannedPaymentDate,
               sale.otherDetails,
               sale.geschlagen ? 'געשלאגן' : '',
               ...Object.values(sale.customFields || {})
@@ -1496,7 +1638,7 @@
             <tr class="sale-row" data-sale-id="${escapeHtml(sale.id)}" tabindex="0" title="Click to edit this sale">
               <td class="sale-name">${escapeHtml(sale.fullName)}</td>
               <td>${escapeHtml(sale.phone || '')}</td>
-              <td><span class="status-pill ${(sale.status || 'paid') === 'reserved' ? 'reserved' : 'paid'}">${(sale.status || 'paid') === 'reserved' ? 'Reserved' : 'Paid'}</span></td>
+              <td><span class="status-pill ${escapeHtml(sale.status || 'paid')}">${getStatusLabel(sale.status || 'paid')}</span></td>
               <td><span class="kapparah-pill">${sale.quantity}</span></td>
               <td class="note-cell" title="${escapeHtml(notes)}">${escapeHtml(notes)}</td>
               <td>${sale.geschlagen ? '<span class="status-pill geschlagen">געשלאגן</span>' : ''}</td>
@@ -1512,12 +1654,14 @@
     }
 
     function renderReports() {
+      expirePastReservations();
       const groups = {};
       state.settings.paymentMethods.forEach(method => {
         groups[method.id] = { id: method.id, label: method.label, count: 0, money: 0 };
       });
 
       state.sales.forEach(sale => {
+        if (!sale.paymentType) return;
         if (!groups[sale.paymentType]) {
           groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
         }
@@ -1532,14 +1676,15 @@
           <div class="stat-label">${escapeHtml(group.label)} sales</div>
           <div class="stat-value">${group.count}</div>
         </div>`).join('');
+      const banshakUnpaid = state.sales.reduce((sum, sale) => isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
       document.getElementById('moneyTotalsGrid').innerHTML = paidGroups.map(group => `
         <div class="stat-card">
           <div class="stat-label">${escapeHtml(group.label)} total</div>
           <div class="stat-value">${money(group.money)}</div>
         </div>`).join('') + `
         <div class="stat-card">
-          <div class="stat-label">בנש״ק כפרות (free)</div>
-          <div class="stat-value">${state.sales.reduce((sum, sale) => isBanshakPayment(sale.paymentType) ? sum + Number(sale.quantity || 0) : sum, 0)}</div>
+          <div class="stat-label">בנש״ק unpaid</div>
+          <div class="stat-value">${money(banshakUnpaid)}</div>
         </div>`;
 
       const paidSales = state.sales.filter(sale => (sale.status || 'paid') === 'paid');
@@ -1584,11 +1729,13 @@
     }
 
     function exportSalesAndReports() {
+      expirePastReservations();
       const groups = {};
       state.settings.paymentMethods.forEach(method => {
         groups[method.id] = { id: method.id, label: method.label, count: 0, money: 0 };
       });
       state.sales.forEach(sale => {
+        if (!sale.paymentType) return;
         if (!groups[sale.paymentType]) {
           groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
         }
@@ -1601,19 +1748,21 @@
       const reservedSales = state.sales.filter(sale => sale.status === 'reserved');
       const needsReserved = getNeedsReservedTotal();
       const needsSaved = getNeedsSavedTotal();
-      const banshakTotal = state.sales.reduce((sum, sale) => isBanshakPayment(sale.paymentType) ? sum + Number(sale.quantity || 0) : sum, 0);
+      const banshakUnpaid = state.sales.reduce((sum, sale) => isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
       const totalMoney = state.sales.reduce((sum, sale) => isBanshakPayment(sale.paymentType) ? sum : sum + Number(sale.price || 0), 0);
       const salesRows = [
-        excelRow(['Created', 'Full name', 'Phone number', 'Status', 'כפרות', 'Price', 'Payment method', 'Payment details', ...state.settings.customFields.map(field => field.label), 'געשלאגן'].map(value => ({ value, style: 'Header' }))),
+        excelRow(['Created', 'Full name', 'Phone number', 'Status', 'כפרות', 'Price', 'Payment method', 'Payment details', 'Planned payment', 'Planned date', ...state.settings.customFields.map(field => field.label), 'געשלאגן'].map(value => ({ value, style: 'Header' }))),
         ...state.sales.map(sale => excelRow([
           sale.createdAt ? new Date(sale.createdAt).toLocaleString('en-US') : '',
           sale.fullName,
           sale.phone,
-          (sale.status || 'paid') === 'reserved' ? 'Reserved' : 'Paid',
+          getStatusLabel(sale.status || 'paid'),
           { value: Number(sale.quantity || 0), type: 'Number', style: 'Integer' },
           { value: Number(sale.price || 0), type: 'Number', style: 'Currency' },
           getPaymentMethod(sale.paymentType)?.label || sale.paymentType,
           sale.otherDetails || '',
+          getPaymentPlan(sale.plannedPaymentType)?.label || sale.plannedPaymentType || '',
+          sale.plannedPaymentDate || '',
           ...state.settings.customFields.map(field => sale.customFields?.[field.id] || ''),
           sale.geschlagen ? 'Yes' : ''
         ]))
@@ -1627,7 +1776,7 @@
         excelRow([state.settings.reportLabels.reserved, { value: reservedSales.length, type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.needsReserved, { value: needsReserved, type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.needsSaved, { value: needsSaved, type: 'Number', style: 'Integer' }]),
-        excelRow(['בנש״ק כפרות (free)', { value: banshakTotal, type: 'Number', style: 'Integer' }]),
+        excelRow(['בנש״ק unpaid', { value: banshakUnpaid, type: 'Number', style: 'Currency' }]),
         excelRow(['Total sales', { value: state.sales.length, type: 'Number', style: 'Integer' }]),
         excelRow(['כפרות sold', { value: sold, type: 'Number', style: 'Integer' }]),
         excelRow(['Total כפרות inventory', { value: state.settings.inventory, type: 'Number', style: 'Integer' }]),
@@ -1700,6 +1849,8 @@
       state.editingSaleId = saleId;
       otherDetailsWrap.classList.remove('show');
       otherDetails.required = false;
+      renderPlannedPaymentSelect('');
+      plannedPaymentDate.value = '';
 
       if (saleId) {
         const sale = state.sales.find(item => item.id === saleId);
@@ -1714,10 +1865,10 @@
         quantityInput.value = sale.quantity || 1;
         priceInput.value = Number(sale.price || 0).toFixed(2);
         renderPaymentSelect(sale.paymentType || '');
+        renderPlannedPaymentSelect(sale.plannedPaymentType || '');
+        plannedPaymentDate.value = sale.plannedPaymentDate || '';
         otherDetails.value = sale.otherDetails || '';
-        const isOther = Boolean(getPaymentMethod(paymentType.value)?.needsDetails);
-        otherDetailsWrap.classList.toggle('show', isOther);
-        otherDetails.required = isOther;
+        updatePaymentFieldsForStatus();
         renderCustomSaleFields(sale.customFields || {});
       } else {
         if (getKapparosSold() >= state.settings.inventory) {
@@ -1732,6 +1883,8 @@
         quantityInput.value = 1;
         priceInput.value = Number(state.settings.defaultPrice).toFixed(2);
         renderPaymentSelect('');
+        renderPlannedPaymentSelect('');
+        updatePaymentFieldsForStatus();
         renderCustomSaleFields();
       }
 
@@ -1811,11 +1964,13 @@
     });
 
     paymentType.addEventListener('change', () => {
-      const isOther = Boolean(getPaymentMethod(paymentType.value)?.needsDetails);
-      otherDetailsWrap.classList.toggle('show', isOther);
-      otherDetails.required = isOther;
+      const isOther = !paymentType.disabled && Boolean(getPaymentMethod(paymentType.value)?.needsDetails);
+      updatePaymentFieldsForStatus();
       if (!isOther) otherDetails.value = '';
     });
+
+    saleStatus.addEventListener('change', updatePaymentFieldsForStatus);
+    plannedPaymentType.addEventListener('change', updatePaymentFieldsForStatus);
 
     saleForm.addEventListener('submit', async e => {
       e.preventDefault();
@@ -1830,9 +1985,12 @@
       const price = Number(fd.get('price'));
       const selectedPaymentType = String(fd.get('paymentType') || '').trim();
       const otherPaymentDetails = String(fd.get('otherDetails') || '').trim();
+      const selectedPaymentPlan = String(fd.get('plannedPaymentType') || '').trim();
+      const selectedPaymentDate = String(fd.get('plannedPaymentDate') || '').trim();
       const geschlagen = geschlagenInput.checked;
+      const usesPlan = ['reserved', 'expired'].includes(status);
 
-      if (!fullName || !phone || !['paid', 'reserved'].includes(status) || !Number.isFinite(qty) || qty < 1 || !Number.isFinite(price) || price < 0 || !selectedPaymentType) {
+      if (!fullName || !phone || !['paid', 'reserved', 'expired'].includes(status) || !Number.isFinite(qty) || qty < 1 || !Number.isFinite(price) || price < 0 || (!usesPlan && !selectedPaymentType) || (usesPlan && !selectedPaymentPlan)) {
         showToast('Please fill out every required field');
         return;
       }
@@ -1841,10 +1999,16 @@
         showToast('Phone number must be exactly 10 digits');
         return;
       }
-      const selectedMethodNeedsDetails = Boolean(getPaymentMethod(selectedPaymentType)?.needsDetails);
+      const selectedMethodNeedsDetails = !usesPlan && Boolean(getPaymentMethod(selectedPaymentType)?.needsDetails);
       if (selectedMethodNeedsDetails && !otherPaymentDetails) {
         otherDetails.focus();
         showToast('Please enter the Other payment information');
+        return;
+      }
+      const selectedPlanNeedsDate = usesPlan && Boolean(getPaymentPlan(selectedPaymentPlan)?.needsDate);
+      if (selectedPlanNeedsDate && !selectedPaymentDate) {
+        plannedPaymentDate.focus();
+        showToast('Please select the Pay on date');
         return;
       }
 
@@ -1865,6 +2029,9 @@
         if (index === -1) return;
         const currentSale = state.sales[index];
         const normalizedOtherDetails = selectedMethodNeedsDetails ? otherPaymentDetails : '';
+        const normalizedPaymentType = usesPlan ? '' : selectedPaymentType;
+        const normalizedPaymentPlan = usesPlan ? selectedPaymentPlan : '';
+        const normalizedPaymentDate = selectedPlanNeedsDate ? selectedPaymentDate : '';
         const customFieldsUnchanged = state.settings.customFields.every(field =>
           String(currentSale.customFields?.[field.id] || '').trim() === String(customFieldValues[field.id] || '').trim()
         );
@@ -1873,8 +2040,10 @@
           && (currentSale.status || 'paid') === status
           && Number(currentSale.quantity || 0) === qty
           && Number(currentSale.price || 0) === price
-          && String(currentSale.paymentType || '') === selectedPaymentType
+          && String(currentSale.paymentType || '') === normalizedPaymentType
           && String(currentSale.otherDetails || '').trim() === normalizedOtherDetails
+          && String(currentSale.plannedPaymentType || '') === normalizedPaymentPlan
+          && String(currentSale.plannedPaymentDate || '') === normalizedPaymentDate
           && Boolean(currentSale.geschlagen) === geschlagen
           && customFieldsUnchanged;
         if (saleUnchanged) {
@@ -1890,8 +2059,10 @@
           status,
           quantity: qty,
           price,
-          paymentType: selectedPaymentType,
+          paymentType: normalizedPaymentType,
           otherDetails: normalizedOtherDetails,
+          plannedPaymentType: normalizedPaymentPlan,
+          plannedPaymentDate: normalizedPaymentDate,
           geschlagen,
           customFields: customFieldValues,
           updatedAt: new Date().toISOString()
@@ -1912,8 +2083,10 @@
         status,
         quantity: qty,
         price,
-        paymentType: selectedPaymentType,
+        paymentType: usesPlan ? '' : selectedPaymentType,
         otherDetails: selectedMethodNeedsDetails ? otherPaymentDetails : '',
+        plannedPaymentType: usesPlan ? selectedPaymentPlan : '',
+        plannedPaymentDate: selectedPlanNeedsDate ? selectedPaymentDate : '',
         geschlagen,
         customFields: customFieldValues
       };
@@ -1984,6 +2157,37 @@
       paymentMethodsList.querySelector('.payment-method-row:last-child input')?.select();
     });
 
+    paymentPlansList.addEventListener('input', e => {
+      const row = e.target.closest('[data-plan-id]');
+      const plan = settingsDraftPlans.find(item => item.id === row?.dataset.planId);
+      if (!plan) return;
+      if (e.target.classList.contains('payment-plan-name')) plan.label = e.target.value;
+      if (e.target.classList.contains('payment-plan-needs-date')) plan.needsDate = e.target.checked;
+    });
+
+    paymentPlansList.addEventListener('click', async e => {
+      const button = e.target.closest('[data-remove-plan]');
+      if (!button || button.disabled) return;
+      if (settingsDraftPlans.length <= 1) {
+        salesSettingsMessage.style.color = '#9d2f25';
+        salesSettingsMessage.textContent = 'At least one reserved payment plan is required.';
+        return;
+      }
+      if (!(await askConfirmation(DELETE_CONFIRMATION))) return;
+      settingsDraftPlans = settingsDraftPlans.filter(plan => plan.id !== button.dataset.removePlan);
+      renderPaymentPlansEditor();
+    });
+
+    addPaymentPlanBtn.addEventListener('click', () => {
+      settingsDraftPlans.push({
+        id: `plan-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+        label: 'New plan type',
+        needsDate: false
+      });
+      renderPaymentPlansEditor();
+      paymentPlansList.querySelector('.payment-plan-row:last-child input')?.select();
+    });
+
     customFieldsList.addEventListener('input', e => {
       const row = e.target.closest('[data-field-id]');
       const field = settingsDraftFields.find(item => item.id === row?.dataset.fieldId);
@@ -2050,6 +2254,8 @@
       const sold = getKapparosSold();
       const methodNames = settingsDraftMethods.map(method => method.label.trim());
       const normalizedMethodNames = methodNames.map(name => name.toLocaleLowerCase());
+      const planNames = settingsDraftPlans.map(plan => plan.label.trim());
+      const normalizedPlanNames = planNames.map(name => name.toLocaleLowerCase());
       const fieldNames = settingsDraftFields.map(field => field.label.trim());
       const normalizedFieldNames = fieldNames.map(name => name.toLocaleLowerCase());
       salesSettingsMessage.style.color = '#9d2f25';
@@ -2070,6 +2276,14 @@
         salesSettingsMessage.textContent = 'Payment method names must be different.';
         return;
       }
+      if (!planNames.length || planNames.some(name => !name)) {
+        salesSettingsMessage.textContent = 'Every reserved payment plan needs a name.';
+        return;
+      }
+      if (new Set(normalizedPlanNames).size !== normalizedPlanNames.length) {
+        salesSettingsMessage.textContent = 'Reserved payment plan names must be different.';
+        return;
+      }
       if (fieldNames.some(name => !name)) {
         salesSettingsMessage.textContent = 'Every sale field needs a name.';
         return;
@@ -2079,10 +2293,12 @@
         return;
       }
       const nextMethods = settingsDraftMethods.map((method, index) => ({ ...method, label: methodNames[index] }));
+      const nextPlans = settingsDraftPlans.map((plan, index) => ({ ...plan, label: planNames[index] }));
       const nextFields = settingsDraftFields.map((field, index) => ({ ...field, label: fieldNames[index] }));
       const salesChanged = defaultPrice !== Number(state.settings.defaultPrice)
         || inventory !== Number(state.settings.inventory)
         || JSON.stringify(nextMethods) !== JSON.stringify(state.settings.paymentMethods)
+        || JSON.stringify(nextPlans) !== JSON.stringify(state.settings.paymentPlans)
         || JSON.stringify(nextFields) !== JSON.stringify(state.settings.customFields);
       if (!salesChanged) {
         salesSettingsMessage.style.color = '#7a7269';
@@ -2094,10 +2310,12 @@
       state.settings.defaultPrice = defaultPrice;
       state.settings.inventory = inventory;
       state.settings.paymentMethods = nextMethods;
+      state.settings.paymentPlans = nextPlans;
       state.settings.customFields = nextFields;
       saveSettings();
       applySettingsToUi();
       renderPaymentSelect();
+      renderPlannedPaymentSelect();
       renderSales();
       renderReports();
       salesSettingsMessage.style.color = '#426447';
@@ -2224,8 +2442,15 @@
 
     applySettingsToUi();
     renderPaymentSelect();
+    renderPlannedPaymentSelect();
     renderSales();
     renderReports();
+    setInterval(() => {
+      if (expirePastReservations()) {
+        renderSales();
+        renderReports();
+      }
+    }, 60000);
     if (sessionStorage.getItem(LOGIN_SESSION_KEY) === 'true') {
       unlockWebsite();
     } else {

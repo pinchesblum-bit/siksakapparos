@@ -79,7 +79,6 @@
       max-width: 1180px;
       margin: 0 auto;
       padding: 28px 24px 48px;
-      transition: margin .22s ease, max-width .22s ease;
     }
 
     .topbar {
@@ -210,7 +209,7 @@
 
     .table-head {
       display: grid;
-      grid-template-columns: 1fr minmax(280px, 360px) 1fr;
+      grid-template-columns: minmax(150px, 1fr) minmax(280px, 420px) minmax(150px, 1fr);
       align-items: end;
       gap: 16px;
       padding: 18px 20px;
@@ -219,7 +218,9 @@
     .table-head h2 { margin: 0; font-size: 20px; }
     .small-note { color: var(--muted); font-size: 13px; }
     .sales-search { width: 100%; justify-self: center; }
-    .table-add-sale { justify-self: end; }
+    .table-add-sale { justify-self: start; min-height: 44px; }
+    .sales-summary { justify-self: end; text-align: right; }
+    .sales-summary-value { margin-top: 2px; color: var(--accent); font-size: 28px; font-weight: 900; line-height: 1; }
     .sales-search input {
       padding-left: 40px;
       background:
@@ -233,11 +234,14 @@
       border-collapse: collapse;
       table-layout: fixed;
     }
+    .sales-table-wrap { overflow-x: auto; }
+    .sales-table { min-width: 860px; }
     th, td {
       text-align: left;
       padding: 16px 20px;
       border-bottom: 1px solid #eee6db;
       vertical-align: middle;
+      line-height: 1.25;
     }
     th {
       font-size: 12px;
@@ -253,15 +257,25 @@
     .sale-name { font-weight: 850; }
     .status-pill {
       display: inline-flex;
+      align-items: center;
       justify-content: center;
       min-width: 82px;
+      min-height: 32px;
       padding: 7px 11px;
       border-radius: 999px;
       font-weight: 800;
       font-size: 13px;
+      line-height: 1;
     }
     .status-pill.paid { color: #285c35; background: #dceddf; }
     .status-pill.reserved { color: #80581e; background: #f6e8c8; }
+    .status-pill.geschlagen { color: #285c35; background: #dceddf; direction: rtl; }
+    .note-cell {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted);
+    }
     .required-mark { color: #a33b2f; }
     .danger-btn {
       border: 1px solid #c95b4f;
@@ -282,6 +296,22 @@
       color: #77542d;
       font-size: 13px;
     }
+    .geschlagen-check {
+      margin: 0 0 18px;
+      padding: 13px 15px;
+      border-radius: 12px;
+      background: #f4f8f4;
+      border: 1px solid #cfe0d1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      color: #285c35;
+      font-size: 17px;
+      font-weight: 850;
+      direction: rtl;
+    }
+    .geschlagen-check input { width: 22px; height: 22px; min-height: 0; accent-color: var(--success); }
     .kapparah-pill {
       display: inline-flex;
       min-width: 44px;
@@ -344,7 +374,7 @@
 
     .report-summary-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
       gap: 14px;
       margin-bottom: 22px;
     }
@@ -357,18 +387,19 @@
     }
     .report-summary-card .stat-label { color: rgba(255,255,255,.75); }
     .report-summary-card.available { background: var(--success); }
+    .report-summary-card.free { background: #765d8f; }
 
     .settings-panel { padding: 24px; }
     .settings-panel h2 { margin: 0 0 5px; font-size: 28px; }
     .settings-home[hidden], .settings-view[hidden] { display: none; }
     .settings-cards {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: 1fr;
       gap: 14px;
       margin-top: 22px;
     }
     .settings-card {
-      min-height: 118px;
+      min-height: 0;
       padding: 20px;
       border: 1px solid var(--line);
       border-radius: 17px;
@@ -446,6 +477,7 @@
       cursor: default;
     }
     .password-toggle { display: flex; align-items: center; gap: 9px; margin-top: 14px; font-weight: 700; }
+    .password-toggle.field { display: flex; }
     .password-toggle input { width: auto; }
 
     .confirm-modal { width: min(460px, 100%); text-align: center; }
@@ -572,6 +604,7 @@
       .table-head { grid-template-columns: 1fr; align-items: stretch; }
       .sales-search { width: 100%; }
       .table-add-sale { justify-self: stretch; width: 100%; }
+      .sales-summary { justify-self: stretch; text-align: left; }
       .stats-grid { grid-template-columns: 1fr 1fr; }
       .report-summary-grid { grid-template-columns: 1fr; }
       .settings-grid { grid-template-columns: 1fr; }
@@ -581,13 +614,6 @@
       .field.full { grid-column: auto; }
       th, td { padding: 14px; }
       .top-actions .desktop-word { display: none; }
-    }
-    @media (min-width: 1050px) {
-      body.menu-open .app-shell {
-        margin-left: 250px;
-        margin-right: 0;
-        max-width: calc(100% - 250px);
-      }
     }
   </style>
 </head>
@@ -647,17 +673,18 @@
     <section class="page active" id="salesPage">
       <div class="panel">
         <div class="table-head">
-          <div>
-            <h2>Sales</h2>
-            <div class="small-note">Names and amount of כפרה ordered</div>
-          </div>
+          <button class="primary-btn table-add-sale" id="addSaleBtn">+ <span class="desktop-word">Add </span>Sale</button>
           <div class="sales-search">
             <label for="salesSearch" class="small-note">Search sales</label>
             <input id="salesSearch" type="search" placeholder="Name, phone, payment, or details" autocomplete="off" />
           </div>
-          <button class="primary-btn table-add-sale" id="addSaleBtn">+ <span class="desktop-word">Add </span>Sale</button>
+          <div class="sales-summary">
+            <h2 id="salesSummaryTitle">Sales</h2>
+            <div class="small-note" id="salesSummarySubtitle">Names and amount of כפרה ordered</div>
+            <div class="sales-summary-value" id="salesSummaryValue" hidden>0</div>
+          </div>
         </div>
-        <div id="salesTableWrap"></div>
+        <div class="sales-table-wrap" id="salesTableWrap"></div>
       </div>
     </section>
 
@@ -687,6 +714,10 @@
           <div class="stat-label" id="reportSavedLabel">Needs to Be Saved</div>
           <div class="stat-value" id="reportSavedTotal">0</div>
         </div>
+        <div class="report-summary-card free">
+          <div class="stat-label">בנש״ק כפרות (free)</div>
+          <div class="stat-value" id="reportBanshakTotal">0</div>
+        </div>
       </div>
 
       <div class="section-title">Number of sales</div>
@@ -698,7 +729,7 @@
       <div class="subtotal-card">
         <div>
           <div class="label">Subtotal</div>
-          <div class="small-note" style="color:rgba(255,255,255,.72)">All payment types combined</div>
+          <div class="small-note" style="color:rgba(255,255,255,.72)">Paid payment types only; excludes בנש״ק</div>
         </div>
         <div class="value" id="subtotalMoney">$0</div>
       </div>
@@ -714,8 +745,8 @@
           <div class="small-note">Choose which settings you want to edit.</div>
           <div class="settings-cards">
             <button type="button" class="settings-card" data-settings-open="website">
-              <span class="settings-card-title">Website Settings</span>
-              <span class="settings-card-note">Edit the website title and subtitle.</span>
+              <span class="settings-card-title">Home Screen Settings</span>
+              <span class="settings-card-note">Edit the website title, subtitle, and Sales homepage summary.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="sales">
               <span class="settings-card-title">Sales Settings</span>
@@ -727,7 +758,7 @@
             </button>
             <button type="button" class="settings-card" data-settings-open="reports">
               <span class="settings-card-title">Report Settings</span>
-              <span class="settings-card-note">Edit the names of all four report boxes.</span>
+              <span class="settings-card-note">Edit the names of the report summary boxes.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="export">
               <span class="settings-card-title">Export Data</span>
@@ -739,7 +770,7 @@
         <div class="settings-view" data-settings-view="website" hidden>
           <div class="settings-view-head">
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
-            <h3>Website Settings</h3>
+            <h3>Home Screen Settings</h3>
             <button type="button" class="secondary-btn" data-go-sales>Back to Sales</button>
             <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="website">Edit</button>
           </div>
@@ -753,9 +784,13 @@
                 <label for="settingSubtitle">Website subtitle</label>
                 <input id="settingSubtitle" required />
               </div>
+              <label class="password-toggle field full">
+                <input type="checkbox" id="settingShowNeedsSaved" />
+                Show “Needs to Be Saved” on the Sales homepage
+              </label>
             </div>
             <p class="settings-message" id="websiteSettingsMessage" role="alert"></p>
-            <div class="settings-actions" data-settings-actions="website" hidden><button type="button" class="secondary-btn" data-cancel-settings="website">Cancel</button><button type="submit" class="primary-btn">Save Website Settings</button></div>
+            <div class="settings-actions" data-settings-actions="website" hidden><button type="button" class="secondary-btn" data-cancel-settings="website">Cancel</button><button type="submit" class="primary-btn">Save Home Screen Settings</button></div>
           </form>
         </div>
 
@@ -866,7 +901,10 @@
       </div>
 
       <form id="saleForm">
-        <p class="validation-note">Fields marked with * are required before a sale can be saved.</p>
+        <label class="geschlagen-check" for="geschlagen">
+          <span>געשלאגן</span>
+          <input id="geschlagen" name="geschlagen" type="checkbox" />
+        </label>
         <div class="form-grid">
           <div class="field full">
             <label for="fullName">Full name <span class="required-mark">*</span></label>
@@ -945,6 +983,7 @@
     const DEFAULT_SETTINGS = {
       title: 'פנים מאירות סיקסא',
       subtitle: 'כפרות',
+      showNeedsSavedOnHome: false,
       defaultPrice: 23,
       inventory: 100,
       username: 'admin',
@@ -999,6 +1038,9 @@
     const saveSaleBtn = document.getElementById('saveSaleBtn');
     const deleteSaleBtn = document.getElementById('deleteSaleBtn');
     const salesSearch = document.getElementById('salesSearch');
+    const salesSummaryTitle = document.getElementById('salesSummaryTitle');
+    const salesSummarySubtitle = document.getElementById('salesSummarySubtitle');
+    const salesSummaryValue = document.getElementById('salesSummaryValue');
     const brandTitle = document.getElementById('brandTitle');
     const brandSubtitle = document.getElementById('brandSubtitle');
     const priceHelper = document.getElementById('priceHelper');
@@ -1010,6 +1052,7 @@
     const reportSettingsForm = document.getElementById('reportSettingsForm');
     const settingTitle = document.getElementById('settingTitle');
     const settingSubtitle = document.getElementById('settingSubtitle');
+    const settingShowNeedsSaved = document.getElementById('settingShowNeedsSaved');
     const settingDefaultPrice = document.getElementById('settingDefaultPrice');
     const settingInventory = document.getElementById('settingInventory');
     const settingUsername = document.getElementById('settingUsername');
@@ -1026,6 +1069,7 @@
     const customFieldsList = document.getElementById('customFieldsList');
     const addCustomFieldBtn = document.getElementById('addCustomFieldBtn');
     const customSaleFields = document.getElementById('customSaleFields');
+    const geschlagenInput = document.getElementById('geschlagen');
     const exportExcelBtn = document.getElementById('exportExcelBtn');
     const websiteSettingsMessage = document.getElementById('websiteSettingsMessage');
     const salesSettingsMessage = document.getElementById('salesSettingsMessage');
@@ -1103,6 +1147,7 @@
           passwordHash: saved.passwordHash || DEFAULT_SETTINGS.passwordHash,
           defaultPrice: Number.isFinite(Number(saved.defaultPrice)) ? Number(saved.defaultPrice) : DEFAULT_SETTINGS.defaultPrice,
           inventory: Number.isFinite(Number(saved.inventory)) ? Math.max(0, Math.floor(Number(saved.inventory))) : DEFAULT_SETTINGS.inventory,
+          showNeedsSavedOnHome: Boolean(saved.showNeedsSavedOnHome),
           customFields: savedCustomFields.map(field => ({
             id: String(field.id),
             label: String(field.label),
@@ -1151,6 +1196,36 @@
       return state.settings.paymentMethods.find(method => method.id === methodId);
     }
 
+    function isBanshakPayment(methodId) {
+      const method = getPaymentMethod(methodId);
+      const value = `${methodId || ''} ${method?.label || ''}`.toLocaleLowerCase();
+      return methodId === 'banshak' || value.includes('בנש') || value.includes('banshak');
+    }
+
+    function getNotesField() {
+      return state.settings.customFields.find(field => /^notes?$/i.test(field.label.trim()));
+    }
+
+    function getNotesValue(sale) {
+      const notesField = getNotesField();
+      return notesField ? String(sale.customFields?.[notesField.id] || '') : '';
+    }
+
+    function getNeedsSavedTotal() {
+      return state.sales.reduce((sum, sale) => {
+        const isCountedStatus = ['paid', 'reserved'].includes(sale.status || 'paid');
+        return isCountedStatus && !sale.geschlagen ? sum + Number(sale.quantity || 0) : sum;
+      }, 0);
+    }
+
+    function updateHomeSummary() {
+      const showTotal = Boolean(state.settings.showNeedsSavedOnHome);
+      salesSummaryTitle.textContent = showTotal ? state.settings.reportLabels.saved : 'Sales';
+      salesSummarySubtitle.hidden = showTotal;
+      salesSummaryValue.hidden = !showTotal;
+      salesSummaryValue.textContent = getNeedsSavedTotal();
+    }
+
     function money(n) {
       return new Intl.NumberFormat('en-US', {
         style: 'currency', currency: 'USD', maximumFractionDigits: 2
@@ -1171,6 +1246,7 @@
       brandSubtitle.textContent = state.settings.subtitle;
       document.title = `${state.settings.title} - ${state.settings.subtitle}`;
       priceHelper.textContent = `Default: ${money(state.settings.defaultPrice)} per כפרה. You can click and edit the amount.`;
+      updateHomeSummary();
     }
 
     function renderPaymentSelect(selectedValue = '') {
@@ -1229,6 +1305,7 @@
     function renderSettings() {
       settingTitle.value = state.settings.title;
       settingSubtitle.value = state.settings.subtitle;
+      settingShowNeedsSaved.checked = Boolean(state.settings.showNeedsSavedOnHome);
       settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
       settingInventory.value = state.settings.inventory;
       settingUsername.value = state.settings.username;
@@ -1283,6 +1360,7 @@
       if (section === 'website') {
         settingTitle.value = state.settings.title;
         settingSubtitle.value = state.settings.subtitle;
+        settingShowNeedsSaved.checked = Boolean(state.settings.showNeedsSavedOnHome);
         websiteSettingsMessage.textContent = '';
       }
       if (section === 'sales') {
@@ -1328,6 +1406,7 @@
 
     function renderSales() {
       const wrap = document.getElementById('salesTableWrap');
+      updateHomeSummary();
       if (!state.sales.length) {
         wrap.innerHTML = '<div class="empty-state">No sales yet. Click <strong>Add Sale</strong> to add the first one.</div>';
         return;
@@ -1345,6 +1424,7 @@
               sale.paymentType,
               getPaymentMethod(sale.paymentType)?.label || '',
               sale.otherDetails,
+              sale.geschlagen ? 'געשלאגן' : '',
               ...Object.values(sale.customFields || {})
             ].join(' ').toLocaleLowerCase();
             return searchableText.includes(query);
@@ -1359,18 +1439,23 @@
       const rows = matchingSales
         .slice()
         .reverse()
-        .map(sale => `
-          <tr class="sale-row" data-sale-id="${escapeHtml(sale.id)}" tabindex="0" title="Click to edit this sale">
-            <td class="sale-name">${escapeHtml(sale.fullName)}</td>
-            <td>${escapeHtml(sale.phone || '')}</td>
-            <td><span class="status-pill ${(sale.status || 'paid') === 'reserved' ? 'reserved' : 'paid'}">${(sale.status || 'paid') === 'reserved' ? 'Reserved' : 'Paid'}</span></td>
-            <td><span class="kapparah-pill">${sale.quantity}</span></td>
-          </tr>
-        `).join('');
+        .map(sale => {
+          const notes = getNotesValue(sale);
+          return `
+            <tr class="sale-row" data-sale-id="${escapeHtml(sale.id)}" tabindex="0" title="Click to edit this sale">
+              <td class="sale-name">${escapeHtml(sale.fullName)}</td>
+              <td>${escapeHtml(sale.phone || '')}</td>
+              <td><span class="status-pill ${(sale.status || 'paid') === 'reserved' ? 'reserved' : 'paid'}">${(sale.status || 'paid') === 'reserved' ? 'Reserved' : 'Paid'}</span></td>
+              <td><span class="kapparah-pill">${sale.quantity}</span></td>
+              <td class="note-cell" title="${escapeHtml(notes)}">${escapeHtml(notes)}</td>
+              <td>${sale.geschlagen ? '<span class="status-pill geschlagen">געשלאגן</span>' : ''}</td>
+            </tr>`;
+        }).join('');
 
       wrap.innerHTML = `
-        <table>
-          <thead><tr><th>Full name</th><th>Phone</th><th>Status</th><th>כפרה</th></tr></thead>
+        <table class="sales-table">
+          <colgroup><col style="width:20%"><col style="width:15%"><col style="width:13%"><col style="width:10%"><col style="width:27%"><col style="width:15%"></colgroup>
+          <thead><tr><th>Full name</th><th>Phone</th><th>Status</th><th>כפרה</th><th>Notes</th><th>געשלאגן</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>`;
     }
@@ -1378,24 +1463,25 @@
     function renderReports() {
       const groups = {};
       state.settings.paymentMethods.forEach(method => {
-        groups[method.id] = { label: method.label, count: 0, money: 0 };
+        groups[method.id] = { id: method.id, label: method.label, count: 0, money: 0 };
       });
 
       state.sales.forEach(sale => {
         if (!groups[sale.paymentType]) {
-          groups[sale.paymentType] = { label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
+          groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
         }
         groups[sale.paymentType].count += 1;
-        groups[sale.paymentType].money += Number(sale.price || 0);
+        if (!isBanshakPayment(sale.paymentType)) groups[sale.paymentType].money += Number(sale.price || 0);
       });
 
       const groupValues = Object.values(groups);
+      const paidGroups = groupValues.filter(group => !isBanshakPayment(group.id));
       document.getElementById('salesCountGrid').innerHTML = groupValues.map(group => `
         <div class="stat-card">
           <div class="stat-label">${escapeHtml(group.label)} sales</div>
           <div class="stat-value">${group.count}</div>
         </div>`).join('');
-      document.getElementById('moneyTotalsGrid').innerHTML = groupValues.map(group => `
+      document.getElementById('moneyTotalsGrid').innerHTML = paidGroups.map(group => `
         <div class="stat-card">
           <div class="stat-label">${escapeHtml(group.label)} total</div>
           <div class="stat-value">${money(group.money)}</div>
@@ -1403,7 +1489,8 @@
 
       const paidSales = state.sales.filter(sale => (sale.status || 'paid') === 'paid');
       const reservedSales = state.sales.filter(sale => sale.status === 'reserved');
-      const needsSaved = paidSales.reduce((sum, sale) => sum + Number(sale.quantity || 0), 0);
+      const needsSaved = getNeedsSavedTotal();
+      const banshakTotal = state.sales.reduce((sum, sale) => isBanshakPayment(sale.paymentType) ? sum + Number(sale.quantity || 0) : sum, 0);
       document.getElementById('reportChickensLabel').textContent = state.settings.reportLabels.chickens;
       document.getElementById('reportPaidLabel').textContent = state.settings.reportLabels.paid;
       document.getElementById('reportReservedLabel').textContent = state.settings.reportLabels.reserved;
@@ -1412,9 +1499,11 @@
       document.getElementById('reportPaidTotal').textContent = paidSales.length;
       document.getElementById('reportReservedTotal').textContent = reservedSales.length;
       document.getElementById('reportSavedTotal').textContent = needsSaved;
+      document.getElementById('reportBanshakTotal').textContent = banshakTotal;
 
-      const subtotal = groupValues.reduce((sum, group) => sum + group.money, 0);
+      const subtotal = paidGroups.reduce((sum, group) => sum + group.money, 0);
       document.getElementById('subtotalMoney').textContent = money(subtotal);
+      updateHomeSummary();
     }
 
     function xmlEscape(value) {
@@ -1441,23 +1530,24 @@
     function exportSalesAndReports() {
       const groups = {};
       state.settings.paymentMethods.forEach(method => {
-        groups[method.id] = { label: method.label, count: 0, money: 0 };
+        groups[method.id] = { id: method.id, label: method.label, count: 0, money: 0 };
       });
       state.sales.forEach(sale => {
         if (!groups[sale.paymentType]) {
-          groups[sale.paymentType] = { label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
+          groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
         }
         groups[sale.paymentType].count += 1;
-        groups[sale.paymentType].money += Number(sale.price || 0);
+        if (!isBanshakPayment(sale.paymentType)) groups[sale.paymentType].money += Number(sale.price || 0);
       });
 
       const sold = getKapparosSold();
       const paidSales = state.sales.filter(sale => (sale.status || 'paid') === 'paid');
       const reservedSales = state.sales.filter(sale => sale.status === 'reserved');
-      const needsSaved = paidSales.reduce((sum, sale) => sum + Number(sale.quantity || 0), 0);
-      const totalMoney = state.sales.reduce((sum, sale) => sum + Number(sale.price || 0), 0);
+      const needsSaved = getNeedsSavedTotal();
+      const banshakTotal = state.sales.reduce((sum, sale) => isBanshakPayment(sale.paymentType) ? sum + Number(sale.quantity || 0) : sum, 0);
+      const totalMoney = state.sales.reduce((sum, sale) => isBanshakPayment(sale.paymentType) ? sum : sum + Number(sale.price || 0), 0);
       const salesRows = [
-        excelRow(['Created', 'Full name', 'Phone number', 'Status', 'כפרות', 'Price', 'Payment method', 'Payment details', ...state.settings.customFields.map(field => field.label)].map(value => ({ value, style: 'Header' }))),
+        excelRow(['Created', 'Full name', 'Phone number', 'Status', 'כפרות', 'Price', 'Payment method', 'Payment details', ...state.settings.customFields.map(field => field.label), 'געשלאגן'].map(value => ({ value, style: 'Header' }))),
         ...state.sales.map(sale => excelRow([
           sale.createdAt ? new Date(sale.createdAt).toLocaleString('en-US') : '',
           sale.fullName,
@@ -1467,7 +1557,8 @@
           { value: Number(sale.price || 0), type: 'Number', style: 'Currency' },
           getPaymentMethod(sale.paymentType)?.label || sale.paymentType,
           sale.otherDetails || '',
-          ...state.settings.customFields.map(field => sale.customFields?.[field.id] || '')
+          ...state.settings.customFields.map(field => sale.customFields?.[field.id] || ''),
+          sale.geschlagen ? 'Yes' : ''
         ]))
       ].join('');
 
@@ -1478,11 +1569,12 @@
         excelRow([state.settings.reportLabels.paid, { value: paidSales.length, type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.reserved, { value: reservedSales.length, type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.saved, { value: needsSaved, type: 'Number', style: 'Integer' }]),
+        excelRow(['בנש״ק כפרות (free)', { value: banshakTotal, type: 'Number', style: 'Integer' }]),
         excelRow(['Total sales', { value: state.sales.length, type: 'Number', style: 'Integer' }]),
         excelRow(['כפרות sold', { value: sold, type: 'Number', style: 'Integer' }]),
         excelRow(['Total כפרות inventory', { value: state.settings.inventory, type: 'Number', style: 'Integer' }]),
         excelRow(['כפרות available', { value: Math.max(0, state.settings.inventory - sold), type: 'Number', style: 'Integer' }]),
-        excelRow(['Total money', { value: totalMoney, type: 'Number', style: 'Currency' }]),
+        excelRow(['Subtotal (excluding בנש״ק)', { value: totalMoney, type: 'Number', style: 'Currency' }]),
         excelRow(['Exported', new Date().toLocaleString('en-US')]),
         '<Row/>',
         excelRow(['Payment method', 'Number of sales', 'Money total'].map(value => ({ value, style: 'Header' }))),
@@ -1559,6 +1651,7 @@
         deleteSaleBtn.hidden = false;
         fullNameInput.value = sale.fullName || '';
         phoneInput.value = sale.phone || '';
+        geschlagenInput.checked = Boolean(sale.geschlagen);
         saleStatus.value = sale.status || 'paid';
         quantityInput.value = sale.quantity || 1;
         priceInput.value = Number(sale.price || 0).toFixed(2);
@@ -1576,6 +1669,7 @@
         saleModalTitle.textContent = 'Add Sale';
         saveSaleBtn.textContent = 'Save Sale';
         deleteSaleBtn.hidden = true;
+        geschlagenInput.checked = false;
         saleStatus.value = 'paid';
         quantityInput.value = 1;
         priceInput.value = Number(state.settings.defaultPrice).toFixed(2);
@@ -1678,6 +1772,7 @@
       const price = Number(fd.get('price'));
       const selectedPaymentType = String(fd.get('paymentType') || '').trim();
       const otherPaymentDetails = String(fd.get('otherDetails') || '').trim();
+      const geschlagen = geschlagenInput.checked;
 
       if (!fullName || !phone || !['paid', 'reserved'].includes(status) || !Number.isFinite(qty) || qty < 1 || !Number.isFinite(price) || price < 0 || !selectedPaymentType) {
         showToast('Please fill out every required field');
@@ -1721,6 +1816,7 @@
           price,
           paymentType: selectedPaymentType,
           otherDetails: selectedMethodNeedsDetails ? otherPaymentDetails : '',
+          geschlagen,
           customFields: customFieldValues,
           updatedAt: new Date().toISOString()
         };
@@ -1742,6 +1838,7 @@
         price,
         paymentType: selectedPaymentType,
         otherDetails: selectedMethodNeedsDetails ? otherPaymentDetails : '',
+        geschlagen,
         customFields: customFieldValues
       };
 
@@ -1842,7 +1939,8 @@
       if (!websiteSettingsForm.reportValidity()) return;
       const title = settingTitle.value.trim();
       const subtitle = settingSubtitle.value.trim();
-      if (title === state.settings.title && subtitle === state.settings.subtitle) {
+      const showNeedsSavedOnHome = settingShowNeedsSaved.checked;
+      if (title === state.settings.title && subtitle === state.settings.subtitle && showNeedsSavedOnHome === Boolean(state.settings.showNeedsSavedOnHome)) {
         websiteSettingsMessage.style.color = '#7a7269';
         websiteSettingsMessage.textContent = 'No changes to save.';
         setSettingsEditMode('website', false);
@@ -1851,12 +1949,13 @@
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
       state.settings.title = title;
       state.settings.subtitle = subtitle;
+      state.settings.showNeedsSavedOnHome = showNeedsSavedOnHome;
       saveSettings();
       applySettingsToUi();
       websiteSettingsMessage.style.color = '#426447';
-      websiteSettingsMessage.textContent = 'Website settings saved.';
+      websiteSettingsMessage.textContent = 'Home Screen settings saved.';
       setSettingsEditMode('website', false);
-      showToast('Website settings saved');
+      showToast('Home Screen settings saved');
     });
 
     salesSettingsForm.addEventListener('submit', async e => {

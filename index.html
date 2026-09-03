@@ -218,8 +218,8 @@
     .table-head h2 { margin: 0; font-size: 20px; }
     .small-note { color: var(--muted); font-size: 13px; }
     .sales-search { width: 100%; justify-self: center; }
-    .table-add-sale { justify-self: start; min-height: 44px; }
-    .sales-summary { justify-self: end; text-align: right; }
+    .table-add-sale { justify-self: end; min-height: 44px; }
+    .sales-summary { justify-self: start; text-align: left; }
     .sales-summary-value { margin-top: 2px; color: var(--accent); font-size: 28px; font-weight: 900; line-height: 1; }
     .sales-search input {
       padding-left: 40px;
@@ -236,6 +236,12 @@
     }
     .sales-table-wrap { overflow-x: auto; }
     .sales-table { min-width: 860px; }
+    .sales-table th:nth-child(3),
+    .sales-table td:nth-child(3),
+    .sales-table th:nth-child(4),
+    .sales-table td:nth-child(4),
+    .sales-table th:nth-child(6),
+    .sales-table td:nth-child(6) { text-align: center; }
     th, td {
       text-align: left;
       padding: 16px 20px;
@@ -347,6 +353,7 @@
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
+      align-items: stretch;
       gap: 14px;
     }
     .stat-card {
@@ -355,6 +362,7 @@
       border-radius: 16px;
       padding: 18px;
       box-shadow: 0 9px 24px rgba(63, 44, 28, .07);
+      min-height: 94px;
     }
     .stat-label { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
     .stat-value { font-size: 28px; font-weight: 850; letter-spacing: -.02em; }
@@ -375,6 +383,7 @@
     .report-summary-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+      align-items: stretch;
       gap: 14px;
       margin-bottom: 22px;
     }
@@ -387,7 +396,7 @@
     }
     .report-summary-card .stat-label { color: rgba(255,255,255,.75); }
     .report-summary-card.available { background: var(--success); }
-    .report-summary-card.free { background: #765d8f; }
+    .report-summary-card.needs-save { background: #a33b2f; }
 
     .settings-panel { padding: 24px; }
     .settings-panel h2 { margin: 0 0 5px; font-size: 28px; }
@@ -430,6 +439,7 @@
     }
     .settings-section h3 { margin: 0 0 14px; font-size: 18px; }
     .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .report-settings-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: end; }
     .payment-methods-list { display: grid; gap: 10px; }
     .payment-method-row {
       display: grid;
@@ -673,16 +683,16 @@
     <section class="page active" id="salesPage">
       <div class="panel">
         <div class="table-head">
-          <button class="primary-btn table-add-sale" id="addSaleBtn">+ <span class="desktop-word">Add </span>Sale</button>
-          <div class="sales-search">
-            <label for="salesSearch" class="small-note">Search sales</label>
-            <input id="salesSearch" type="search" placeholder="Name, phone, payment, or details" autocomplete="off" />
-          </div>
           <div class="sales-summary">
             <h2 id="salesSummaryTitle">Sales</h2>
             <div class="small-note" id="salesSummarySubtitle">Names and amount of כפרה ordered</div>
             <div class="sales-summary-value" id="salesSummaryValue" hidden>0</div>
           </div>
+          <div class="sales-search">
+            <label for="salesSearch" class="small-note">Search sales</label>
+            <input id="salesSearch" type="search" placeholder="Name, phone, payment, or details" autocomplete="off" />
+          </div>
+          <button class="primary-btn table-add-sale" id="addSaleBtn">+ <span class="desktop-word">Add </span>Sale</button>
         </div>
         <div class="sales-table-wrap" id="salesTableWrap"></div>
       </div>
@@ -711,12 +721,12 @@
           <div class="stat-value" id="reportReservedTotal">0</div>
         </div>
         <div class="report-summary-card available">
-          <div class="stat-label" id="reportSavedLabel">Needs to Be Saved</div>
-          <div class="stat-value" id="reportSavedTotal">0</div>
+          <div class="stat-label" id="reportNeedsReservedLabel">Needs to Be Reserved</div>
+          <div class="stat-value" id="reportNeedsReservedTotal">0</div>
         </div>
-        <div class="report-summary-card free">
-          <div class="stat-label">בנש״ק כפרות (free)</div>
-          <div class="stat-value" id="reportBanshakTotal">0</div>
+        <div class="report-summary-card needs-save">
+          <div class="stat-label" id="reportNeedsSavedLabel">Needs to Be Saved</div>
+          <div class="stat-value" id="reportNeedsSavedTotal">0</div>
         </div>
       </div>
 
@@ -786,8 +796,19 @@
               </div>
               <label class="password-toggle field full">
                 <input type="checkbox" id="settingShowNeedsSaved" />
-                Show “Needs to Be Saved” on the Sales homepage
+                Show this total on the Sales homepage
               </label>
+              <div class="field">
+                <label for="settingHomeSummaryLabel">Homepage wording</label>
+                <input id="settingHomeSummaryLabel" required />
+              </div>
+              <div class="field">
+                <label for="settingHomeSummaryScope">Homepage number should count</label>
+                <select id="settingHomeSummaryScope" required>
+                  <option value="paid">Paid sales only</option>
+                  <option value="paid_reserved">Paid and Reserved sales</option>
+                </select>
+              </div>
             </div>
             <p class="settings-message" id="websiteSettingsMessage" role="alert"></p>
             <div class="settings-actions" data-settings-actions="website" hidden><button type="button" class="secondary-btn" data-cancel-settings="website">Cancel</button><button type="submit" class="primary-btn">Save Home Screen Settings</button></div>
@@ -869,11 +890,12 @@
             <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="reports">Edit</button>
           </div>
           <form id="reportSettingsForm">
-            <div class="settings-grid">
+            <div class="settings-grid report-settings-grid">
               <div class="field"><label for="settingReportChickensLabel">Chicken inventory box</label><input id="settingReportChickensLabel" required /></div>
               <div class="field"><label for="settingReportPaidLabel">Paid orders box</label><input id="settingReportPaidLabel" required /></div>
               <div class="field"><label for="settingReportReservedLabel">Reserved orders box</label><input id="settingReportReservedLabel" required /></div>
-              <div class="field"><label for="settingReportSavedLabel">Chickens to save box</label><input id="settingReportSavedLabel" required /></div>
+              <div class="field"><label for="settingReportNeedsReservedLabel">Needs reserved box</label><input id="settingReportNeedsReservedLabel" required /></div>
+              <div class="field"><label for="settingReportNeedsSavedLabel">Needs saved box</label><input id="settingReportNeedsSavedLabel" required /></div>
             </div>
             <p class="settings-message" id="reportSettingsMessage" role="alert"></p>
             <div class="settings-actions" data-settings-actions="reports" hidden><button type="button" class="secondary-btn" data-cancel-settings="reports">Cancel</button><button type="submit" class="primary-btn">Save Report Settings</button></div>
@@ -984,6 +1006,8 @@
       title: 'פנים מאירות סיקסא',
       subtitle: 'כפרות',
       showNeedsSavedOnHome: false,
+      homeSummaryLabel: 'Needs to Be Saved',
+      homeSummaryScope: 'paid',
       defaultPrice: 23,
       inventory: 100,
       username: 'admin',
@@ -993,7 +1017,8 @@
         chickens: 'Amount of Chickens',
         paid: 'Amount of Paid',
         reserved: 'Amount of Reserved',
-        saved: 'Needs to Be Saved'
+        needsReserved: 'Needs to Be Reserved',
+        needsSaved: 'Needs to Be Saved'
       },
       paymentMethods: [
         { id: 'cash', label: 'Cash' },
@@ -1053,6 +1078,8 @@
     const settingTitle = document.getElementById('settingTitle');
     const settingSubtitle = document.getElementById('settingSubtitle');
     const settingShowNeedsSaved = document.getElementById('settingShowNeedsSaved');
+    const settingHomeSummaryLabel = document.getElementById('settingHomeSummaryLabel');
+    const settingHomeSummaryScope = document.getElementById('settingHomeSummaryScope');
     const settingDefaultPrice = document.getElementById('settingDefaultPrice');
     const settingInventory = document.getElementById('settingInventory');
     const settingUsername = document.getElementById('settingUsername');
@@ -1063,7 +1090,8 @@
     const settingReportChickensLabel = document.getElementById('settingReportChickensLabel');
     const settingReportPaidLabel = document.getElementById('settingReportPaidLabel');
     const settingReportReservedLabel = document.getElementById('settingReportReservedLabel');
-    const settingReportSavedLabel = document.getElementById('settingReportSavedLabel');
+    const settingReportNeedsReservedLabel = document.getElementById('settingReportNeedsReservedLabel');
+    const settingReportNeedsSavedLabel = document.getElementById('settingReportNeedsSavedLabel');
     const paymentMethodsList = document.getElementById('paymentMethodsList');
     const addPaymentMethodBtn = document.getElementById('addPaymentMethodBtn');
     const customFieldsList = document.getElementById('customFieldsList');
@@ -1140,6 +1168,7 @@
         const savedCustomFields = Array.isArray(saved.customFields)
           ? saved.customFields.filter(field => field && field.id && field.label)
           : [];
+        const savedReportLabels = saved.reportLabels && typeof saved.reportLabels === 'object' ? saved.reportLabels : {};
         return {
           ...DEFAULT_SETTINGS,
           ...savedWithoutPassword,
@@ -1148,14 +1177,19 @@
           defaultPrice: Number.isFinite(Number(saved.defaultPrice)) ? Number(saved.defaultPrice) : DEFAULT_SETTINGS.defaultPrice,
           inventory: Number.isFinite(Number(saved.inventory)) ? Math.max(0, Math.floor(Number(saved.inventory))) : DEFAULT_SETTINGS.inventory,
           showNeedsSavedOnHome: Boolean(saved.showNeedsSavedOnHome),
+          homeSummaryLabel: typeof saved.homeSummaryLabel === 'string' && saved.homeSummaryLabel.trim() ? saved.homeSummaryLabel.trim() : DEFAULT_SETTINGS.homeSummaryLabel,
+          homeSummaryScope: saved.homeSummaryScope === 'paid_reserved' ? 'paid_reserved' : 'paid',
           customFields: savedCustomFields.map(field => ({
             id: String(field.id),
             label: String(field.label),
             required: Boolean(field.required)
           })),
           reportLabels: {
-            ...DEFAULT_SETTINGS.reportLabels,
-            ...(saved.reportLabels && typeof saved.reportLabels === 'object' ? saved.reportLabels : {})
+            chickens: savedReportLabels.chickens || DEFAULT_SETTINGS.reportLabels.chickens,
+            paid: savedReportLabels.paid || DEFAULT_SETTINGS.reportLabels.paid,
+            reserved: savedReportLabels.reserved || DEFAULT_SETTINGS.reportLabels.reserved,
+            needsReserved: savedReportLabels.needsReserved || DEFAULT_SETTINGS.reportLabels.needsReserved,
+            needsSaved: savedReportLabels.needsSaved || DEFAULT_SETTINGS.reportLabels.needsSaved
           },
           paymentMethods: savedMethods.length
             ? savedMethods.map(method => ({
@@ -1211,19 +1245,30 @@
       return notesField ? String(sale.customFields?.[notesField.id] || '') : '';
     }
 
-    function getNeedsSavedTotal() {
+    function getNeedsReservedTotal() {
       return state.sales.reduce((sum, sale) => {
         const isCountedStatus = ['paid', 'reserved'].includes(sale.status || 'paid');
         return isCountedStatus && !sale.geschlagen ? sum + Number(sale.quantity || 0) : sum;
       }, 0);
     }
 
+    function getNeedsSavedTotal() {
+      return state.sales.reduce((sum, sale) => {
+        const isPaid = (sale.status || 'paid') === 'paid';
+        return isPaid && !sale.geschlagen ? sum + Number(sale.quantity || 0) : sum;
+      }, 0);
+    }
+
+    function getHomeSummaryTotal() {
+      return state.settings.homeSummaryScope === 'paid_reserved' ? getNeedsReservedTotal() : getNeedsSavedTotal();
+    }
+
     function updateHomeSummary() {
       const showTotal = Boolean(state.settings.showNeedsSavedOnHome);
-      salesSummaryTitle.textContent = showTotal ? state.settings.reportLabels.saved : 'Sales';
+      salesSummaryTitle.textContent = showTotal ? state.settings.homeSummaryLabel : 'Sales';
       salesSummarySubtitle.hidden = showTotal;
       salesSummaryValue.hidden = !showTotal;
-      salesSummaryValue.textContent = getNeedsSavedTotal();
+      salesSummaryValue.textContent = getHomeSummaryTotal();
     }
 
     function money(n) {
@@ -1306,6 +1351,8 @@
       settingTitle.value = state.settings.title;
       settingSubtitle.value = state.settings.subtitle;
       settingShowNeedsSaved.checked = Boolean(state.settings.showNeedsSavedOnHome);
+      settingHomeSummaryLabel.value = state.settings.homeSummaryLabel;
+      settingHomeSummaryScope.value = state.settings.homeSummaryScope;
       settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
       settingInventory.value = state.settings.inventory;
       settingUsername.value = state.settings.username;
@@ -1316,7 +1363,8 @@
       settingReportChickensLabel.value = state.settings.reportLabels.chickens;
       settingReportPaidLabel.value = state.settings.reportLabels.paid;
       settingReportReservedLabel.value = state.settings.reportLabels.reserved;
-      settingReportSavedLabel.value = state.settings.reportLabels.saved;
+      settingReportNeedsReservedLabel.value = state.settings.reportLabels.needsReserved;
+      settingReportNeedsSavedLabel.value = state.settings.reportLabels.needsSaved;
       websiteSettingsMessage.textContent = '';
       salesSettingsMessage.textContent = '';
       loginSettingsMessage.textContent = '';
@@ -1361,6 +1409,8 @@
         settingTitle.value = state.settings.title;
         settingSubtitle.value = state.settings.subtitle;
         settingShowNeedsSaved.checked = Boolean(state.settings.showNeedsSavedOnHome);
+        settingHomeSummaryLabel.value = state.settings.homeSummaryLabel;
+        settingHomeSummaryScope.value = state.settings.homeSummaryScope;
         websiteSettingsMessage.textContent = '';
       }
       if (section === 'sales') {
@@ -1383,7 +1433,8 @@
         settingReportChickensLabel.value = state.settings.reportLabels.chickens;
         settingReportPaidLabel.value = state.settings.reportLabels.paid;
         settingReportReservedLabel.value = state.settings.reportLabels.reserved;
-        settingReportSavedLabel.value = state.settings.reportLabels.saved;
+        settingReportNeedsReservedLabel.value = state.settings.reportLabels.needsReserved;
+        settingReportNeedsSavedLabel.value = state.settings.reportLabels.needsSaved;
         reportSettingsMessage.textContent = '';
       }
     }
@@ -1485,21 +1536,26 @@
         <div class="stat-card">
           <div class="stat-label">${escapeHtml(group.label)} total</div>
           <div class="stat-value">${money(group.money)}</div>
-        </div>`).join('');
+        </div>`).join('') + `
+        <div class="stat-card">
+          <div class="stat-label">בנש״ק כפרות (free)</div>
+          <div class="stat-value">${state.sales.reduce((sum, sale) => isBanshakPayment(sale.paymentType) ? sum + Number(sale.quantity || 0) : sum, 0)}</div>
+        </div>`;
 
       const paidSales = state.sales.filter(sale => (sale.status || 'paid') === 'paid');
       const reservedSales = state.sales.filter(sale => sale.status === 'reserved');
+      const needsReserved = getNeedsReservedTotal();
       const needsSaved = getNeedsSavedTotal();
-      const banshakTotal = state.sales.reduce((sum, sale) => isBanshakPayment(sale.paymentType) ? sum + Number(sale.quantity || 0) : sum, 0);
       document.getElementById('reportChickensLabel').textContent = state.settings.reportLabels.chickens;
       document.getElementById('reportPaidLabel').textContent = state.settings.reportLabels.paid;
       document.getElementById('reportReservedLabel').textContent = state.settings.reportLabels.reserved;
-      document.getElementById('reportSavedLabel').textContent = state.settings.reportLabels.saved;
+      document.getElementById('reportNeedsReservedLabel').textContent = state.settings.reportLabels.needsReserved;
+      document.getElementById('reportNeedsSavedLabel').textContent = state.settings.reportLabels.needsSaved;
       document.getElementById('reportChickenTotal').textContent = state.settings.inventory;
       document.getElementById('reportPaidTotal').textContent = paidSales.length;
       document.getElementById('reportReservedTotal').textContent = reservedSales.length;
-      document.getElementById('reportSavedTotal').textContent = needsSaved;
-      document.getElementById('reportBanshakTotal').textContent = banshakTotal;
+      document.getElementById('reportNeedsReservedTotal').textContent = needsReserved;
+      document.getElementById('reportNeedsSavedTotal').textContent = needsSaved;
 
       const subtotal = paidGroups.reduce((sum, group) => sum + group.money, 0);
       document.getElementById('subtotalMoney').textContent = money(subtotal);
@@ -1543,6 +1599,7 @@
       const sold = getKapparosSold();
       const paidSales = state.sales.filter(sale => (sale.status || 'paid') === 'paid');
       const reservedSales = state.sales.filter(sale => sale.status === 'reserved');
+      const needsReserved = getNeedsReservedTotal();
       const needsSaved = getNeedsSavedTotal();
       const banshakTotal = state.sales.reduce((sum, sale) => isBanshakPayment(sale.paymentType) ? sum + Number(sale.quantity || 0) : sum, 0);
       const totalMoney = state.sales.reduce((sum, sale) => isBanshakPayment(sale.paymentType) ? sum : sum + Number(sale.price || 0), 0);
@@ -1568,7 +1625,8 @@
         excelRow([state.settings.reportLabels.chickens, { value: state.settings.inventory, type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.paid, { value: paidSales.length, type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.reserved, { value: reservedSales.length, type: 'Number', style: 'Integer' }]),
-        excelRow([state.settings.reportLabels.saved, { value: needsSaved, type: 'Number', style: 'Integer' }]),
+        excelRow([state.settings.reportLabels.needsReserved, { value: needsReserved, type: 'Number', style: 'Integer' }]),
+        excelRow([state.settings.reportLabels.needsSaved, { value: needsSaved, type: 'Number', style: 'Integer' }]),
         excelRow(['בנש״ק כפרות (free)', { value: banshakTotal, type: 'Number', style: 'Integer' }]),
         excelRow(['Total sales', { value: state.sales.length, type: 'Number', style: 'Integer' }]),
         excelRow(['כפרות sold', { value: sold, type: 'Number', style: 'Integer' }]),
@@ -1940,7 +1998,13 @@
       const title = settingTitle.value.trim();
       const subtitle = settingSubtitle.value.trim();
       const showNeedsSavedOnHome = settingShowNeedsSaved.checked;
-      if (title === state.settings.title && subtitle === state.settings.subtitle && showNeedsSavedOnHome === Boolean(state.settings.showNeedsSavedOnHome)) {
+      const homeSummaryLabel = settingHomeSummaryLabel.value.trim();
+      const homeSummaryScope = settingHomeSummaryScope.value === 'paid_reserved' ? 'paid_reserved' : 'paid';
+      if (title === state.settings.title
+        && subtitle === state.settings.subtitle
+        && showNeedsSavedOnHome === Boolean(state.settings.showNeedsSavedOnHome)
+        && homeSummaryLabel === state.settings.homeSummaryLabel
+        && homeSummaryScope === state.settings.homeSummaryScope) {
         websiteSettingsMessage.style.color = '#7a7269';
         websiteSettingsMessage.textContent = 'No changes to save.';
         setSettingsEditMode('website', false);
@@ -1950,6 +2014,8 @@
       state.settings.title = title;
       state.settings.subtitle = subtitle;
       state.settings.showNeedsSavedOnHome = showNeedsSavedOnHome;
+      state.settings.homeSummaryLabel = homeSummaryLabel;
+      state.settings.homeSummaryScope = homeSummaryScope;
       saveSettings();
       applySettingsToUi();
       websiteSettingsMessage.style.color = '#426447';
@@ -2075,7 +2141,8 @@
         chickens: settingReportChickensLabel.value.trim(),
         paid: settingReportPaidLabel.value.trim(),
         reserved: settingReportReservedLabel.value.trim(),
-        saved: settingReportSavedLabel.value.trim()
+        needsReserved: settingReportNeedsReservedLabel.value.trim(),
+        needsSaved: settingReportNeedsSavedLabel.value.trim()
       };
       if (JSON.stringify(nextLabels) === JSON.stringify(state.settings.reportLabels)) {
         reportSettingsMessage.style.color = '#7a7269';

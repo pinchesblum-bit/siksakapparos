@@ -1025,6 +1025,10 @@
     const STORAGE_KEY = 'kapparosSalesV1';
     const SETTINGS_KEY = 'kapparosSettingsV1';
     const LOGIN_SESSION_KEY = 'kapparosLoggedInV1';
+    const CLOUD_MIGRATION_KEY = 'kapparosCloudMigratedV1';
+    const CLOUD_API = 'https://tugsxxafeaqbqonrruqt.supabase.co/functions/v1/kapparos-sync';
+    let cloudSessionToken = sessionStorage.getItem(LOGIN_SESSION_KEY) || '';
+    let cloudSaveTimer = null;
     const CHANGE_CONFIRMATION = 'ביסטו זיכער אז דו ווילסט מאכן דעם טויש?';
     const DELETE_CONFIRMATION = 'דו ביסט באקאנט אז די נאמען גייט יעצט ווערן אינגאנצן אויסגעמעקט?';
     const DEFAULT_SETTINGS = {
@@ -1144,8 +1148,9 @@
     const confirmNoBtn = document.getElementById('confirmNoBtn');
     const confirmYesBtn = document.getElementById('confirmYesBtn');
 
-    function unlockWebsite() {
-      sessionStorage.setItem(LOGIN_SESSION_KEY, 'true');
+    function unlockWebsite(token = cloudSessionToken) {
+      cloudSessionToken = token || cloudSessionToken;
+      if (cloudSessionToken) sessionStorage.setItem(LOGIN_SESSION_KEY, cloudSessionToken);
       loginGate.hidden = true;
       appShell.classList.remove('locked');
       appShell.setAttribute('aria-hidden', 'false');
@@ -1155,6 +1160,7 @@
     }
 
     function lockWebsite() {
+      cloudSessionToken = '';
       sessionStorage.removeItem(LOGIN_SESSION_KEY);
       loginGate.hidden = false;
       appShell.classList.add('locked');
@@ -1255,13 +1261,60 @@
       }
     }
 
+    async function cloudRequest(action, payload = {}, token = cloudSessionToken) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const response = await fetch(CLOUD_API, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action, ...payload })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(data.error || 'The online database is temporarily unavailable.');
+        error.status = response.status;
+        throw error;
+      }
+      return data;
+    }
+
+    function applyCloudState(data) {
+      state.sales = Array.isArray(data.sales) ? data.sales : [];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sales));
+      if (data.settings && typeof data.settings === 'object') {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(data.settings));
+        state.settings = loadSettings();
+      }
+      applySettingsToUi();
+      renderPaymentSelect();
+      renderPlannedPaymentSelect();
+      renderSales();
+      renderReports();
+    }
+
+    function queueCloudSave() {
+      if (!cloudSessionToken) return;
+      clearTimeout(cloudSaveTimer);
+      cloudSaveTimer = setTimeout(async () => {
+        const token = cloudSessionToken;
+        try {
+          await cloudRequest('save', { sales: state.sales, settings: state.settings }, token);
+        } catch (error) {
+          showToast(error.message);
+          if (error.status === 401) lockWebsite();
+        }
+      }, 150);
+    }
+
     function saveSales() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sales));
+      queueCloudSave();
     }
 
     function saveSettings() {
       const { _legacyPassword, ...safeSettings } = state.settings;
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(safeSettings));
+      queueCloudSave();
     }
 
     async function hashPassword(password) {
@@ -2342,14 +2395,6 @@
         settingCurrentPassword.focus();
         return;
       }
-      const currentHash = await hashPassword(settingCurrentPassword.value);
-      const currentPasswordMatches = currentHash === state.settings.passwordHash || settingCurrentPassword.value === state.settings._legacyPassword;
-      if (!currentPasswordMatches) {
-        loginSettingsMessage.style.color = '#9d2f25';
-        loginSettingsMessage.textContent = 'The current password is incorrect.';
-        settingCurrentPassword.focus();
-        return;
-      }
       if (wantsPasswordChange && settingPassword.value !== settingConfirmPassword.value) {
         loginSettingsMessage.style.color = '#9d2f25';
         loginSettingsMessage.textContent = 'The two new passwords do not match.';
@@ -2357,17 +2402,25 @@
         return;
       }
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
-      state.settings.username = nextUsername;
-      if (settingPassword.value) state.settings.passwordHash = await hashPassword(settingPassword.value);
-      delete state.settings._legacyPassword;
-      saveSettings();
-      settingPassword.value = '';
-      settingCurrentPassword.value = '';
-      settingConfirmPassword.value = '';
-      loginSettingsMessage.style.color = '#426447';
-      loginSettingsMessage.textContent = 'Login settings saved.';
-      setSettingsEditMode('login', false);
-      showToast('Login settings saved');
+      try {
+        const data = await cloudRequest('credentials', {
+          username: nextUsername,
+          currentPassword: settingCurrentPassword.value,
+          newPassword: settingPassword.value
+        });
+        applyCloudState(data);
+        settingPassword.value = '';
+        settingCurrentPassword.value = '';
+        settingConfirmPassword.value = '';
+        loginSettingsMessage.style.color = '#426447';
+        loginSettingsMessage.textContent = 'Login settings saved.';
+        setSettingsEditMode('login', false);
+        showToast('Login settings saved');
+      } catch (error) {
+        loginSettingsMessage.style.color = '#9d2f25';
+        loginSettingsMessage.textContent = error.message;
+        settingCurrentPassword.focus();
+      }
     });
 
     reportSettingsForm.addEventListener('submit', async e => {
@@ -2422,23 +2475,33 @@
 
     loginForm.addEventListener('submit', async e => {
       e.preventDefault();
-      const enteredPasswordHash = await hashPassword(loginPassword.value);
-      const passwordMatches = enteredPasswordHash === state.settings.passwordHash || loginPassword.value === state.settings._legacyPassword;
-      if (loginUsername.value.trim() === state.settings.username && passwordMatches) {
-        if (state.settings._legacyPassword) {
-          state.settings.passwordHash = enteredPasswordHash;
-          delete state.settings._legacyPassword;
-          saveSettings();
-        }
-        unlockWebsite();
-        return;
+      loginError.textContent = 'Connecting…';
+      try {
+        const importLocal = localStorage.getItem(CLOUD_MIGRATION_KEY) !== 'true';
+        const data = await cloudRequest('login', {
+          username: loginUsername.value.trim(),
+          password: loginPassword.value,
+          importLocal,
+          localSales: importLocal ? state.sales : [],
+          localSettings: importLocal ? state.settings : {}
+        }, '');
+        localStorage.setItem(CLOUD_MIGRATION_KEY, 'true');
+        applyCloudState(data);
+        unlockWebsite(data.token);
+      } catch (error) {
+        loginError.textContent = error.message;
+        loginPassword.value = '';
+        loginPassword.focus();
       }
-      loginError.textContent = 'Incorrect username or password.';
-      loginPassword.value = '';
-      loginPassword.focus();
     });
 
-    logoutBtn.addEventListener('click', lockWebsite);
+    logoutBtn.addEventListener('click', async () => {
+      const token = cloudSessionToken;
+      lockWebsite();
+      if (token) {
+        try { await cloudRequest('logout', {}, token); } catch {}
+      }
+    });
 
     applySettingsToUi();
     renderPaymentSelect();
@@ -2451,11 +2514,21 @@
         renderReports();
       }
     }, 60000);
-    if (sessionStorage.getItem(LOGIN_SESSION_KEY) === 'true') {
-      unlockWebsite();
-    } else {
-      lockWebsite();
+
+    async function initializeCloudSession() {
+      if (!cloudSessionToken) {
+        lockWebsite();
+        return;
+      }
+      try {
+        const data = await cloudRequest('get');
+        applyCloudState(data);
+        unlockWebsite();
+      } catch {
+        lockWebsite();
+      }
     }
+    initializeCloudSession();
   </script>
 </body>
 </html>

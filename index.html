@@ -79,7 +79,7 @@
       max-width: 1180px;
       margin: 0 auto;
       padding: 28px 24px 48px;
-      transition: transform .22s ease;
+      transition: margin .22s ease, max-width .22s ease;
     }
 
     .topbar {
@@ -211,7 +211,7 @@
     .table-head {
       display: grid;
       grid-template-columns: 1fr minmax(280px, 360px) 1fr;
-      align-items: center;
+      align-items: end;
       gap: 16px;
       padding: 18px 20px;
       border-bottom: 1px solid var(--line);
@@ -250,6 +250,18 @@
     tbody tr:hover { background: #fffaf2; }
     tbody tr.sale-row { cursor: pointer; }
     tbody tr.sale-row:focus { outline: 3px solid rgba(157,119,90,.20); outline-offset: -3px; }
+    .sale-name { font-weight: 850; }
+    .status-pill {
+      display: inline-flex;
+      justify-content: center;
+      min-width: 82px;
+      padding: 7px 11px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .status-pill.paid { color: #285c35; background: #dceddf; }
+    .status-pill.reserved { color: #80581e; background: #f6e8c8; }
     .required-mark { color: #a33b2f; }
     .danger-btn {
       border: 1px solid #c95b4f;
@@ -332,7 +344,7 @@
 
     .report-summary-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 14px;
       margin-bottom: 22px;
     }
@@ -368,7 +380,8 @@
     .settings-card:hover { border-color: #c9ad92; background: #fffaf2; }
     .settings-card-title { display: block; margin-bottom: 7px; color: var(--accent); font-size: 18px; font-weight: 850; }
     .settings-card-note { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
-    .settings-view-head { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+    .settings-view-head { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 20px; }
+    .settings-view-head h3 { flex: 1; }
     .page-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
     .settings-view-head h3 { margin: 0; font-size: 23px; }
     .back-settings-btn {
@@ -420,7 +433,20 @@
     }
     .remove-method-btn:disabled { opacity: .45; cursor: not-allowed; }
     .settings-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 20px; }
+    .settings-actions[hidden] { display: none; }
     .settings-message { min-height: 20px; margin: 12px 0 0; color: #9d2f25; font-size: 13px; }
+    .edit-settings-btn { display: inline-flex; align-items: center; gap: 8px; }
+    .edit-settings-btn::before { content: '✎'; font-size: 19px; line-height: 1; }
+    .settings-view input:disabled,
+    .settings-view select:disabled {
+      opacity: 1;
+      color: var(--ink);
+      background: #fbf8f2;
+      border-color: #e9e1d6;
+      cursor: default;
+    }
+    .password-toggle { display: flex; align-items: center; gap: 9px; margin-top: 14px; font-weight: 700; }
+    .password-toggle input { width: auto; }
 
     .confirm-modal { width: min(460px, 100%); text-align: center; }
     .confirm-message { margin: 4px 0 24px; font-size: 21px; line-height: 1.55; font-weight: 750; direction: rtl; }
@@ -481,6 +507,7 @@
       padding: 12px 13px;
       outline: none;
       color: var(--ink);
+      min-height: 44px;
     }
     input:focus, select:focus {
       border-color: #9d775a;
@@ -496,6 +523,7 @@
       pointer-events: none;
     }
     .price-wrap input { padding-left: 30px; }
+    #quantity, #price { height: 44px; min-height: 44px; }
     .helper { font-size: 12px; color: var(--muted); }
     .other-details { display: none; }
     .other-details.show { display: grid; }
@@ -555,7 +583,11 @@
       .top-actions .desktop-word { display: none; }
     }
     @media (min-width: 1050px) {
-      body.menu-open .app-shell { transform: translateX(125px); }
+      body.menu-open .app-shell {
+        margin-left: 250px;
+        margin-right: 0;
+        max-width: calc(100% - 250px);
+      }
     }
   </style>
 </head>
@@ -640,16 +672,20 @@
 
       <div class="report-summary-grid">
         <div class="report-summary-card">
-          <div class="stat-label">Total sales</div>
-          <div class="stat-value" id="reportSaleTotal">0</div>
+          <div class="stat-label" id="reportChickensLabel">Amount of Chickens</div>
+          <div class="stat-value" id="reportChickenTotal">0</div>
         </div>
         <div class="report-summary-card">
-          <div class="stat-label">כפרות sold</div>
-          <div class="stat-value" id="reportKapparahTotal">0</div>
+          <div class="stat-label" id="reportPaidLabel">Amount of Paid</div>
+          <div class="stat-value" id="reportPaidTotal">0</div>
+        </div>
+        <div class="report-summary-card">
+          <div class="stat-label" id="reportReservedLabel">Amount of Reserved</div>
+          <div class="stat-value" id="reportReservedTotal">0</div>
         </div>
         <div class="report-summary-card available">
-          <div class="stat-label">כפרות available</div>
-          <div class="stat-value" id="reportAvailableTotal">0</div>
+          <div class="stat-label" id="reportSavedLabel">Needs to Be Saved</div>
+          <div class="stat-value" id="reportSavedTotal">0</div>
         </div>
       </div>
 
@@ -689,6 +725,10 @@
               <span class="settings-card-title">Login Settings</span>
               <span class="settings-card-note">Change the username and password.</span>
             </button>
+            <button type="button" class="settings-card" data-settings-open="reports">
+              <span class="settings-card-title">Report Settings</span>
+              <span class="settings-card-note">Edit the names of all four report boxes.</span>
+            </button>
             <button type="button" class="settings-card" data-settings-open="export">
               <span class="settings-card-title">Export Data</span>
               <span class="settings-card-note">Download sales and reports for Excel.</span>
@@ -701,6 +741,7 @@
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
             <h3>Website Settings</h3>
             <button type="button" class="secondary-btn" data-go-sales>Back to Sales</button>
+            <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="website">Edit</button>
           </div>
           <form id="websiteSettingsForm">
             <div class="settings-grid">
@@ -714,7 +755,7 @@
               </div>
             </div>
             <p class="settings-message" id="websiteSettingsMessage" role="alert"></p>
-            <div class="settings-actions"><span></span><button type="submit" class="primary-btn">Save Website Settings</button></div>
+            <div class="settings-actions" data-settings-actions="website" hidden><button type="button" class="secondary-btn" data-cancel-settings="website">Cancel</button><button type="submit" class="primary-btn">Save Website Settings</button></div>
           </form>
         </div>
 
@@ -723,6 +764,7 @@
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
             <h3>Sales Settings</h3>
             <button type="button" class="secondary-btn" data-go-sales>Back to Sales</button>
+            <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="sales">Edit</button>
           </div>
           <form id="salesSettingsForm">
             <div class="settings-grid">
@@ -748,7 +790,7 @@
               <button type="button" class="secondary-btn" id="addCustomFieldBtn">+ Add sale field</button>
             </div>
             <p class="settings-message" id="salesSettingsMessage" role="alert"></p>
-            <div class="settings-actions"><span></span><button type="submit" class="primary-btn">Save Sales Settings</button></div>
+            <div class="settings-actions" data-settings-actions="sales" hidden><button type="button" class="secondary-btn" data-cancel-settings="sales">Cancel</button><button type="submit" class="primary-btn">Save Sales Settings</button></div>
           </form>
         </div>
 
@@ -757,9 +799,14 @@
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
             <h3>Login Settings</h3>
             <button type="button" class="secondary-btn" data-go-sales>Back to Sales</button>
+            <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="login">Edit</button>
           </div>
           <form id="loginSettingsForm">
             <div class="settings-grid">
+              <div class="field">
+                <label for="settingCurrentPassword">Current password</label>
+                <input id="settingCurrentPassword" type="password" autocomplete="current-password" placeholder="Required to make changes" />
+              </div>
               <div class="field">
                 <label for="settingUsername">Username</label>
                 <input id="settingUsername" autocomplete="username" required />
@@ -768,9 +815,33 @@
                 <label for="settingPassword">New password</label>
                 <input id="settingPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Leave blank to keep current password" />
               </div>
+              <div class="field">
+                <label for="settingConfirmPassword">Enter new password again</label>
+                <input id="settingConfirmPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Repeat the new password" />
+              </div>
             </div>
+            <label class="password-toggle"><input type="checkbox" id="showSettingsPasswords" /> Show passwords</label>
             <p class="settings-message" id="loginSettingsMessage" role="alert"></p>
-            <div class="settings-actions"><span></span><button type="submit" class="primary-btn">Save Login Settings</button></div>
+            <div class="settings-actions" data-settings-actions="login" hidden><button type="button" class="secondary-btn" data-cancel-settings="login">Cancel</button><button type="submit" class="primary-btn">Save Login Settings</button></div>
+          </form>
+        </div>
+
+        <div class="settings-view" data-settings-view="reports" hidden>
+          <div class="settings-view-head">
+            <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
+            <h3>Report Settings</h3>
+            <button type="button" class="secondary-btn" data-go-sales>Back to Sales</button>
+            <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="reports">Edit</button>
+          </div>
+          <form id="reportSettingsForm">
+            <div class="settings-grid">
+              <div class="field"><label for="settingReportChickensLabel">Chicken inventory box</label><input id="settingReportChickensLabel" required /></div>
+              <div class="field"><label for="settingReportPaidLabel">Paid orders box</label><input id="settingReportPaidLabel" required /></div>
+              <div class="field"><label for="settingReportReservedLabel">Reserved orders box</label><input id="settingReportReservedLabel" required /></div>
+              <div class="field"><label for="settingReportSavedLabel">Chickens to save box</label><input id="settingReportSavedLabel" required /></div>
+            </div>
+            <p class="settings-message" id="reportSettingsMessage" role="alert"></p>
+            <div class="settings-actions" data-settings-actions="reports" hidden><button type="button" class="secondary-btn" data-cancel-settings="reports">Cancel</button><button type="submit" class="primary-btn">Save Report Settings</button></div>
           </form>
         </div>
 
@@ -806,6 +877,14 @@
             <label for="phone">Phone number <span class="required-mark">*</span></label>
             <input id="phone" name="phone" inputmode="numeric" autocomplete="tel" pattern="[0-9]{10}" maxlength="10" required />
             <div class="helper">Enter exactly 10 digits.</div>
+          </div>
+
+          <div class="field full">
+            <label for="saleStatus">Status <span class="required-mark">*</span></label>
+            <select id="saleStatus" name="status" required>
+              <option value="paid">Paid</option>
+              <option value="reserved">Reserved</option>
+            </select>
           </div>
 
           <div class="field">
@@ -871,6 +950,12 @@
       username: 'admin',
       passwordHash: '2a00ac564b31afd7eaab2c9e59f81e386dc6ad673c8f8d000e6de3d37f9a3a94',
       customFields: [],
+      reportLabels: {
+        chickens: 'Amount of Chickens',
+        paid: 'Amount of Paid',
+        reserved: 'Amount of Reserved',
+        saved: 'Needs to Be Saved'
+      },
       paymentMethods: [
         { id: 'cash', label: 'Cash' },
         { id: 'credit', label: 'Credit card' },
@@ -904,6 +989,7 @@
     const quantityInput = document.getElementById('quantity');
     const priceInput = document.getElementById('price');
     const paymentType = document.getElementById('paymentType');
+    const saleStatus = document.getElementById('saleStatus');
     const otherDetailsWrap = document.getElementById('otherDetailsWrap');
     const otherDetails = document.getElementById('otherDetails');
     const toast = document.getElementById('toast');
@@ -921,12 +1007,20 @@
     const websiteSettingsForm = document.getElementById('websiteSettingsForm');
     const salesSettingsForm = document.getElementById('salesSettingsForm');
     const loginSettingsForm = document.getElementById('loginSettingsForm');
+    const reportSettingsForm = document.getElementById('reportSettingsForm');
     const settingTitle = document.getElementById('settingTitle');
     const settingSubtitle = document.getElementById('settingSubtitle');
     const settingDefaultPrice = document.getElementById('settingDefaultPrice');
     const settingInventory = document.getElementById('settingInventory');
     const settingUsername = document.getElementById('settingUsername');
+    const settingCurrentPassword = document.getElementById('settingCurrentPassword');
     const settingPassword = document.getElementById('settingPassword');
+    const settingConfirmPassword = document.getElementById('settingConfirmPassword');
+    const showSettingsPasswords = document.getElementById('showSettingsPasswords');
+    const settingReportChickensLabel = document.getElementById('settingReportChickensLabel');
+    const settingReportPaidLabel = document.getElementById('settingReportPaidLabel');
+    const settingReportReservedLabel = document.getElementById('settingReportReservedLabel');
+    const settingReportSavedLabel = document.getElementById('settingReportSavedLabel');
     const paymentMethodsList = document.getElementById('paymentMethodsList');
     const addPaymentMethodBtn = document.getElementById('addPaymentMethodBtn');
     const customFieldsList = document.getElementById('customFieldsList');
@@ -936,6 +1030,7 @@
     const websiteSettingsMessage = document.getElementById('websiteSettingsMessage');
     const salesSettingsMessage = document.getElementById('salesSettingsMessage');
     const loginSettingsMessage = document.getElementById('loginSettingsMessage');
+    const reportSettingsMessage = document.getElementById('reportSettingsMessage');
     const confirmModal = document.getElementById('confirmModal');
     const confirmMessage = document.getElementById('confirmMessage');
     const confirmNoBtn = document.getElementById('confirmNoBtn');
@@ -1013,6 +1108,10 @@
             label: String(field.label),
             required: Boolean(field.required)
           })),
+          reportLabels: {
+            ...DEFAULT_SETTINGS.reportLabels,
+            ...(saved.reportLabels && typeof saved.reportLabels === 'object' ? saved.reportLabels : {})
+          },
           paymentMethods: savedMethods.length
             ? savedMethods.map(method => ({
                 id: String(method.id),
@@ -1088,6 +1187,7 @@
 
     let settingsDraftMethods = [];
     let settingsDraftFields = [];
+    const settingsEditMode = { website: false, sales: false, login: false, reports: false };
 
     function renderPaymentMethodsEditor() {
       paymentMethodsList.innerHTML = settingsDraftMethods.map((method, index) => {
@@ -1096,9 +1196,9 @@
           <div class="payment-method-row" data-method-id="${escapeHtml(method.id)}">
             <div class="field">
               <label for="paymentMethod${index}">Payment method name</label>
-              <input id="paymentMethod${index}" class="payment-method-name" value="${escapeHtml(method.label)}" required />
+              <input id="paymentMethod${index}" class="payment-method-name" value="${escapeHtml(method.label)}" required ${settingsEditMode.sales ? '' : 'disabled'} />
             </div>
-            <button type="button" class="remove-method-btn" data-remove-method="${escapeHtml(method.id)}" ${used ? 'disabled title="This method is used by an existing sale"' : ''}>Remove</button>
+            <button type="button" class="remove-method-btn" data-remove-method="${escapeHtml(method.id)}" ${used || !settingsEditMode.sales ? 'disabled' : ''} ${used ? 'title="This method is used by an existing sale"' : ''}>Remove</button>
           </div>`;
       }).join('');
     }
@@ -1108,12 +1208,12 @@
         <div class="custom-field-row" data-field-id="${escapeHtml(field.id)}">
           <div class="field">
             <label for="customField${index}">Field name</label>
-            <input id="customField${index}" class="custom-field-name" value="${escapeHtml(field.label)}" required />
+            <input id="customField${index}" class="custom-field-name" value="${escapeHtml(field.label)}" required ${settingsEditMode.sales ? '' : 'disabled'} />
           </div>
           <label class="required-toggle">
-            <input type="checkbox" class="custom-field-required" ${field.required ? 'checked' : ''} /> Required
+            <input type="checkbox" class="custom-field-required" ${field.required ? 'checked' : ''} ${settingsEditMode.sales ? '' : 'disabled'} /> Required
           </label>
-          <button type="button" class="remove-method-btn" data-remove-custom-field="${escapeHtml(field.id)}">Remove</button>
+          <button type="button" class="remove-method-btn" data-remove-custom-field="${escapeHtml(field.id)}" ${settingsEditMode.sales ? '' : 'disabled'}>Remove</button>
         </div>`).join('') : '<div class="small-note">No additional sale fields yet.</div>';
     }
 
@@ -1132,15 +1232,82 @@
       settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
       settingInventory.value = state.settings.inventory;
       settingUsername.value = state.settings.username;
+      settingCurrentPassword.value = '';
       settingPassword.value = '';
+      settingConfirmPassword.value = '';
+      showSettingsPasswords.checked = false;
+      settingReportChickensLabel.value = state.settings.reportLabels.chickens;
+      settingReportPaidLabel.value = state.settings.reportLabels.paid;
+      settingReportReservedLabel.value = state.settings.reportLabels.reserved;
+      settingReportSavedLabel.value = state.settings.reportLabels.saved;
       websiteSettingsMessage.textContent = '';
       salesSettingsMessage.textContent = '';
       loginSettingsMessage.textContent = '';
+      reportSettingsMessage.textContent = '';
       settingsDraftMethods = state.settings.paymentMethods.map(method => ({ ...method }));
       settingsDraftFields = state.settings.customFields.map(field => ({ ...field }));
       renderPaymentMethodsEditor();
       renderCustomFieldsEditor();
+      Object.keys(settingsEditMode).forEach(section => setSettingsEditMode(section, false));
       showSettingsHome();
+    }
+
+    function setSettingsEditMode(section, editing) {
+      settingsEditMode[section] = editing;
+      const form = {
+        website: websiteSettingsForm,
+        sales: salesSettingsForm,
+        login: loginSettingsForm,
+        reports: reportSettingsForm
+      }[section];
+      if (!form) return;
+      form.querySelectorAll('input, select, button').forEach(control => { control.disabled = !editing; });
+      document.querySelector(`[data-settings-actions="${section}"]`).hidden = !editing;
+      document.querySelector(`[data-edit-settings="${section}"]`).hidden = editing;
+      if (section === 'login' && !editing) {
+        settingCurrentPassword.value = '';
+        settingPassword.value = '';
+        settingConfirmPassword.value = '';
+        showSettingsPasswords.checked = false;
+        [settingCurrentPassword, settingPassword, settingConfirmPassword].forEach(input => { input.type = 'password'; });
+      }
+      if (section === 'sales') {
+        addPaymentMethodBtn.disabled = !editing;
+        addCustomFieldBtn.disabled = !editing;
+        renderPaymentMethodsEditor();
+        renderCustomFieldsEditor();
+      }
+    }
+
+    function resetSettingsSection(section) {
+      if (section === 'website') {
+        settingTitle.value = state.settings.title;
+        settingSubtitle.value = state.settings.subtitle;
+        websiteSettingsMessage.textContent = '';
+      }
+      if (section === 'sales') {
+        settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
+        settingInventory.value = state.settings.inventory;
+        settingsDraftMethods = state.settings.paymentMethods.map(method => ({ ...method }));
+        settingsDraftFields = state.settings.customFields.map(field => ({ ...field }));
+        salesSettingsMessage.textContent = '';
+      }
+      if (section === 'login') {
+        settingUsername.value = state.settings.username;
+        settingCurrentPassword.value = '';
+        settingPassword.value = '';
+        settingConfirmPassword.value = '';
+        showSettingsPasswords.checked = false;
+        [settingCurrentPassword, settingPassword, settingConfirmPassword].forEach(input => { input.type = 'password'; });
+        loginSettingsMessage.textContent = '';
+      }
+      if (section === 'reports') {
+        settingReportChickensLabel.value = state.settings.reportLabels.chickens;
+        settingReportPaidLabel.value = state.settings.reportLabels.paid;
+        settingReportReservedLabel.value = state.settings.reportLabels.reserved;
+        settingReportSavedLabel.value = state.settings.reportLabels.saved;
+        reportSettingsMessage.textContent = '';
+      }
     }
 
     function showSettingsHome() {
@@ -1153,6 +1320,10 @@
       settingsViews.forEach(view => {
         view.hidden = view.dataset.settingsView !== viewName;
       });
+      if (settingsEditMode[viewName] !== undefined) {
+        resetSettingsSection(viewName);
+        setSettingsEditMode(viewName, false);
+      }
     }
 
     function renderSales() {
@@ -1168,6 +1339,7 @@
             const searchableText = [
               sale.fullName,
               sale.phone,
+              sale.status || 'paid',
               sale.quantity,
               sale.price,
               sale.paymentType,
@@ -1189,14 +1361,16 @@
         .reverse()
         .map(sale => `
           <tr class="sale-row" data-sale-id="${escapeHtml(sale.id)}" tabindex="0" title="Click to edit this sale">
-            <td>${escapeHtml(sale.fullName)}</td>
+            <td class="sale-name">${escapeHtml(sale.fullName)}</td>
+            <td>${escapeHtml(sale.phone || '')}</td>
+            <td><span class="status-pill ${(sale.status || 'paid') === 'reserved' ? 'reserved' : 'paid'}">${(sale.status || 'paid') === 'reserved' ? 'Reserved' : 'Paid'}</span></td>
             <td><span class="kapparah-pill">${sale.quantity}</span></td>
           </tr>
         `).join('');
 
       wrap.innerHTML = `
         <table>
-          <thead><tr><th>Full name</th><th>כפרה</th></tr></thead>
+          <thead><tr><th>Full name</th><th>Phone</th><th>Status</th><th>כפרה</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>`;
     }
@@ -1227,12 +1401,17 @@
           <div class="stat-value">${money(group.money)}</div>
         </div>`).join('');
 
-      const saleTotal = state.sales.length;
-      const kapparahTotal = getKapparosSold();
-      const availableTotal = Math.max(0, state.settings.inventory - kapparahTotal);
-      document.getElementById('reportSaleTotal').textContent = saleTotal;
-      document.getElementById('reportKapparahTotal').textContent = kapparahTotal;
-      document.getElementById('reportAvailableTotal').textContent = availableTotal;
+      const paidSales = state.sales.filter(sale => (sale.status || 'paid') === 'paid');
+      const reservedSales = state.sales.filter(sale => sale.status === 'reserved');
+      const needsSaved = paidSales.reduce((sum, sale) => sum + Number(sale.quantity || 0), 0);
+      document.getElementById('reportChickensLabel').textContent = state.settings.reportLabels.chickens;
+      document.getElementById('reportPaidLabel').textContent = state.settings.reportLabels.paid;
+      document.getElementById('reportReservedLabel').textContent = state.settings.reportLabels.reserved;
+      document.getElementById('reportSavedLabel').textContent = state.settings.reportLabels.saved;
+      document.getElementById('reportChickenTotal').textContent = state.settings.inventory;
+      document.getElementById('reportPaidTotal').textContent = paidSales.length;
+      document.getElementById('reportReservedTotal').textContent = reservedSales.length;
+      document.getElementById('reportSavedTotal').textContent = needsSaved;
 
       const subtotal = groupValues.reduce((sum, group) => sum + group.money, 0);
       document.getElementById('subtotalMoney').textContent = money(subtotal);
@@ -1273,13 +1452,17 @@
       });
 
       const sold = getKapparosSold();
+      const paidSales = state.sales.filter(sale => (sale.status || 'paid') === 'paid');
+      const reservedSales = state.sales.filter(sale => sale.status === 'reserved');
+      const needsSaved = paidSales.reduce((sum, sale) => sum + Number(sale.quantity || 0), 0);
       const totalMoney = state.sales.reduce((sum, sale) => sum + Number(sale.price || 0), 0);
       const salesRows = [
-        excelRow(['Created', 'Full name', 'Phone number', 'כפרות', 'Price', 'Payment method', 'Payment details', ...state.settings.customFields.map(field => field.label)].map(value => ({ value, style: 'Header' }))),
+        excelRow(['Created', 'Full name', 'Phone number', 'Status', 'כפרות', 'Price', 'Payment method', 'Payment details', ...state.settings.customFields.map(field => field.label)].map(value => ({ value, style: 'Header' }))),
         ...state.sales.map(sale => excelRow([
           sale.createdAt ? new Date(sale.createdAt).toLocaleString('en-US') : '',
           sale.fullName,
           sale.phone,
+          (sale.status || 'paid') === 'reserved' ? 'Reserved' : 'Paid',
           { value: Number(sale.quantity || 0), type: 'Number', style: 'Integer' },
           { value: Number(sale.price || 0), type: 'Number', style: 'Currency' },
           getPaymentMethod(sale.paymentType)?.label || sale.paymentType,
@@ -1291,6 +1474,10 @@
       const reportRows = [
         excelRow([{ value: 'Report summary', style: 'Title' }]),
         excelRow([{ value: 'Metric', style: 'Header' }, { value: 'Value', style: 'Header' }]),
+        excelRow([state.settings.reportLabels.chickens, { value: state.settings.inventory, type: 'Number', style: 'Integer' }]),
+        excelRow([state.settings.reportLabels.paid, { value: paidSales.length, type: 'Number', style: 'Integer' }]),
+        excelRow([state.settings.reportLabels.reserved, { value: reservedSales.length, type: 'Number', style: 'Integer' }]),
+        excelRow([state.settings.reportLabels.saved, { value: needsSaved, type: 'Number', style: 'Integer' }]),
         excelRow(['Total sales', { value: state.sales.length, type: 'Number', style: 'Integer' }]),
         excelRow(['כפרות sold', { value: sold, type: 'Number', style: 'Integer' }]),
         excelRow(['Total כפרות inventory', { value: state.settings.inventory, type: 'Number', style: 'Integer' }]),
@@ -1320,7 +1507,7 @@
             <Style ss:ID="Integer"><NumberFormat ss:Format="#,##0"/></Style>
           </Styles>
           <Worksheet ss:Name="Sales"><Table>
-            <Column ss:Width="125"/><Column ss:Width="150"/><Column ss:Width="110"/><Column ss:Width="65"/><Column ss:Width="80"/><Column ss:Width="115"/><Column ss:Width="180"/>
+            <Column ss:Width="125"/><Column ss:Width="150"/><Column ss:Width="110"/><Column ss:Width="85"/><Column ss:Width="65"/><Column ss:Width="80"/><Column ss:Width="115"/><Column ss:Width="180"/>
             ${state.settings.customFields.map(() => '<Column ss:Width="140"/>').join('')}
             ${salesRows}
           </Table></Worksheet>
@@ -1372,6 +1559,7 @@
         deleteSaleBtn.hidden = false;
         fullNameInput.value = sale.fullName || '';
         phoneInput.value = sale.phone || '';
+        saleStatus.value = sale.status || 'paid';
         quantityInput.value = sale.quantity || 1;
         priceInput.value = Number(sale.price || 0).toFixed(2);
         renderPaymentSelect(sale.paymentType || '');
@@ -1388,6 +1576,7 @@
         saleModalTitle.textContent = 'Add Sale';
         saveSaleBtn.textContent = 'Save Sale';
         deleteSaleBtn.hidden = true;
+        saleStatus.value = 'paid';
         quantityInput.value = 1;
         priceInput.value = Number(state.settings.defaultPrice).toFixed(2);
         renderPaymentSelect('');
@@ -1421,8 +1610,28 @@
     document.querySelectorAll('[data-settings-back]').forEach(btn => {
       btn.addEventListener('click', showSettingsHome);
     });
+    document.querySelectorAll('[data-edit-settings]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const section = btn.dataset.editSettings;
+        resetSettingsSection(section);
+        setSettingsEditMode(section, true);
+        ({ website: settingTitle, sales: settingDefaultPrice, login: settingCurrentPassword, reports: settingReportChickensLabel }[section])?.focus();
+      });
+    });
+    document.querySelectorAll('[data-cancel-settings]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const section = btn.dataset.cancelSettings;
+        resetSettingsSection(section);
+        setSettingsEditMode(section, false);
+      });
+    });
     document.querySelectorAll('[data-go-sales]').forEach(btn => {
       btn.addEventListener('click', () => showPage('sales'));
+    });
+
+    showSettingsPasswords.addEventListener('change', () => {
+      const type = showSettingsPasswords.checked ? 'text' : 'password';
+      [settingCurrentPassword, settingPassword, settingConfirmPassword].forEach(input => { input.type = type; });
     });
 
     confirmNoBtn.addEventListener('click', () => finishConfirmation(false));
@@ -1464,12 +1673,13 @@
       const fd = new FormData(saleForm);
       const fullName = String(fd.get('fullName') || '').trim();
       const phone = String(fd.get('phone') || '').replace(/\D/g, '');
+      const status = String(fd.get('status') || 'paid');
       const qty = Number(fd.get('quantity'));
       const price = Number(fd.get('price'));
       const selectedPaymentType = String(fd.get('paymentType') || '').trim();
       const otherPaymentDetails = String(fd.get('otherDetails') || '').trim();
 
-      if (!fullName || !phone || !Number.isFinite(qty) || qty < 1 || !Number.isFinite(price) || price < 0 || !selectedPaymentType) {
+      if (!fullName || !phone || !['paid', 'reserved'].includes(status) || !Number.isFinite(qty) || qty < 1 || !Number.isFinite(price) || price < 0 || !selectedPaymentType) {
         showToast('Please fill out every required field');
         return;
       }
@@ -1506,6 +1716,7 @@
           ...state.sales[index],
           fullName,
           phone,
+          status,
           quantity: qty,
           price,
           paymentType: selectedPaymentType,
@@ -1526,6 +1737,7 @@
         createdAt: new Date().toISOString(),
         fullName,
         phone,
+        status,
         quantity: qty,
         price,
         paymentType: selectedPaymentType,
@@ -1609,7 +1821,7 @@
 
     customFieldsList.addEventListener('click', async e => {
       const button = e.target.closest('[data-remove-custom-field]');
-      if (!button) return;
+      if (!button || button.disabled) return;
       if (!(await askConfirmation(DELETE_CONFIRMATION))) return;
       settingsDraftFields = settingsDraftFields.filter(field => field.id !== button.dataset.removeCustomField);
       renderCustomFieldsEditor();
@@ -1628,13 +1840,22 @@
     websiteSettingsForm.addEventListener('submit', async e => {
       e.preventDefault();
       if (!websiteSettingsForm.reportValidity()) return;
+      const title = settingTitle.value.trim();
+      const subtitle = settingSubtitle.value.trim();
+      if (title === state.settings.title && subtitle === state.settings.subtitle) {
+        websiteSettingsMessage.style.color = '#7a7269';
+        websiteSettingsMessage.textContent = 'No changes to save.';
+        setSettingsEditMode('website', false);
+        return;
+      }
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
-      state.settings.title = settingTitle.value.trim();
-      state.settings.subtitle = settingSubtitle.value.trim();
+      state.settings.title = title;
+      state.settings.subtitle = subtitle;
       saveSettings();
       applySettingsToUi();
       websiteSettingsMessage.style.color = '#426447';
       websiteSettingsMessage.textContent = 'Website settings saved.';
+      setSettingsEditMode('website', false);
       showToast('Website settings saved');
     });
 
@@ -1674,11 +1895,23 @@
         salesSettingsMessage.textContent = 'Sale field names must be different.';
         return;
       }
+      const nextMethods = settingsDraftMethods.map((method, index) => ({ ...method, label: methodNames[index] }));
+      const nextFields = settingsDraftFields.map((field, index) => ({ ...field, label: fieldNames[index] }));
+      const salesChanged = defaultPrice !== Number(state.settings.defaultPrice)
+        || inventory !== Number(state.settings.inventory)
+        || JSON.stringify(nextMethods) !== JSON.stringify(state.settings.paymentMethods)
+        || JSON.stringify(nextFields) !== JSON.stringify(state.settings.customFields);
+      if (!salesChanged) {
+        salesSettingsMessage.style.color = '#7a7269';
+        salesSettingsMessage.textContent = 'No changes to save.';
+        setSettingsEditMode('sales', false);
+        return;
+      }
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
       state.settings.defaultPrice = defaultPrice;
       state.settings.inventory = inventory;
-      state.settings.paymentMethods = settingsDraftMethods.map((method, index) => ({ ...method, label: methodNames[index] }));
-      state.settings.customFields = settingsDraftFields.map((field, index) => ({ ...field, label: fieldNames[index] }));
+      state.settings.paymentMethods = nextMethods;
+      state.settings.customFields = nextFields;
       saveSettings();
       applySettingsToUi();
       renderPaymentSelect();
@@ -1686,21 +1919,79 @@
       renderReports();
       salesSettingsMessage.style.color = '#426447';
       salesSettingsMessage.textContent = 'Sales settings saved.';
+      setSettingsEditMode('sales', false);
       showToast('Sales settings saved');
     });
 
     loginSettingsForm.addEventListener('submit', async e => {
       e.preventDefault();
       if (!loginSettingsForm.reportValidity()) return;
+      const nextUsername = settingUsername.value.trim();
+      const wantsPasswordChange = Boolean(settingPassword.value || settingConfirmPassword.value);
+      const loginChanged = nextUsername !== state.settings.username || wantsPasswordChange;
+      if (!loginChanged) {
+        loginSettingsMessage.style.color = '#7a7269';
+        loginSettingsMessage.textContent = 'No changes to save.';
+        setSettingsEditMode('login', false);
+        return;
+      }
+      if (!settingCurrentPassword.value) {
+        loginSettingsMessage.style.color = '#9d2f25';
+        loginSettingsMessage.textContent = 'Enter the current password first.';
+        settingCurrentPassword.focus();
+        return;
+      }
+      const currentHash = await hashPassword(settingCurrentPassword.value);
+      const currentPasswordMatches = currentHash === state.settings.passwordHash || settingCurrentPassword.value === state.settings._legacyPassword;
+      if (!currentPasswordMatches) {
+        loginSettingsMessage.style.color = '#9d2f25';
+        loginSettingsMessage.textContent = 'The current password is incorrect.';
+        settingCurrentPassword.focus();
+        return;
+      }
+      if (wantsPasswordChange && settingPassword.value !== settingConfirmPassword.value) {
+        loginSettingsMessage.style.color = '#9d2f25';
+        loginSettingsMessage.textContent = 'The two new passwords do not match.';
+        settingConfirmPassword.focus();
+        return;
+      }
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
-      state.settings.username = settingUsername.value.trim();
+      state.settings.username = nextUsername;
       if (settingPassword.value) state.settings.passwordHash = await hashPassword(settingPassword.value);
       delete state.settings._legacyPassword;
       saveSettings();
       settingPassword.value = '';
+      settingCurrentPassword.value = '';
+      settingConfirmPassword.value = '';
       loginSettingsMessage.style.color = '#426447';
       loginSettingsMessage.textContent = 'Login settings saved.';
+      setSettingsEditMode('login', false);
       showToast('Login settings saved');
+    });
+
+    reportSettingsForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      if (!reportSettingsForm.reportValidity()) return;
+      const nextLabels = {
+        chickens: settingReportChickensLabel.value.trim(),
+        paid: settingReportPaidLabel.value.trim(),
+        reserved: settingReportReservedLabel.value.trim(),
+        saved: settingReportSavedLabel.value.trim()
+      };
+      if (JSON.stringify(nextLabels) === JSON.stringify(state.settings.reportLabels)) {
+        reportSettingsMessage.style.color = '#7a7269';
+        reportSettingsMessage.textContent = 'No changes to save.';
+        setSettingsEditMode('reports', false);
+        return;
+      }
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+      state.settings.reportLabels = nextLabels;
+      saveSettings();
+      renderReports();
+      reportSettingsMessage.style.color = '#426447';
+      reportSettingsMessage.textContent = 'Report settings saved.';
+      setSettingsEditMode('reports', false);
+      showToast('Report settings saved');
     });
 
     exportExcelBtn.addEventListener('click', exportSalesAndReports);

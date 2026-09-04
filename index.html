@@ -429,7 +429,7 @@
       margin-top: 18px;
       padding: 12px 20px;
       border-top: 1px solid #dfd3c4;
-      border-bottom: 1px solid #dfd3c4;
+      border-bottom: 0;
       background: #fbf8f2;
       color: var(--muted);
       text-align: center;
@@ -1213,6 +1213,11 @@
             <h3>Task Settings</h3>
           </div>
           <div class="settings-section">
+            <div class="field">
+              <label for="taskActionPassword">Website password</label>
+              <input id="taskActionPassword" type="password" autocomplete="current-password" placeholder="Enter password" />
+            </div>
+            <p class="settings-message" id="taskSettingsMessage" role="alert"></p>
             <div class="payment-method-row">
               <div>
                 <div class="settings-card-title">Completed tasks</div>
@@ -1457,6 +1462,8 @@
     const todoSort = document.getElementById('todoSort');
     const addTodoBtn = document.getElementById('addTodoBtn');
     const reopenAllTasksBtn = document.getElementById('reopenAllTasksBtn');
+    const taskActionPassword = document.getElementById('taskActionPassword');
+    const taskSettingsMessage = document.getElementById('taskSettingsMessage');
     const todoModal = document.getElementById('todoModal');
     const todoForm = document.getElementById('todoForm');
     const editTodoBtn = document.getElementById('editTodoBtn');
@@ -2638,7 +2645,7 @@
       if (!task) return;
       const changed = await setTodoCompleted(task, todoCompleted.checked);
       if (!changed) todoCompleted.checked = Boolean(task.completed);
-      else showTodoView(task);
+      else closeTodoModal();
     });
     todoForm.addEventListener('submit', async event => {
       event.preventDefault();
@@ -2687,11 +2694,29 @@
     reopenAllTasksBtn.addEventListener('click', async () => {
       const completedTasks = (state.settings.todoTasks || []).filter(task => task.completed);
       if (!completedTasks.length) return;
+
+      taskSettingsMessage.style.color = '#9d2f25';
+      taskSettingsMessage.textContent = '';
+      const password = taskActionPassword.value;
+      if (!password) {
+        taskSettingsMessage.textContent = 'Enter the website password.';
+        taskActionPassword.focus();
+        return;
+      }
+      if (await hashPassword(password) !== state.settings.passwordHash) {
+        taskSettingsMessage.textContent = 'Incorrect password.';
+        taskActionPassword.select();
+        return;
+      }
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+
       completedTasks.forEach(task => {
         task.completed = false;
         task.updatedAt = new Date().toISOString();
       });
+      taskActionPassword.value = '';
+      taskSettingsMessage.style.color = '#426447';
+      taskSettingsMessage.textContent = 'All completed tasks were returned to the active list.';
       saveSettings();
       renderTodo();
       showToast('All tasks marked not complete');

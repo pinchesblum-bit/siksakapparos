@@ -423,6 +423,7 @@
       padding: 11px 18px;
       border-bottom: 2px solid #dfd3c4;
       background: var(--surface);
+      transition: background-color .16s ease, box-shadow .16s ease, opacity .16s ease;
     }
     .todo-row:hover { background: #fbf8f2; }
     .todo-active-divider {
@@ -460,8 +461,24 @@
       color: var(--accent);
       transform: scale(1.12);
     }
-    .todo-row.dragging { opacity: .62; }
-    .todo-row.drag-over { box-shadow: inset 0 3px 0 #6e80b8; }
+    .todo-row.dragging {
+      opacity: .18;
+      background: #fff8ec;
+      box-shadow: inset 0 0 0 2px rgba(110, 128, 184, .34);
+    }
+    .todo-drag-ghost {
+      position: fixed;
+      z-index: 10000;
+      margin: 0;
+      pointer-events: none;
+      opacity: .97;
+      background: #fffdf8;
+      border: 1px solid #d9cbb9;
+      border-radius: 8px;
+      box-shadow: 0 14px 34px rgba(70, 48, 29, .22);
+      transform: scale(1.01);
+      transition: none;
+    }
     .todo-readonly input:disabled,
     .todo-readonly textarea:disabled {
       opacity: 1;
@@ -940,7 +957,7 @@
           <button class="menu-item" data-page="reports">Reports</button>
           <button class="menu-item" data-page="todo">Tasks</button>
           <button class="menu-item" data-page="settings">Settings</button>
-          <button class="menu-item logout-menu-item" id="logoutBtn">Log out</button>
+          <button class="menu-item logout-menu-item" id="logoutBtn">Log Out</button>
         </div>
       </div>
 
@@ -974,7 +991,7 @@
           </div>
           <div class="sales-tools">
             <div class="sales-search">
-              <label for="salesSearch" class="small-note">Search sales</label>
+              <label for="salesSearch" class="small-note">Search Sales</label>
               <input id="salesSearch" type="search" placeholder="Name, phone, or notes" autocomplete="off" />
             </div>
             <div class="sales-sort">
@@ -1004,7 +1021,7 @@
               <label for="todoSort" class="small-note">Order</label>
               <select id="todoSort">
                 <option value="manual">Default</option>
-                <option value="due">Upcoming date</option>
+                <option value="due">Upcoming Date</option>
               </select>
             </div>
             <button type="button" class="primary-btn" id="addTodoBtn">+ Add Task</button>
@@ -1077,7 +1094,7 @@
               <span class="settings-card-note">Edit the names of the report summary boxes.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="tasks">
-              <span class="settings-card-title">Task Settings</span>
+              <span class="settings-card-title">Tasks</span>
               <span class="settings-card-note">Manage completed tasks.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="login">
@@ -1100,11 +1117,11 @@
           <form id="websiteSettingsForm">
             <div class="settings-grid">
               <div class="field">
-                <label for="settingTitle">Website title</label>
+                <label for="settingTitle">Website Title</label>
                 <input id="settingTitle" required />
               </div>
               <div class="field">
-                <label for="settingSubtitle">Website subtitle</label>
+                <label for="settingSubtitle">Website Subtitle</label>
                 <input id="settingSubtitle" required />
               </div>
               <label class="settings-switch-row field full">
@@ -1115,7 +1132,7 @@
                 </span>
               </label>
               <div class="field">
-                <label for="settingHomeSummaryScope">Homepage number should count</label>
+                <label for="settingHomeSummaryScope">Homepage Number Should Count</label>
                 <select id="settingHomeSummaryScope" required>
                   <option value="paid">Needs to Be Saved</option>
                   <option value="paid_reserved">Needs to Be Reserved</option>
@@ -1136,11 +1153,11 @@
           <form id="salesSettingsForm">
             <div class="settings-grid">
               <div class="field">
-                <label for="settingDefaultPrice">Default price per כפרה</label>
+                <label for="settingDefaultPrice">Default Price per כפרה</label>
                 <div class="price-wrap"><span>$</span><input id="settingDefaultPrice" type="number" min="0" step="0.01" required /></div>
               </div>
               <div class="field">
-                <label for="settingInventory">Total כפרות available for sale</label>
+                <label for="settingInventory">Total כפרות Available for Sale</label>
                 <input id="settingInventory" type="number" min="0" step="1" required />
                 <div class="helper">This cannot be lower than the number already sold.</div>
               </div>
@@ -1148,19 +1165,19 @@
             <div class="settings-section">
               <h3>Payment Methods</h3>
               <div class="payment-methods-list" id="paymentMethodsList"></div>
-              <button type="button" class="secondary-btn" id="addPaymentMethodBtn">+ Add payment method</button>
+              <button type="button" class="secondary-btn" id="addPaymentMethodBtn">+ Add Payment Method</button>
             </div>
             <div class="settings-section">
               <h3>Reserved Payment Plans</h3>
               <p class="small-note">These choices appear under פלאנט צו באצהלן when a sale is Reserved.</p>
               <div class="payment-plans-list" id="paymentPlansList"></div>
-              <button type="button" class="secondary-btn" id="addPaymentPlanBtn">+ Add plan type</button>
+              <button type="button" class="secondary-btn" id="addPaymentPlanBtn">+ Add Plan Type</button>
             </div>
             <div class="settings-section">
               <h3>Sale Fields</h3>
               <p class="small-note">Add fields such as Notes and choose whether they must be filled out on every sale.</p>
               <div class="custom-field-list" id="customFieldsList"></div>
-              <button type="button" class="secondary-btn" id="addCustomFieldBtn">+ Add sale field</button>
+              <button type="button" class="secondary-btn" id="addCustomFieldBtn">+ Add Sale Field</button>
             </div>
             <p class="settings-message" id="salesSettingsMessage" role="alert"></p>
             <div class="settings-actions" data-settings-actions="sales" hidden><button type="button" class="secondary-btn" data-cancel-settings="sales">Cancel</button><button type="submit" class="primary-btn">Save Sales Settings</button></div>
@@ -1172,11 +1189,11 @@
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
             <h3>Login Settings</h3>
           </div>
-          <button type="button" class="secondary-btn" id="openLoginSettingsBtn">Change username and password</button>
+          <button type="button" class="secondary-btn" id="openLoginSettingsBtn">Change Username and Password</button>
           <form id="loginSettingsForm" hidden>
             <div class="settings-grid">
               <div class="field">
-                <label for="settingCurrentPassword">Current password</label>
+                <label for="settingCurrentPassword">Current Password</label>
                 <input id="settingCurrentPassword" type="password" autocomplete="current-password" placeholder="Required to make changes" />
               </div>
               <div class="field">
@@ -1184,15 +1201,15 @@
                 <input id="settingUsername" autocomplete="username" required />
               </div>
               <div class="field">
-                <label for="settingPassword">New password</label>
+                <label for="settingPassword">New Password</label>
                 <input id="settingPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Leave blank to keep current password" />
               </div>
               <div class="field">
-                <label for="settingConfirmPassword">Enter new password again</label>
+                <label for="settingConfirmPassword">Enter New Password Again</label>
                 <input id="settingConfirmPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Repeat the new password" />
               </div>
             </div>
-            <label class="password-toggle"><input type="checkbox" id="showSettingsPasswords" /> Show passwords</label>
+            <label class="password-toggle"><input type="checkbox" id="showSettingsPasswords" /> Show Passwords</label>
             <p class="settings-message" id="loginSettingsMessage" role="alert"></p>
             <div class="settings-actions" data-settings-actions="login" hidden><button type="button" class="secondary-btn" data-cancel-settings="login">Cancel</button><button type="submit" class="primary-btn">Save Login Settings</button></div>
           </form>
@@ -1206,10 +1223,10 @@
           </div>
           <form id="reportSettingsForm">
             <div class="settings-grid report-settings-grid">
-              <div class="field"><label for="settingReportChickensLabel">Chicken inventory box</label><input id="settingReportChickensLabel" required /></div>
-              <div class="field"><label for="settingReportPaidLabel">Paid orders box</label><input id="settingReportPaidLabel" required /></div>
-              <div class="field"><label for="settingReportNeedsReservedLabel">Needs reserved box</label><input id="settingReportNeedsReservedLabel" required /></div>
-              <div class="field"><label for="settingReportNeedsSavedLabel">Needs saved box</label><input id="settingReportNeedsSavedLabel" required /></div>
+              <div class="field"><label for="settingReportChickensLabel">Chicken Inventory Box</label><input id="settingReportChickensLabel" required /></div>
+              <div class="field"><label for="settingReportPaidLabel">Paid Orders Box</label><input id="settingReportPaidLabel" required /></div>
+              <div class="field"><label for="settingReportNeedsReservedLabel">Needs Reserved Box</label><input id="settingReportNeedsReservedLabel" required /></div>
+              <div class="field"><label for="settingReportNeedsSavedLabel">Needs Saved Box</label><input id="settingReportNeedsSavedLabel" required /></div>
             </div>
             <p class="settings-message" id="reportSettingsMessage" role="alert"></p>
             <div class="settings-actions" data-settings-actions="reports" hidden><button type="button" class="secondary-btn" data-cancel-settings="reports">Cancel</button><button type="submit" class="primary-btn">Save Report Settings</button></div>
@@ -1219,19 +1236,19 @@
         <div class="settings-view" data-settings-view="tasks" hidden>
           <div class="settings-view-head">
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
-            <h3>Task Settings</h3>
+            <h3>Tasks</h3>
           </div>
           <div class="settings-section">
             <div class="payment-method-row">
               <div>
-                <div class="settings-card-title">Completed tasks</div>
+                <div class="settings-card-title">Completed Tasks</div>
                 <div class="settings-card-note">Move every completed task back to the active task list.</div>
               </div>
-              <button type="button" class="secondary-btn" id="reopenAllTasksBtn">Mark all not complete</button>
+              <button type="button" class="secondary-btn" id="reopenAllTasksBtn">Mark All Not Complete</button>
             </div>
             <div id="taskPasswordPanel" hidden>
               <div class="field">
-                <label for="taskActionPassword">Website password</label>
+                <label for="taskActionPassword">Website Password</label>
                 <input id="taskActionPassword" type="password" autocomplete="current-password" placeholder="Enter password" />
               </div>
               <p class="settings-message" id="taskSettingsMessage" role="alert"></p>
@@ -1249,7 +1266,7 @@
             <h3>Export Data</h3>
           </div>
           <p class="small-note">Download only the sales and report information for Excel.</p>
-          <button type="button" class="secondary-btn" id="exportExcelBtn">Export sales and reports to Excel</button>
+          <button type="button" class="secondary-btn" id="exportExcelBtn">Export Sales and Reports to Excel</button>
         </div>
       </div>
     </section>
@@ -1269,12 +1286,12 @@
         </label>
         <div class="form-grid">
           <div class="field full">
-            <label for="fullName">Full name <span class="required-mark">*</span></label>
+            <label for="fullName">Full Name <span class="required-mark">*</span></label>
             <input id="fullName" name="fullName" autocomplete="name" required />
           </div>
 
           <div class="field full">
-            <label for="phone">Phone number <span class="required-mark">*</span></label>
+            <label for="phone">Phone Number <span class="required-mark">*</span></label>
             <input id="phone" name="phone" inputmode="numeric" autocomplete="tel" pattern="[0-9]{10}" maxlength="10" required />
             <div class="helper">Enter exactly 10 digits.</div>
           </div>
@@ -1302,7 +1319,7 @@
           </div>
 
           <div class="field full" id="paymentTypeWrap">
-            <label for="paymentType">Payment type <span class="required-mark">*</span></label>
+            <label for="paymentType">Payment Type <span class="required-mark">*</span></label>
             <select id="paymentType" name="paymentType" required>
               <option value="" selected disabled>Select payment type</option>
             </select>
@@ -1316,12 +1333,12 @@
           </div>
 
           <div class="field full" id="plannedPaymentDateWrap" hidden>
-            <label for="plannedPaymentDate">Pay on date <span class="required-mark">*</span></label>
+            <label for="plannedPaymentDate">Pay on Date <span class="required-mark">*</span></label>
             <input id="plannedPaymentDate" name="plannedPaymentDate" type="date" />
           </div>
 
           <div class="field full other-details" id="otherDetailsWrap">
-            <label for="otherDetails">Other payment information <span class="required-mark">*</span></label>
+            <label for="otherDetails">Other Payment Information <span class="required-mark">*</span></label>
             <input id="otherDetails" name="otherDetails" placeholder="Enter payment details" />
           </div>
           <div id="customSaleFields" class="custom-sale-fields"></div>
@@ -1347,21 +1364,21 @@
       <form id="todoForm">
         <div class="form-grid">
           <div class="field full">
-            <label for="todoTitle">Task name <span class="required-mark">*</span></label>
+            <label for="todoTitle">Task Name <span class="required-mark">*</span></label>
             <input id="todoTitle" maxlength="160" autocomplete="off" required />
           </div>
           <div class="field full">
-            <label for="todoDescription">Note <span class="small-note">(optional)</span></label>
+            <label for="todoDescription">Note <span class="small-note">(Optional)</span></label>
             <textarea id="todoDescription" rows="7" maxlength="3000" placeholder="Add note"></textarea>
           </div>
           <div class="field full">
-            <label for="todoDueDate">Due date <span class="small-note">(optional)</span></label>
+            <label for="todoDueDate">Due Date <span class="small-note">(Optional)</span></label>
             <input id="todoDueDate" type="date" />
           </div>
           <div class="field full">
             <label class="todo-complete-control" for="todoCompleted">
               <input id="todoCompleted" type="checkbox" />
-              <span>Complete task</span>
+              <span>Complete Task</span>
             </label>
           </div>
         </div>
@@ -1921,7 +1938,7 @@
         return `
           <div class="payment-method-row" data-method-id="${escapeHtml(method.id)}">
             <div class="field">
-              <label for="paymentMethod${index}">Payment method name</label>
+              <label for="paymentMethod${index}">Payment Method Name</label>
               <input id="paymentMethod${index}" class="payment-method-name" value="${escapeHtml(method.label)}" required ${settingsEditMode.sales ? '' : 'disabled'} />
             </div>
             <button type="button" class="remove-method-btn" data-remove-method="${escapeHtml(method.id)}" ${used || !settingsEditMode.sales ? 'disabled' : ''} ${used ? 'title="This method is used by an existing sale"' : ''}>Delete</button>
@@ -1935,11 +1952,11 @@
         return `
           <div class="payment-plan-row" data-plan-id="${escapeHtml(plan.id)}">
             <div class="field">
-              <label for="paymentPlan${index}">Plan type name</label>
+              <label for="paymentPlan${index}">Plan Type Name</label>
               <input id="paymentPlan${index}" class="payment-plan-name" value="${escapeHtml(plan.label)}" required ${settingsEditMode.sales ? '' : 'disabled'} />
             </div>
             <label class="required-toggle">
-              <input type="checkbox" class="payment-plan-needs-date" ${plan.needsDate ? 'checked' : ''} ${settingsEditMode.sales ? '' : 'disabled'} /> Calendar date
+              <input type="checkbox" class="payment-plan-needs-date" ${plan.needsDate ? 'checked' : ''} ${settingsEditMode.sales ? '' : 'disabled'} /> Calendar Date
             </label>
             <button type="button" class="remove-method-btn" data-remove-plan="${escapeHtml(plan.id)}" ${used || !settingsEditMode.sales ? 'disabled' : ''} ${used ? 'title="This plan is used by an existing sale"' : ''}>Delete</button>
           </div>`;
@@ -1950,7 +1967,7 @@
       customFieldsList.innerHTML = settingsDraftFields.length ? settingsDraftFields.map((field, index) => `
         <div class="custom-field-row" data-field-id="${escapeHtml(field.id)}">
           <div class="field">
-            <label for="customField${index}">Field name</label>
+            <label for="customField${index}">Field Name</label>
             <input id="customField${index}" class="custom-field-name" value="${escapeHtml(field.label)}" required ${settingsEditMode.sales ? '' : 'disabled'} />
           </div>
           <label class="required-toggle">
@@ -2189,7 +2206,7 @@
       wrap.innerHTML = `
         <table class="sales-table">
           <colgroup><col style="width:20%"><col style="width:15%"><col style="width:13%"><col style="width:10%"><col style="width:27%"><col style="width:15%"></colgroup>
-          <thead><tr><th>Full name</th><th>Phone</th><th>Status</th><th>כפרה</th><th>Notes</th><th>געשלאגן</th></tr></thead>
+          <thead><tr><th>Full Name</th><th>Phone</th><th>Status</th><th>כפרה</th><th>Notes</th><th>געשלאגן</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>`;
     }
@@ -2455,7 +2472,7 @@
       const banshakUnpaid = state.sales.reduce((sum, sale) => (sale.status || 'paid') === 'paid' && isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
       const totalMoney = state.sales.reduce((sum, sale) => (sale.status || 'paid') === 'paid' && !isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
       const salesRows = [
-        excelRow(['Created', 'Full name', 'Phone number', 'Status', 'כפרות', 'Price', 'Payment method', 'Payment details', 'Planned payment', 'Planned date', ...state.settings.customFields.map(field => field.label), 'געשלאגן'].map(value => ({ value, style: 'Header' }))),
+        excelRow(['Created', 'Full Name', 'Phone Number', 'Status', 'כפרות', 'Price', 'Payment method', 'Payment details', 'Planned payment', 'Planned date', ...state.settings.customFields.map(field => field.label), 'געשלאגן'].map(value => ({ value, style: 'Header' }))),
         ...state.sales.map(sale => excelRow([
           sale.createdAt ? new Date(sale.createdAt).toLocaleString('en-US') : '',
           sale.fullName,
@@ -2860,17 +2877,77 @@
         startY: event.clientY,
         active: false,
         cancelled: false,
-        timer: null
+        timer: null,
+        ghost: null,
+        offsetX: 0,
+        offsetY: 0,
+        originalOrder: [...todoList.querySelectorAll('[data-todo-row]:not(.todo-completed-row)')]
+          .map(item => item.dataset.todoRow)
       };
       drag.timer = setTimeout(() => {
         if (todoDrag !== drag || drag.cancelled) return;
         drag.active = true;
-        drag.row?.classList.add('dragging');
+        const rect = drag.row.getBoundingClientRect();
+        drag.offsetX = drag.startX - rect.left;
+        drag.offsetY = drag.startY - rect.top;
+        drag.ghost = drag.row.cloneNode(true);
+        drag.ghost.classList.remove('dragging', 'drag-over');
+        drag.ghost.classList.add('todo-drag-ghost');
+        drag.ghost.removeAttribute('data-todo-row');
+        drag.ghost.setAttribute('aria-hidden', 'true');
+        drag.ghost.style.width = `${rect.width}px`;
+        drag.ghost.style.left = `${rect.left}px`;
+        drag.ghost.style.top = `${rect.top}px`;
+        document.body.appendChild(drag.ghost);
+        drag.row.classList.add('dragging');
         drag.handle.classList.add('hold-ready');
         if (navigator.vibrate) navigator.vibrate(30);
       }, TODO_HOLD_DELAY);
       todoDrag = drag;
     });
+
+    function getActiveTodoRows() {
+      return [...todoList.querySelectorAll('[data-todo-row]:not(.todo-completed-row)')];
+    }
+
+    function moveTodoRowLive(row, target, clientY) {
+      if (!row || !target || row === target) return;
+      const rows = getActiveTodoRows();
+      const beforePositions = new Map(rows.map(item => [item, item.getBoundingClientRect().top]));
+      const targetRect = target.getBoundingClientRect();
+      const placeBefore = clientY < targetRect.top + targetRect.height / 2;
+      const anchor = placeBefore ? target : target.nextSibling;
+      if (anchor === row || row.nextSibling === anchor) return;
+
+      todoList.insertBefore(row, anchor);
+      rows.forEach(item => {
+        if (item === row || !item.animate) return;
+        const previousTop = beforePositions.get(item);
+        const currentTop = item.getBoundingClientRect().top;
+        const distance = previousTop - currentTop;
+        if (Math.abs(distance) < 1) return;
+        item.getAnimations?.().forEach(animation => animation.cancel());
+        item.animate(
+          [{ transform: `translateY(${distance}px)` }, { transform: 'translateY(0)' }],
+          { duration: 180, easing: 'cubic-bezier(.2,.8,.2,1)' }
+        );
+      });
+    }
+
+    function saveTodoOrderFromDom() {
+      const orderedIds = getActiveTodoRows().map(row => row.dataset.todoRow);
+      const activeSlots = (state.settings.todoTasks || [])
+        .filter(task => !task.completed)
+        .map(task => Number(task.order || 0))
+        .sort((a, b) => a - b);
+      orderedIds.forEach((id, index) => {
+        const task = (state.settings.todoTasks || []).find(item => item.id === id);
+        if (task) task.order = activeSlots[index] ?? index;
+      });
+      state.todoSortMode = 'manual';
+      saveSettings();
+      renderTodo();
+    }
 
     todoList.addEventListener('pointermove', event => {
       if (!todoDrag || event.pointerId !== todoDrag.pointerId) return;
@@ -2882,25 +2959,43 @@
         }
         return;
       }
+
       event.preventDefault();
+      if (todoDrag.ghost) {
+        todoDrag.ghost.style.left = `${event.clientX - todoDrag.offsetX}px`;
+        todoDrag.ghost.style.top = `${event.clientY - todoDrag.offsetY}px`;
+      }
+
+      const edgeDistance = 72;
+      if (event.clientY < edgeDistance) window.scrollBy(0, -10);
+      else if (event.clientY > window.innerHeight - edgeDistance) window.scrollBy(0, 10);
+
       const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-todo-row]');
       if (!target || target.classList.contains('todo-completed-row')) return;
-      todoList.querySelectorAll('.drag-over').forEach(row => row.classList.remove('drag-over'));
-      if (target.dataset.todoRow !== todoDrag.id) target.classList.add('drag-over');
-      todoDrag.targetId = target.dataset.todoRow;
+      moveTodoRowLive(todoDrag.row, target, event.clientY);
     });
 
     function finishTodoDrag(event, cancelled = false) {
       if (!todoDrag || (event.pointerId != null && event.pointerId !== todoDrag.pointerId)) return;
-      const { id, targetId, handle, pointerId, active, timer } = todoDrag;
+      const { handle, pointerId, active, timer, ghost, originalOrder } = todoDrag;
       clearTimeout(timer);
+      const currentOrder = active ? getActiveTodoRows().map(row => row.dataset.todoRow) : originalOrder;
+      const changed = active && currentOrder.join('|') !== originalOrder.join('|');
       todoDrag = null;
+      ghost?.remove();
       clearTodoDragAppearance();
       try {
         if (handle?.hasPointerCapture?.(pointerId)) handle.releasePointerCapture(pointerId);
       } catch (_) {}
-      if (cancelled || !active || !targetId || id === targetId) return;
-      reorderTodoTasks(id, targetId);
+      if (cancelled) {
+        if (active) renderTodo();
+        return;
+      }
+      if (!active || !changed) {
+        if (active) renderTodo();
+        return;
+      }
+      saveTodoOrderFromDom();
       showToast('Task order updated');
     }
 
@@ -3015,19 +3110,19 @@
       }
       if (phone.length !== 10) {
         phoneInput.focus();
-        showToast('Phone number must be exactly 10 digits');
+        showToast('Phone Number must be exactly 10 digits');
         return;
       }
       const selectedMethodNeedsDetails = !usesPlan && Boolean(getPaymentMethod(selectedPaymentType)?.needsDetails);
       if (selectedMethodNeedsDetails && !otherPaymentDetails) {
         otherDetails.focus();
-        showToast('Please enter the Other payment information');
+        showToast('Please enter the Other Payment Information');
         return;
       }
       const selectedPlanNeedsDate = usesPlan && Boolean(getPaymentPlan(selectedPaymentPlan)?.needsDate);
       if (selectedPlanNeedsDate && !selectedPaymentDate) {
         plannedPaymentDate.focus();
-        showToast('Please select the Pay on date');
+        showToast('Please select the Pay on Date');
         return;
       }
 
@@ -3289,7 +3384,7 @@
         return;
       }
       if (new Set(normalizedMethodNames).size !== normalizedMethodNames.length) {
-        salesSettingsMessage.textContent = 'Payment method names must be different.';
+        salesSettingsMessage.textContent = 'Payment Method Names must be different.';
         return;
       }
       if (!planNames.length || planNames.some(name => !name)) {

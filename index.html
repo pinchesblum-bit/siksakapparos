@@ -1010,7 +1010,6 @@
             <select id="saleStatus" name="status" required>
               <option value="paid">Paid</option>
               <option value="reserved">Reserved</option>
-              <option value="expired">Expired</option>
             </select>
           </div>
 
@@ -1975,6 +1974,7 @@
     function openModal(saleId = null) {
       saleForm.reset();
       state.editingSaleId = saleId;
+      saleStatus.querySelector('option[value="expired"]')?.remove();
       otherDetailsWrap.classList.remove('show');
       otherDetails.required = false;
       renderPlannedPaymentSelect('');
@@ -1989,6 +1989,9 @@
         fullNameInput.value = sale.fullName || '';
         phoneInput.value = sale.phone || '';
         geschlagenInput.checked = Boolean(sale.geschlagen);
+        if (sale.status === 'expired') {
+          saleStatus.insertAdjacentHTML('beforeend', '<option value="expired">Expired</option>');
+        }
         saleStatus.value = sale.status || 'paid';
         quantityInput.value = sale.quantity || 1;
         priceInput.value = Number(sale.price || 0).toFixed(2);

@@ -29,6 +29,18 @@
     button, input, select, textarea { font: inherit; }
     button { cursor: pointer; }
 
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0 0 auto;
+      height: 104px;
+      background: var(--bg);
+      border-bottom: 1px solid rgba(230, 220, 205, .9);
+      box-shadow: 0 5px 14px rgba(63, 44, 28, .05);
+      z-index: 100;
+      pointer-events: none;
+    }
+
     .login-gate {
       position: fixed;
       inset: 0;
@@ -145,6 +157,8 @@
     }
 
     .brand {
+      position: relative;
+      z-index: 101;
       text-align: center;
       min-width: 260px;
     }
@@ -819,6 +833,7 @@
 
     @media (max-width: 760px) {
       .app-shell { padding: 18px 14px 36px; }
+      body::before { height: 82px; }
       .menu-btn { top: max(18px, env(safe-area-inset-top)); left: 14px; }
       .top-actions { top: max(18px, env(safe-area-inset-top)); right: 14px; }
       .topbar { grid-template-columns: auto 1fr auto; gap: 8px; }
@@ -1068,14 +1083,10 @@
                 </span>
               </label>
               <div class="field">
-                <label for="settingHomeSummaryLabel">Homepage wording</label>
-                <input id="settingHomeSummaryLabel" required />
-              </div>
-              <div class="field">
                 <label for="settingHomeSummaryScope">Homepage number should count</label>
                 <select id="settingHomeSummaryScope" required>
-                  <option value="paid">Paid sales only</option>
-                  <option value="paid_reserved">Paid and Reserved sales</option>
+                  <option value="paid">Needs to Be Saved</option>
+                  <option value="paid_reserved">Needs to Be Reserved</option>
                 </select>
               </div>
             </div>
@@ -1441,7 +1452,6 @@
     const settingTitle = document.getElementById('settingTitle');
     const settingSubtitle = document.getElementById('settingSubtitle');
     const settingShowNeedsSaved = document.getElementById('settingShowNeedsSaved');
-    const settingHomeSummaryLabel = document.getElementById('settingHomeSummaryLabel');
     const settingHomeSummaryScope = document.getElementById('settingHomeSummaryScope');
     const settingDefaultPrice = document.getElementById('settingDefaultPrice');
     const settingInventory = document.getElementById('settingInventory');
@@ -1741,9 +1751,19 @@
       return state.settings.homeSummaryScope === 'paid_reserved' ? getNeedsReservedTotal() : getNeedsSavedTotal();
     }
 
+    function getHomeSummaryLabel() {
+      return state.settings.homeSummaryScope === 'paid_reserved'
+        ? state.settings.reportLabels.needsReserved
+        : state.settings.reportLabels.needsSaved;
+    }
+
     function updateHomeSummary() {
       const showTotal = Boolean(state.settings.showNeedsSavedOnHome);
-      salesSummaryTitle.textContent = showTotal ? state.settings.homeSummaryLabel : 'Sales';
+      const paidOption = settingHomeSummaryScope.querySelector('option[value="paid"]');
+      const paidReservedOption = settingHomeSummaryScope.querySelector('option[value="paid_reserved"]');
+      if (paidOption) paidOption.textContent = state.settings.reportLabels.needsSaved;
+      if (paidReservedOption) paidReservedOption.textContent = state.settings.reportLabels.needsReserved;
+      salesSummaryTitle.textContent = showTotal ? getHomeSummaryLabel() : 'Sales';
       salesSummarySubtitle.hidden = showTotal;
       salesSummaryValue.hidden = !showTotal;
       salesSummaryValue.textContent = getHomeSummaryTotal();
@@ -1885,7 +1905,6 @@
       settingTitle.value = state.settings.title;
       settingSubtitle.value = state.settings.subtitle;
       settingShowNeedsSaved.checked = Boolean(state.settings.showNeedsSavedOnHome);
-      settingHomeSummaryLabel.value = state.settings.homeSummaryLabel;
       settingHomeSummaryScope.value = state.settings.homeSummaryScope;
       settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
       settingInventory.value = state.settings.inventory;
@@ -1947,8 +1966,7 @@
         settingTitle.value = state.settings.title;
         settingSubtitle.value = state.settings.subtitle;
         settingShowNeedsSaved.checked = Boolean(state.settings.showNeedsSavedOnHome);
-        settingHomeSummaryLabel.value = state.settings.homeSummaryLabel;
-        settingHomeSummaryScope.value = state.settings.homeSummaryScope;
+          settingHomeSummaryScope.value = state.settings.homeSummaryScope;
         websiteSettingsMessage.textContent = '';
       }
       if (section === 'sales') {
@@ -2877,12 +2895,10 @@
       const title = settingTitle.value.trim();
       const subtitle = settingSubtitle.value.trim();
       const showNeedsSavedOnHome = settingShowNeedsSaved.checked;
-      const homeSummaryLabel = settingHomeSummaryLabel.value.trim();
       const homeSummaryScope = settingHomeSummaryScope.value === 'paid_reserved' ? 'paid_reserved' : 'paid';
       if (title === state.settings.title
         && subtitle === state.settings.subtitle
         && showNeedsSavedOnHome === Boolean(state.settings.showNeedsSavedOnHome)
-        && homeSummaryLabel === state.settings.homeSummaryLabel
         && homeSummaryScope === state.settings.homeSummaryScope) {
         websiteSettingsMessage.style.color = '#7a7269';
         websiteSettingsMessage.textContent = 'No changes to save.';
@@ -2893,7 +2909,6 @@
       state.settings.title = title;
       state.settings.subtitle = subtitle;
       state.settings.showNeedsSavedOnHome = showNeedsSavedOnHome;
-      state.settings.homeSummaryLabel = homeSummaryLabel;
       state.settings.homeSummaryScope = homeSummaryScope;
       saveSettings();
       applySettingsToUi();
@@ -3047,6 +3062,7 @@
       state.settings.reportLabels = nextLabels;
       saveSettings();
       renderReports();
+      updateHomeSummary();
       reportSettingsMessage.style.color = '#426447';
       reportSettingsMessage.textContent = 'Report settings saved.';
       setSettingsEditMode('reports', false);

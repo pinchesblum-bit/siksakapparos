@@ -946,7 +946,7 @@
           <div class="sales-tools">
             <div class="sales-search">
               <label for="salesSearch" class="small-note">Search sales</label>
-              <input id="salesSearch" type="search" placeholder="Name, phone, payment, or details" autocomplete="off" />
+              <input id="salesSearch" type="search" placeholder="Name, phone, or notes" autocomplete="off" />
             </div>
             <div class="sales-sort">
               <label for="salesSort" class="small-note">Order</label>
@@ -2045,30 +2045,10 @@
     function getSaleSearchRank(sale, query) {
       const includesQuery = value => String(value ?? '').toLocaleLowerCase().includes(query);
 
-      // Search relevance: a matching name is always first, followed by a matching note.
+      // Search only information visible as the person's main sale details.
       if (includesQuery(sale.fullName)) return 0;
       if (includesQuery(getNotesValue(sale))) return 1;
       if (includesQuery(sale.phone)) return 2;
-
-      const paymentAndStatus = [
-        sale.status || 'paid',
-        sale.paymentType,
-        getPaymentMethod(sale.paymentType)?.label || '',
-        sale.plannedPaymentType,
-        getPaymentPlan(sale.plannedPaymentType)?.label || '',
-        sale.plannedPaymentDate,
-        sale.otherDetails,
-        sale.geschlagen ? 'געשלאגן' : '',
-        sale.quantity,
-        sale.price
-      ];
-      if (paymentAndStatus.some(includesQuery)) return 3;
-
-      const notesField = getNotesField();
-      const otherCustomValues = Object.entries(sale.customFields || {})
-        .filter(([fieldId]) => fieldId !== notesField?.id)
-        .map(([, value]) => value);
-      if (otherCustomValues.some(includesQuery)) return 4;
       return Number.POSITIVE_INFINITY;
     }
 
@@ -2526,12 +2506,25 @@
         setSettingsEditMode(section, false);
       });
     });
-    homeBtn.addEventListener('click', () => {
-      if (state.page === 'sales') {
-        window.location.reload();
+    homeBtn.addEventListener('click', async () => {
+      if (state.page !== 'sales') {
+        showPage('sales');
         return;
       }
-      showPage('sales');
+
+      homeBtn.disabled = true;
+      try {
+        const data = await cloudRequest('get');
+        state.searchQuery = '';
+        salesSearch.value = '';
+        applyCloudState(data);
+        showToast('Homepage refreshed');
+      } catch (error) {
+        showToast(error.message);
+        if (error.status === 401) lockWebsite();
+      } finally {
+        homeBtn.disabled = false;
+      }
     });
 
     addTodoBtn.addEventListener('click', () => openTodoModal());

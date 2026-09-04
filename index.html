@@ -93,9 +93,10 @@
     .menu-wrap { justify-self: start; position: relative; width: 48px; height: 48px; }
     .menu-btn {
       position: fixed;
-      top: 28px;
+      top: max(28px, env(safe-area-inset-top));
       left: 24px;
-      z-index: 75;
+      z-index: 120;
+      transform: translateZ(0);
       width: 48px;
       height: 48px;
       border: 1px solid var(--line);
@@ -122,7 +123,7 @@
       display: block;
       transform: translateX(-102%);
       transition: transform .22s ease;
-      z-index: 70;
+      z-index: 110;
     }
     .menu-popover.open { transform: translateX(0); }
     .menu-item {
@@ -177,9 +178,10 @@
 
     .top-actions {
       position: fixed;
-      top: 28px;
+      top: max(28px, env(safe-area-inset-top));
       right: 24px;
-      z-index: 65;
+      z-index: 120;
+      transform: translateZ(0);
       display: flex;
       align-items: center;
       gap: 9px;
@@ -715,7 +717,8 @@
       backdrop-filter: blur(3px);
     }
     .modal-backdrop.open { display: flex; }
-    #confirmModal { z-index: 80; }
+    .modal-backdrop { z-index: 200; }
+    #confirmModal { z-index: 220; }
     .modal {
       width: min(580px, 100%);
       max-height: calc(100vh - 40px);
@@ -816,8 +819,8 @@
 
     @media (max-width: 760px) {
       .app-shell { padding: 18px 14px 36px; }
-      .menu-btn { top: 18px; left: 14px; }
-      .top-actions { top: 18px; right: 14px; }
+      .menu-btn { top: max(18px, env(safe-area-inset-top)); left: 14px; }
+      .top-actions { top: max(18px, env(safe-area-inset-top)); right: 14px; }
       .topbar { grid-template-columns: auto 1fr auto; gap: 8px; }
       .brand { min-width: 0; }
       .chicken { width: 62px; height: 62px; font-size: 36px; }

@@ -217,7 +217,17 @@
     }
     .table-head h2 { margin: 0; font-size: 20px; }
     .small-note { color: var(--muted); font-size: 13px; }
-    .sales-search { width: 100%; justify-self: center; }
+    .sales-tools {
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 155px;
+      align-items: end;
+      gap: 10px;
+      justify-self: center;
+    }
+    .sales-search { width: 100%; }
+    .sales-sort { width: 100%; }
+    .sales-sort select { min-height: 44px; padding: 10px 11px; background: #fff; font-size: 13px; }
     .table-add-sale { justify-self: end; min-height: 44px; }
     .sales-summary { justify-self: start; text-align: left; }
     .sales-summary-value { margin-top: 2px; color: var(--accent); font-size: 28px; font-weight: 900; line-height: 1; }
@@ -260,6 +270,9 @@
     tbody tr:hover { background: #fffaf2; }
     tbody tr.sale-row { cursor: pointer; }
     tbody tr.sale-row:focus { outline: 3px solid rgba(157,119,90,.20); outline-offset: -3px; }
+    tbody tr.sale-row.geschlagen-start td {
+      border-top: 14px solid var(--bg);
+    }
     .sale-name {
       font-family: Arial, "Helvetica Neue", sans-serif;
       font-weight: 500;
@@ -669,6 +682,7 @@
       .primary-btn { padding: 11px 13px; font-size: 13px; }
       .logout-btn { padding: 10px; font-size: 12px; }
       .table-head { grid-template-columns: 1fr; align-items: stretch; }
+      .sales-tools { grid-template-columns: 1fr; }
       .sales-search { width: 100%; }
       .table-add-sale { justify-self: stretch; width: 100%; }
       .sales-summary { justify-self: stretch; text-align: left; }
@@ -745,9 +759,19 @@
             <div class="small-note" id="salesSummarySubtitle">Names and amount of כפרה ordered</div>
             <div class="sales-summary-value" id="salesSummaryValue" hidden>0</div>
           </div>
-          <div class="sales-search">
-            <label for="salesSearch" class="small-note">Search sales</label>
-            <input id="salesSearch" type="search" placeholder="Name, phone, payment, or details" autocomplete="off" />
+          <div class="sales-tools">
+            <div class="sales-search">
+              <label for="salesSearch" class="small-note">Search sales</label>
+              <input id="salesSearch" type="search" placeholder="Name, phone, payment, or details" autocomplete="off" />
+            </div>
+            <div class="sales-sort">
+              <label for="salesSort" class="small-note">Order</label>
+              <select id="salesSort">
+                <option value="name">Name א–ת / A–Z</option>
+                <option value="newest">Date — newest</option>
+                <option value="oldest">Date — oldest</option>
+              </select>
+            </div>
           </div>
           <button class="primary-btn table-add-sale" id="addSaleBtn">+ <span class="desktop-word">Add </span>Sale</button>
         </div>
@@ -772,10 +796,6 @@
         <div class="report-summary-card">
           <div class="stat-label" id="reportPaidLabel">Amount of Paid</div>
           <div class="stat-value" id="reportPaidTotal">0</div>
-        </div>
-        <div class="report-summary-card">
-          <div class="stat-label" id="reportReservedLabel">Amount of Reserved</div>
-          <div class="stat-value" id="reportReservedTotal">0</div>
         </div>
         <div class="report-summary-card available">
           <div class="stat-label" id="reportNeedsReservedLabel">Needs to Be Reserved</div>
@@ -959,7 +979,6 @@
             <div class="settings-grid report-settings-grid">
               <div class="field"><label for="settingReportChickensLabel">Chicken inventory box</label><input id="settingReportChickensLabel" required /></div>
               <div class="field"><label for="settingReportPaidLabel">Paid orders box</label><input id="settingReportPaidLabel" required /></div>
-              <div class="field"><label for="settingReportReservedLabel">Reserved orders box</label><input id="settingReportReservedLabel" required /></div>
               <div class="field"><label for="settingReportNeedsReservedLabel">Needs reserved box</label><input id="settingReportNeedsReservedLabel" required /></div>
               <div class="field"><label for="settingReportNeedsSavedLabel">Needs saved box</label><input id="settingReportNeedsSavedLabel" required /></div>
             </div>
@@ -1090,6 +1109,7 @@
       showNeedsSavedOnHome: false,
       homeSummaryLabel: 'Needs to Be Saved',
       homeSummaryScope: 'paid',
+      salesSortMode: 'name',
       defaultPrice: 23,
       inventory: 100,
       username: 'admin',
@@ -1154,6 +1174,7 @@
     const saveSaleBtn = document.getElementById('saveSaleBtn');
     const deleteSaleBtn = document.getElementById('deleteSaleBtn');
     const salesSearch = document.getElementById('salesSearch');
+    const salesSort = document.getElementById('salesSort');
     const salesSummaryTitle = document.getElementById('salesSummaryTitle');
     const salesSummarySubtitle = document.getElementById('salesSummarySubtitle');
     const salesSummaryValue = document.getElementById('salesSummaryValue');
@@ -1180,7 +1201,6 @@
     const showSettingsPasswords = document.getElementById('showSettingsPasswords');
     const settingReportChickensLabel = document.getElementById('settingReportChickensLabel');
     const settingReportPaidLabel = document.getElementById('settingReportPaidLabel');
-    const settingReportReservedLabel = document.getElementById('settingReportReservedLabel');
     const settingReportNeedsReservedLabel = document.getElementById('settingReportNeedsReservedLabel');
     const settingReportNeedsSavedLabel = document.getElementById('settingReportNeedsSavedLabel');
     const paymentMethodsList = document.getElementById('paymentMethodsList');
@@ -1481,6 +1501,9 @@
       brandSubtitle.textContent = state.settings.subtitle;
       document.title = `${state.settings.title} - ${state.settings.subtitle}`;
       priceHelper.textContent = `Default: ${money(state.settings.defaultPrice)} per כפרה. You can click and edit the amount.`;
+      salesSort.value = ['name', 'newest', 'oldest'].includes(state.settings.salesSortMode)
+        ? state.settings.salesSortMode
+        : 'name';
       updateHomeSummary();
     }
 
@@ -1602,7 +1625,6 @@
       showSettingsPasswords.checked = false;
       settingReportChickensLabel.value = state.settings.reportLabels.chickens;
       settingReportPaidLabel.value = state.settings.reportLabels.paid;
-      settingReportReservedLabel.value = state.settings.reportLabels.reserved;
       settingReportNeedsReservedLabel.value = state.settings.reportLabels.needsReserved;
       settingReportNeedsSavedLabel.value = state.settings.reportLabels.needsSaved;
       websiteSettingsMessage.textContent = '';
@@ -1678,8 +1700,7 @@
       if (section === 'reports') {
         settingReportChickensLabel.value = state.settings.reportLabels.chickens;
         settingReportPaidLabel.value = state.settings.reportLabels.paid;
-        settingReportReservedLabel.value = state.settings.reportLabels.reserved;
-        settingReportNeedsReservedLabel.value = state.settings.reportLabels.needsReserved;
+          settingReportNeedsReservedLabel.value = state.settings.reportLabels.needsReserved;
         settingReportNeedsSavedLabel.value = state.settings.reportLabels.needsSaved;
         reportSettingsMessage.textContent = '';
       }
@@ -1711,13 +1732,25 @@
     const hebrewNameCollator = new Intl.Collator('he', { sensitivity: 'base', numeric: true });
     const englishNameCollator = new Intl.Collator('en', { sensitivity: 'base', numeric: true });
 
-    function compareSalesForHome(a, b) {
-      const geschlagenOrder = Number(Boolean(a.geschlagen)) - Number(Boolean(b.geschlagen));
-      if (geschlagenOrder) return geschlagenOrder;
+    function compareSalesByName(a, b) {
       const scriptOrder = getNameScriptRank(a.fullName) - getNameScriptRank(b.fullName);
       if (scriptOrder) return scriptOrder;
       const collator = getNameScriptRank(a.fullName) === 0 ? hebrewNameCollator : englishNameCollator;
       return collator.compare(String(a.fullName || ''), String(b.fullName || ''));
+    }
+
+    function compareSalesForHome(a, b) {
+      const geschlagenOrder = Number(Boolean(a.geschlagen)) - Number(Boolean(b.geschlagen));
+      if (geschlagenOrder) return geschlagenOrder;
+
+      const sortMode = state.settings.salesSortMode || 'name';
+      if (sortMode === 'newest' || sortMode === 'oldest') {
+        const aTime = Date.parse(a.createdAt || a.updatedAt || '') || 0;
+        const bTime = Date.parse(b.createdAt || b.updatedAt || '') || 0;
+        const dateOrder = sortMode === 'oldest' ? aTime - bTime : bTime - aTime;
+        if (dateOrder) return dateOrder;
+      }
+      return compareSalesByName(a, b);
     }
 
     function renderSales() {
@@ -1756,13 +1789,15 @@
         return;
       }
 
-      const rows = matchingSales
-        .slice()
-        .sort(compareSalesForHome)
-        .map(sale => {
+      const sortedSales = matchingSales.slice().sort(compareSalesForHome);
+      const rows = sortedSales
+        .map((sale, index) => {
           const notes = getNotesValue(sale);
+          const startsGeschlagenGroup = index > 0
+            && Boolean(sale.geschlagen)
+            && !Boolean(sortedSales[index - 1].geschlagen);
           return `
-            <tr class="sale-row" data-sale-id="${escapeHtml(sale.id)}" tabindex="0" title="Click to edit this sale">
+            <tr class="sale-row${startsGeschlagenGroup ? ' geschlagen-start' : ''}" data-sale-id="${escapeHtml(sale.id)}" tabindex="0" title="Click to edit this sale">
               <td class="sale-name">${escapeHtml(sale.fullName)}</td>
               <td>${escapeHtml(sale.phone || '')}</td>
               <td><span class="status-pill ${escapeHtml(sale.status || 'paid')}">${getStatusLabel(sale.status || 'paid')}</span></td>
@@ -1820,12 +1855,10 @@
       const needsSaved = getNeedsSavedTotal();
       document.getElementById('reportChickensLabel').textContent = state.settings.reportLabels.chickens;
       document.getElementById('reportPaidLabel').textContent = state.settings.reportLabels.paid;
-      document.getElementById('reportReservedLabel').textContent = state.settings.reportLabels.reserved;
       document.getElementById('reportNeedsReservedLabel').textContent = state.settings.reportLabels.needsReserved;
       document.getElementById('reportNeedsSavedLabel').textContent = state.settings.reportLabels.needsSaved;
       document.getElementById('reportChickenTotal').textContent = state.settings.inventory;
       document.getElementById('reportPaidTotal').textContent = paidSales.length;
-      document.getElementById('reportReservedTotal').textContent = reservedSales.length;
       document.getElementById('reportNeedsReservedTotal').textContent = needsReserved;
       document.getElementById('reportNeedsSavedTotal').textContent = needsSaved;
 
@@ -2097,6 +2130,11 @@
     addSaleBtn.addEventListener('click', () => openModal());
     salesSearch.addEventListener('input', () => {
       state.searchQuery = salesSearch.value;
+      renderSales();
+    });
+    salesSort.addEventListener('change', () => {
+      state.settings.salesSortMode = ['newest', 'oldest'].includes(salesSort.value) ? salesSort.value : 'name';
+      saveSettings();
       renderSales();
     });
     closeModalBtn.addEventListener('click', closeModal);
@@ -2525,7 +2563,7 @@
       const nextLabels = {
         chickens: settingReportChickensLabel.value.trim(),
         paid: settingReportPaidLabel.value.trim(),
-        reserved: settingReportReservedLabel.value.trim(),
+        reserved: state.settings.reportLabels.reserved,
         needsReserved: settingReportNeedsReservedLabel.value.trim(),
         needsSaved: settingReportNeedsSavedLabel.value.trim()
       };

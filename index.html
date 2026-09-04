@@ -824,6 +824,15 @@
     .quantity-price-field > .price-wrap,
     .quantity-price-field > .price-wrap input { height: 44px; min-height: 44px; }
     .helper { font-size: 12px; color: var(--muted); }
+    .sale-readonly input:disabled,
+    .sale-readonly select:disabled,
+    .sale-readonly textarea:disabled {
+      opacity: 1;
+      color: var(--ink);
+      -webkit-text-fill-color: var(--ink);
+      background: #fbf8f2;
+      cursor: default;
+    }
     .other-details { display: none; }
     .other-details.show { display: grid; }
     .modal-actions {
@@ -1072,7 +1081,7 @@
               <span class="settings-card-note">Manage completed tasks.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="login">
-              <span class="settings-card-title">Change Username and Password</span>
+              <span class="settings-card-title">Login Settings</span>
               <span class="settings-card-note">Change the username and password.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="export">
@@ -1161,7 +1170,7 @@
         <div class="settings-view" data-settings-view="login" hidden>
           <div class="settings-view-head">
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
-            <h3>Change Username and Password</h3>
+            <h3>Login Settings</h3>
           </div>
           <button type="button" class="secondary-btn" id="openLoginSettingsBtn">Change username and password</button>
           <form id="loginSettingsForm" hidden>
@@ -1321,6 +1330,7 @@
         <div class="modal-actions">
           <button type="button" class="danger-btn" id="deleteSaleBtn" hidden>Delete</button>
           <button type="button" class="secondary-btn" id="cancelBtn">Cancel</button>
+          <button type="button" class="primary-btn" id="editSaleBtn" hidden>Edit</button>
           <button type="submit" class="primary-btn" id="saveSaleBtn">Save Sale</button>
         </div>
       </form>
@@ -1460,6 +1470,7 @@
     const phoneInput = document.getElementById('phone');
     const saleModalTitle = document.getElementById('saleModalTitle');
     const saveSaleBtn = document.getElementById('saveSaleBtn');
+    const editSaleBtn = document.getElementById('editSaleBtn');
     const deleteSaleBtn = document.getElementById('deleteSaleBtn');
     const salesSearch = document.getElementById('salesSearch');
     const salesSort = document.getElementById('salesSort');
@@ -2165,7 +2176,7 @@
             ? '<tr class="sales-group-divider"><td colspan="6">שוין געשלאגן</td></tr>'
             : '';
           return `${divider}
-            <tr class="sale-row" data-sale-id="${escapeHtml(sale.id)}" tabindex="0" title="Click to edit this sale">
+            <tr class="sale-row" data-sale-id="${escapeHtml(sale.id)}" tabindex="0" title="Click to open this sale">
               <td class="sale-name">${escapeHtml(sale.fullName)}</td>
               <td>${escapeHtml(sale.phone || '')}</td>
               <td><span class="status-pill ${escapeHtml(sale.status || 'paid')}">${getStatusLabel(sale.status || 'paid')}</span></td>
@@ -2545,8 +2556,38 @@
       if (page === 'settings') renderSettings();
     }
 
+    function setSaleFormMode(readOnly) {
+      saleForm.querySelectorAll('input, select, textarea').forEach(control => {
+        control.disabled = readOnly;
+      });
+      geschlagenInput.disabled = false;
+      saleForm.classList.toggle('sale-readonly', readOnly);
+    }
+
+    function showSaleView() {
+      saleModalTitle.textContent = 'Sale';
+      setSaleFormMode(true);
+      deleteSaleBtn.hidden = true;
+      cancelBtn.textContent = 'Close';
+      editSaleBtn.hidden = false;
+      saveSaleBtn.hidden = true;
+    }
+
+    function showSaleEditor(existingSale = null) {
+      saleModalTitle.textContent = existingSale ? 'Edit Sale' : 'Add Sale';
+      setSaleFormMode(false);
+      updatePaymentFieldsForStatus();
+      deleteSaleBtn.hidden = !existingSale;
+      cancelBtn.textContent = 'Cancel';
+      editSaleBtn.hidden = true;
+      saveSaleBtn.hidden = false;
+      saveSaleBtn.textContent = existingSale ? 'Save' : 'Save Sale';
+      setTimeout(() => fullNameInput.focus(), 0);
+    }
+
     function openModal(saleId = null) {
       saleForm.reset();
+      setSaleFormMode(false);
       state.editingSaleId = saleId;
       saleStatus.querySelector('option[value="expired"]')?.remove();
       otherDetailsWrap.classList.remove('show');
@@ -2575,6 +2616,7 @@
         otherDetails.value = sale.otherDetails || '';
         updatePaymentFieldsForStatus();
         renderCustomSaleFields(sale.customFields || {});
+        showSaleView();
       } else {
         if (getKapparosSold() >= state.settings.inventory) {
           showToast('No כפרות are available. Increase inventory in Settings.');
@@ -2591,11 +2633,11 @@
         renderPlannedPaymentSelect('');
         updatePaymentFieldsForStatus();
         renderCustomSaleFields();
+        showSaleEditor();
       }
 
       saleModal.classList.add('open');
       saleModal.setAttribute('aria-hidden', 'false');
-      setTimeout(() => fullNameInput.focus(), 0);
     }
 
     function closeModal() {
@@ -2906,6 +2948,10 @@
     });
     closeModalBtn.addEventListener('click', closeModal);
     cancelBtn.addEventListener('click', closeModal);
+    editSaleBtn.addEventListener('click', () => {
+      const sale = state.sales.find(item => item.id === state.editingSaleId);
+      if (sale) showSaleEditor(sale);
+    });
     saleModal.addEventListener('click', e => { if (e.target === saleModal) closeModal(); });
 
     quantityInput.addEventListener('input', () => {
@@ -2925,6 +2971,25 @@
 
     saleStatus.addEventListener('change', updatePaymentFieldsForStatus);
     plannedPaymentType.addEventListener('change', updatePaymentFieldsForStatus);
+
+    geschlagenInput.addEventListener('change', async () => {
+      if (!fullNameInput.disabled || !state.editingSaleId) return;
+      const sale = state.sales.find(item => item.id === state.editingSaleId);
+      if (!sale) return;
+      const previousValue = Boolean(sale.geschlagen);
+      const nextValue = geschlagenInput.checked;
+      if (previousValue === nextValue) return;
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) {
+        geschlagenInput.checked = previousValue;
+        return;
+      }
+      sale.geschlagen = nextValue;
+      sale.updatedAt = new Date().toISOString();
+      saveSales();
+      renderSales();
+      renderReports();
+      showToast(nextValue ? 'Sale marked געשלאגן' : 'געשלאגן removed');
+    });
 
     saleForm.addEventListener('submit', async e => {
       e.preventDefault();

@@ -1521,6 +1521,9 @@
     const confirmNoBtn = document.getElementById('confirmNoBtn');
     const confirmYesBtn = document.getElementById('confirmYesBtn');
 
+    const LAST_PAGE_KEY = 'kapparos_last_page';
+    const VALID_PAGES = new Set(['sales', 'todo', 'reports', 'settings']);
+
     function unlockWebsite(token = cloudSessionToken) {
       cloudSessionToken = token || cloudSessionToken;
       if (cloudSessionToken) sessionStorage.setItem(LOGIN_SESSION_KEY, cloudSessionToken);
@@ -1529,12 +1532,14 @@
       appShell.setAttribute('aria-hidden', 'false');
       loginError.textContent = '';
       loginForm.reset();
-      showPage('sales');
+      const savedPage = sessionStorage.getItem(LAST_PAGE_KEY);
+      showPage(VALID_PAGES.has(savedPage) ? savedPage : 'sales');
     }
 
     function lockWebsite() {
       cloudSessionToken = '';
       sessionStorage.removeItem(LOGIN_SESSION_KEY);
+      sessionStorage.removeItem(LAST_PAGE_KEY);
       loginGate.hidden = false;
       appShell.classList.add('locked');
       appShell.setAttribute('aria-hidden', 'true');
@@ -2483,7 +2488,9 @@
     }
 
     function showPage(page) {
+      page = VALID_PAGES.has(page) ? page : 'sales';
       state.page = page;
+      sessionStorage.setItem(LAST_PAGE_KEY, page);
       document.getElementById('salesPage').classList.toggle('active', page === 'sales');
       document.getElementById('todoPage').classList.toggle('active', page === 'todo');
       document.getElementById('reportsPage').classList.toggle('active', page === 'reports');

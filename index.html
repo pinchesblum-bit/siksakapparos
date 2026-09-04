@@ -1532,7 +1532,9 @@
     const confirmYesBtn = document.getElementById('confirmYesBtn');
 
     const LAST_PAGE_KEY = 'kapparos_last_page';
+    const LAST_SETTINGS_VIEW_KEY = 'kapparos_last_settings_view';
     const VALID_PAGES = new Set(['sales', 'todo', 'reports', 'settings']);
+    const VALID_SETTINGS_VIEWS = new Set(['website', 'sales', 'reports', 'tasks', 'login', 'export']);
 
     function unlockWebsite(token = cloudSessionToken) {
       cloudSessionToken = token || cloudSessionToken;
@@ -1550,6 +1552,7 @@
       cloudSessionToken = '';
       sessionStorage.removeItem(LOGIN_SESSION_KEY);
       sessionStorage.removeItem(LAST_PAGE_KEY);
+      sessionStorage.removeItem(LAST_SETTINGS_VIEW_KEY);
       loginGate.hidden = false;
       appShell.classList.add('locked');
       appShell.setAttribute('aria-hidden', 'true');
@@ -1982,7 +1985,9 @@
       renderPaymentPlansEditor();
       renderCustomFieldsEditor();
       Object.keys(settingsEditMode).forEach(section => setSettingsEditMode(section, false));
-      showSettingsHome();
+      const savedSettingsView = sessionStorage.getItem(LAST_SETTINGS_VIEW_KEY);
+      if (VALID_SETTINGS_VIEWS.has(savedSettingsView)) openSettingsView(savedSettingsView);
+      else showSettingsHome();
     }
 
     function setSettingsEditMode(section, editing) {
@@ -2051,11 +2056,17 @@
     }
 
     function showSettingsHome() {
+      sessionStorage.removeItem(LAST_SETTINGS_VIEW_KEY);
       settingsHome.hidden = false;
       settingsViews.forEach(view => { view.hidden = true; });
     }
 
     function openSettingsView(viewName) {
+      if (!VALID_SETTINGS_VIEWS.has(viewName)) {
+        showSettingsHome();
+        return;
+      }
+      sessionStorage.setItem(LAST_SETTINGS_VIEW_KEY, viewName);
       settingsHome.hidden = true;
       settingsViews.forEach(view => {
         view.hidden = view.dataset.settingsView !== viewName;

@@ -421,10 +421,21 @@
       gap: 10px;
       min-height: 66px;
       padding: 11px 18px;
-      border-bottom: 1px solid #eee6db;
+      border-bottom: 2px solid #dfd3c4;
       background: var(--surface);
     }
     .todo-row:hover { background: #fbf8f2; }
+    .todo-active-divider {
+      margin-top: 18px;
+      padding: 12px 20px;
+      border-top: 1px solid #dfd3c4;
+      border-bottom: 1px solid #dfd3c4;
+      background: #fbf8f2;
+      color: var(--muted);
+      text-align: center;
+      font-size: 15px;
+      font-weight: 800;
+    }
     .todo-row:last-child { border-bottom: 0; }
     .todo-row.drag-over { box-shadow: inset 0 3px 0 var(--accent); }
     .todo-drag-handle,
@@ -445,6 +456,10 @@
       cursor: grab;
     }
     .todo-drag-handle:active { cursor: grabbing; }
+    .todo-drag-handle.hold-ready {
+      color: var(--accent);
+      transform: scale(1.12);
+    }
     .todo-row.dragging { opacity: .62; }
     .todo-row.drag-over { box-shadow: inset 0 3px 0 #6e80b8; }
     .todo-readonly input:disabled,
@@ -984,10 +999,9 @@
               </select>
             </div>
             <button type="button" class="primary-btn" id="addTodoBtn">+ Add Task</button>
-            <button type="button" class="secondary-btn" id="reopenAllTasksBtn" hidden>Mark all not complete</button>
           </div>
         </div>
-        <p class="todo-arrange-hint" id="todoArrangeHint">Use the handle on the left to arrange your tasks.</p>
+        <div class="todo-active-divider">וואס מען דארף מסדר זיין</div>
         <div class="todo-list" id="todoList"></div>
       </div>
     </section>
@@ -1055,7 +1069,7 @@
             </button>
             <button type="button" class="settings-card" data-settings-open="tasks">
               <span class="settings-card-title">Task Settings</span>
-              <span class="settings-card-note">More task options are coming soon.</span>
+              <span class="settings-card-note">Manage completed tasks.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="login">
               <span class="settings-card-title">Login Settings</span>
@@ -1198,7 +1212,15 @@
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
             <h3>Task Settings</h3>
           </div>
-          <p class="small-note">More task settings are coming soon.</p>
+          <div class="settings-section">
+            <div class="payment-method-row">
+              <div>
+                <div class="settings-card-title">Completed tasks</div>
+                <div class="settings-card-note">Move every completed task back to the active task list.</div>
+              </div>
+              <button type="button" class="secondary-btn" id="reopenAllTasksBtn">Mark all not complete</button>
+            </div>
+          </div>
         </div>
 
         <div class="settings-view" data-settings-view="export" hidden>
@@ -1433,7 +1455,6 @@
     const homeBtn = document.getElementById('homeBtn');
     const todoList = document.getElementById('todoList');
     const todoSort = document.getElementById('todoSort');
-    const todoArrangeHint = document.getElementById('todoArrangeHint');
     const addTodoBtn = document.getElementById('addTodoBtn');
     const reopenAllTasksBtn = document.getElementById('reopenAllTasksBtn');
     const todoModal = document.getElementById('todoModal');
@@ -2173,8 +2194,7 @@
       const tasks = (state.settings.todoTasks || []).slice().sort(compareTodoTasks);
       const isManual = (state.todoSortMode || 'manual') === 'manual';
       todoSort.value = state.todoSortMode || 'manual';
-      todoArrangeHint.hidden = !isManual;
-      reopenAllTasksBtn.hidden = !tasks.some(task => task.completed);
+      reopenAllTasksBtn.disabled = !tasks.some(task => task.completed);
 
       if (!tasks.length) {
         todoList.innerHTML = '<div class="empty-state">No tasks yet. Click <strong>Add Task</strong> to create the first one.</div>';
@@ -2187,7 +2207,7 @@
         const startsCompleted = task.completed && (index === 0 || !tasks[index - 1].completed);
         const divider = startsCompleted ? '<div class="todo-section-divider">Completed</div>' : '';
         const handle = isManual && !task.completed
-          ? `<button type="button" class="todo-drag-handle" data-todo-drag="${escapeHtml(task.id)}" aria-label="Move task" title="Drag to move">⠿</button>`
+          ? `<button type="button" class="todo-drag-handle" data-todo-drag="${escapeHtml(task.id)}" aria-label="Move task" title="Press and hold to move">⠿</button>`
           : '<span class="todo-drag-spacer" aria-hidden="true"></span>';
         return `${divider}
           <div class="todo-row${task.completed ? ' todo-completed-row' : ''}" data-todo-row="${escapeHtml(task.id)}">
@@ -2687,31 +2707,55 @@
     });
 
     let todoDrag = null;
+    const TODO_HOLD_DELAY = 750;
 
     function clearTodoDragAppearance() {
       todoList.querySelectorAll('.drag-over, .dragging').forEach(row => {
         row.classList.remove('drag-over', 'dragging');
+      });
+      todoList.querySelectorAll('.todo-drag-handle.hold-ready').forEach(handle => {
+        handle.classList.remove('hold-ready');
       });
     }
 
     todoList.addEventListener('pointerdown', event => {
       const handle = event.target.closest('[data-todo-drag]');
       if (!handle || (state.todoSortMode || 'manual') !== 'manual') return;
-      event.preventDefault();
       event.stopPropagation();
       handle.setPointerCapture?.(event.pointerId);
       const row = handle.closest('[data-todo-row]');
-      todoDrag = {
+      const drag = {
         id: handle.dataset.todoDrag,
         targetId: handle.dataset.todoDrag,
         pointerId: event.pointerId,
-        handle
+        handle,
+        row,
+        startX: event.clientX,
+        startY: event.clientY,
+        active: false,
+        cancelled: false,
+        timer: null
       };
-      row?.classList.add('dragging');
+      drag.timer = setTimeout(() => {
+        if (todoDrag !== drag || drag.cancelled) return;
+        drag.active = true;
+        drag.row?.classList.add('dragging');
+        drag.handle.classList.add('hold-ready');
+        if (navigator.vibrate) navigator.vibrate(30);
+      }, TODO_HOLD_DELAY);
+      todoDrag = drag;
     });
 
     todoList.addEventListener('pointermove', event => {
       if (!todoDrag || event.pointerId !== todoDrag.pointerId) return;
+      const distance = Math.hypot(event.clientX - todoDrag.startX, event.clientY - todoDrag.startY);
+      if (!todoDrag.active) {
+        if (distance > 12) {
+          todoDrag.cancelled = true;
+          clearTimeout(todoDrag.timer);
+        }
+        return;
+      }
       event.preventDefault();
       const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-todo-row]');
       if (!target || target.classList.contains('todo-completed-row')) return;
@@ -2720,16 +2764,16 @@
       todoDrag.targetId = target.dataset.todoRow;
     });
 
-    async function finishTodoDrag(event, cancelled = false) {
+    function finishTodoDrag(event, cancelled = false) {
       if (!todoDrag || (event.pointerId != null && event.pointerId !== todoDrag.pointerId)) return;
-      const { id, targetId, handle, pointerId } = todoDrag;
+      const { id, targetId, handle, pointerId, active, timer } = todoDrag;
+      clearTimeout(timer);
       todoDrag = null;
       clearTodoDragAppearance();
       try {
         if (handle?.hasPointerCapture?.(pointerId)) handle.releasePointerCapture(pointerId);
       } catch (_) {}
-      if (cancelled || !targetId || id === targetId) return;
-      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+      if (cancelled || !active || !targetId || id === targetId) return;
       reorderTodoTasks(id, targetId);
       showToast('Task order updated');
     }

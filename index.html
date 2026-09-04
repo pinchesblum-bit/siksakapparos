@@ -406,36 +406,34 @@
     .todo-list { display: grid; }
     .todo-row {
       display: grid;
-      grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+      grid-template-columns: auto minmax(0, 1fr) auto;
       align-items: center;
-      gap: 12px;
-      min-height: 78px;
-      padding: 12px 18px;
+      gap: 13px;
+      min-height: 58px;
+      padding: 9px 18px;
       border-bottom: 1px solid #eee6db;
       background: var(--surface);
+      transition: background .15s ease, color .15s ease;
     }
     .todo-row:last-child { border-bottom: 0; }
-    .todo-row.dragging { opacity: .45; }
-    .todo-row.drag-over { box-shadow: inset 0 3px 0 var(--accent); }
+    .todo-row:hover { background: #fbf8f2; }
+    .todo-row.completed { background: #eef3ed; }
     .todo-check {
+      appearance: none;
       width: 21px;
       height: 21px;
       margin: 0;
-      accent-color: var(--success);
-    }
-    .todo-pin {
-      width: 34px;
-      height: 34px;
+      border: 2px solid #8d8175;
+      border-radius: 50%;
+      background: #fff;
       display: grid;
       place-items: center;
-      padding: 0;
-      border: 1px solid transparent;
-      border-radius: 10px;
-      background: transparent;
-      color: #a09589;
-      font-size: 17px;
     }
-    .todo-pin.active { color: var(--accent); background: var(--accent-soft); border-color: #ddc5ab; }
+    .todo-check:checked {
+      border-color: var(--success);
+      background: var(--success);
+      box-shadow: inset 0 0 0 4px #fff;
+    }
     .todo-content {
       min-width: 0;
       padding: 2px 0;
@@ -447,59 +445,56 @@
     .todo-title {
       display: block;
       width: 100%;
-      font-weight: 750;
+      font-weight: 700;
       line-height: 1.35;
       overflow-wrap: anywhere;
     }
     .todo-description {
       display: -webkit-box;
-      margin-top: 4px;
+      margin-top: 3px;
       overflow: hidden;
       color: var(--muted);
       font-size: 13px;
-      line-height: 1.4;
+      line-height: 1.35;
       text-overflow: ellipsis;
       overflow-wrap: anywhere;
       -webkit-box-orient: vertical;
       -webkit-line-clamp: 2;
     }
-    .todo-row.completed .todo-title { color: var(--muted); text-decoration: line-through; }
+    .todo-row.completed .todo-title {
+      color: #55735a;
+      text-decoration: none;
+    }
+    .todo-row.completed .todo-description,
+    .todo-row.completed .todo-due { color: #78907c; }
     .todo-due {
-      min-width: 122px;
+      min-width: 118px;
       color: var(--muted);
-      font-size: 13px;
+      font-size: 12px;
       text-align: right;
     }
     .todo-due.overdue { color: #9d2f25; font-weight: 750; }
-    .todo-actions { display: flex; align-items: center; gap: 4px; }
-    .todo-action-btn {
-      width: 32px;
-      height: 32px;
-      display: grid;
-      place-items: center;
-      padding: 0;
-      border: 1px solid var(--line);
-      border-radius: 9px;
-      background: #fff;
-      color: var(--muted);
-      font-weight: 800;
-    }
-    .todo-action-btn:hover { color: var(--accent); background: #fbf8f2; }
-    .todo-action-btn.delete:hover { color: #9d2f25; }
     .todo-section-divider {
-      padding: 14px 20px;
-      border-top: 8px solid var(--bg);
+      padding: 12px 20px;
+      border-top: 7px solid var(--bg);
       border-bottom: 1px solid #eee6db;
       background: #fbf8f2;
       color: var(--muted);
       text-align: center;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 800;
       letter-spacing: .03em;
     }
     .todo-options { display: flex; gap: 18px; flex-wrap: wrap; }
     .todo-option { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
     .todo-option input { width: 19px; height: 19px; accent-color: var(--success); }
+    .todo-move-actions {
+      display: flex;
+      gap: 9px;
+      flex-wrap: wrap;
+      padding-top: 2px;
+    }
+
     .reports-header {
       display: flex;
       align-items: end;
@@ -837,14 +832,12 @@
       .todo-tools { align-items: stretch; flex-direction: column; }
       .todo-sort { min-width: 0; }
       .todo-row {
-        grid-template-columns: auto auto minmax(0, 1fr);
+        grid-template-columns: auto minmax(0, 1fr);
         align-items: start;
-        padding: 13px 14px;
+        padding: 10px 14px;
       }
-      .todo-content { grid-column: 3; }
-      .todo-due { grid-column: 3; min-width: 0; text-align: left; }
-      .todo-actions { grid-column: 3; justify-content: flex-start; }
-      .todo-action-btn { width: 36px; height: 36px; }
+      .todo-content { grid-column: 2; }
+      .todo-due { grid-column: 2; min-width: 0; text-align: left; }
       .sales-tools { grid-template-columns: 1fr; }
       .sales-search { width: 100%; }
       .table-add-sale { justify-self: stretch; width: 100%; }
@@ -1301,6 +1294,10 @@
             </label>
           </div>
         </div>
+        <div class="todo-move-actions" id="todoMoveActions" hidden>
+          <button type="button" class="secondary-btn" id="moveTodoTopBtn">Move to Top</button>
+          <button type="button" class="secondary-btn" id="moveTodoBottomBtn">Move to Bottom</button>
+        </div>
         <div class="modal-actions">
           <button type="button" class="danger-btn" id="deleteTodoBtn" hidden>Delete Task</button>
           <button type="button" class="secondary-btn" id="cancelTodoBtn">Cancel</button>
@@ -1421,6 +1418,9 @@
     const todoModalTitle = document.getElementById('todoModalTitle');
     const saveTodoBtn = document.getElementById('saveTodoBtn');
     const deleteTodoBtn = document.getElementById('deleteTodoBtn');
+    const todoMoveActions = document.getElementById('todoMoveActions');
+    const moveTodoTopBtn = document.getElementById('moveTodoTopBtn');
+    const moveTodoBottomBtn = document.getElementById('moveTodoBottomBtn');
     const closeTodoModalBtn = document.getElementById('closeTodoModalBtn');
     const cancelTodoBtn = document.getElementById('cancelTodoBtn');
     const salesSummaryTitle = document.getElementById('salesSummaryTitle');
@@ -2134,20 +2134,13 @@
         const startsCompleted = task.completed && (index === 0 || !tasks[index - 1].completed);
         const divider = startsCompleted ? '<div class="todo-section-divider">Completed</div>' : '';
         return `${divider}
-          <div class="todo-row${task.completed ? ' completed' : ''}" data-todo-row="${escapeHtml(task.id)}" draggable="true">
+          <div class="todo-row${task.completed ? ' completed' : ''}">
             <input class="todo-check" type="checkbox" data-todo-complete="${escapeHtml(task.id)}" aria-label="Mark task completed" ${task.completed ? 'checked' : ''} />
-            <button type="button" class="todo-pin${task.pinned ? ' active' : ''}" data-todo-pin="${escapeHtml(task.id)}" aria-label="${task.pinned ? 'Unpin' : 'Pin'} task" title="${task.pinned ? 'Unpin task' : 'Pin task'}">📌</button>
-            <button type="button" class="todo-content" data-todo-edit="${escapeHtml(task.id)}" title="Edit this task">
+            <button type="button" class="todo-content" data-todo-edit="${escapeHtml(task.id)}" title="Open task">
               <span class="todo-title">${escapeHtml(task.title)}</span>
               ${task.description ? `<span class="todo-description">${escapeHtml(task.description)}</span>` : ''}
             </button>
             <span class="todo-due${overdue ? ' overdue' : ''}">${escapeHtml(formatTodoDate(task.dueDate))}</span>
-            <span class="todo-actions">
-              <button type="button" class="todo-action-btn" data-todo-move-up="${escapeHtml(task.id)}" aria-label="Move task up" title="Move up">↑</button>
-              <button type="button" class="todo-action-btn" data-todo-move-down="${escapeHtml(task.id)}" aria-label="Move task down" title="Move down">↓</button>
-              <button type="button" class="todo-action-btn" data-todo-edit="${escapeHtml(task.id)}" aria-label="Edit task" title="Edit">✎</button>
-              <button type="button" class="todo-action-btn delete" data-todo-delete="${escapeHtml(task.id)}" aria-label="Delete task" title="Delete">×</button>
-            </span>
           </div>`;
       }).join('');
     }
@@ -2163,6 +2156,7 @@
       todoModalTitle.textContent = task ? 'Edit Task' : 'Add Task';
       saveTodoBtn.textContent = task ? 'Save Changes' : 'Save Task';
       deleteTodoBtn.hidden = !task;
+      todoMoveActions.hidden = !task;
       if (task) {
         todoTitle.value = task.title || '';
         todoDescription.value = task.description || '';
@@ -2182,53 +2176,30 @@
       state.editingTodoId = null;
     }
 
-    function setTodoManualOrder(tasks) {
-      tasks.forEach((task, index) => { task.order = index; });
+    async function moveEditingTodo(toEnd) {
+      const allTasks = state.settings.todoTasks || [];
+      const task = allTasks.find(item => item.id === state.editingTodoId);
+      if (!task) return;
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+
+      const visualTasks = allTasks.slice().sort(compareTodoTasks);
+      const sameSection = visualTasks.filter(item =>
+        item.completed === task.completed && item.pinned === task.pinned && item.id !== task.id
+      );
+      const reorderedSection = toEnd ? [...sameSection, task] : [task, ...sameSection];
+      const sectionIds = new Set(reorderedSection.map(item => item.id));
+      let sectionIndex = 0;
+      visualTasks.forEach(item => {
+        if (sectionIds.has(item.id)) {
+          const replacement = reorderedSection[sectionIndex++];
+          replacement.order = visualTasks.indexOf(item);
+        }
+      });
       state.settings.todoSortMode = 'manual';
       todoSort.value = 'manual';
-    }
-
-    async function moveTodoTask(taskId, direction) {
-      const allTasks = state.settings.todoTasks || [];
-      const visualTasks = allTasks.slice().sort(compareTodoTasks);
-      const task = allTasks.find(item => item.id === taskId);
-      if (!task) return;
-      const group = visualTasks.filter(item => item.completed === task.completed && item.pinned === task.pinned);
-      const index = group.findIndex(item => item.id === taskId);
-      const nextIndex = index + direction;
-      if (index < 0 || nextIndex < 0 || nextIndex >= group.length) return;
-      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
-      const reordered = group.slice();
-      const [moved] = reordered.splice(index, 1);
-      reordered.splice(nextIndex, 0, moved);
-      const otherTasks = visualTasks.filter(item => item.completed !== task.completed || item.pinned !== task.pinned);
-      setTodoManualOrder([...otherTasks, ...reordered]);
-      const orderById = new Map([...otherTasks, ...reordered].map((item, order) => [item.id, order]));
-      allTasks.forEach(item => { item.order = orderById.get(item.id) ?? item.order; });
       saveSettings();
       renderTodo();
-    }
-
-    async function reorderTodoTask(sourceId, targetId) {
-      if (!sourceId || !targetId || sourceId === targetId) return;
-      const allTasks = state.settings.todoTasks || [];
-      const source = allTasks.find(item => item.id === sourceId);
-      const target = allTasks.find(item => item.id === targetId);
-      if (!source || !target || source.completed !== target.completed || source.pinned !== target.pinned) {
-        showToast('Move tasks inside the same section');
-        return;
-      }
-      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
-      const visualTasks = allTasks.slice().sort(compareTodoTasks);
-      const sourceIndex = visualTasks.findIndex(item => item.id === sourceId);
-      const targetIndex = visualTasks.findIndex(item => item.id === targetId);
-      const [moved] = visualTasks.splice(sourceIndex, 1);
-      visualTasks.splice(targetIndex, 0, moved);
-      setTodoManualOrder(visualTasks);
-      const orderById = new Map(visualTasks.map((item, order) => [item.id, order]));
-      allTasks.forEach(item => { item.order = orderById.get(item.id); });
-      saveSettings();
-      renderTodo();
+      showToast(toEnd ? 'Task moved to bottom' : 'Task moved to top');
     }
 
     function renderReports() {
@@ -2572,6 +2543,8 @@
       closeTodoModal();
       showToast('Task deleted');
     });
+    moveTodoTopBtn.addEventListener('click', () => moveEditingTodo(false));
+    moveTodoBottomBtn.addEventListener('click', () => moveEditingTodo(true));
     todoList.addEventListener('change', async event => {
       const checkbox = event.target.closest('[data-todo-complete]');
       if (!checkbox) return;
@@ -2587,65 +2560,9 @@
       renderTodo();
       showToast(task.completed ? 'Task completed' : 'Task reopened');
     });
-    todoList.addEventListener('click', async event => {
-      const editButton = event.target.closest('[data-todo-edit]');
-      if (editButton) {
-        openTodoModal(editButton.dataset.todoEdit);
-        return;
-      }
-      const pinButton = event.target.closest('[data-todo-pin]');
-      if (pinButton) {
-        const task = (state.settings.todoTasks || []).find(item => item.id === pinButton.dataset.todoPin);
-        if (!task || !(await askConfirmation(CHANGE_CONFIRMATION))) return;
-        task.pinned = !task.pinned;
-        task.updatedAt = new Date().toISOString();
-        saveSettings();
-        renderTodo();
-        showToast(task.pinned ? 'Task pinned' : 'Task unpinned');
-        return;
-      }
-      const deleteButton = event.target.closest('[data-todo-delete]');
-      if (deleteButton) {
-        if (!(await askConfirmation(DELETE_CONFIRMATION))) return;
-        state.settings.todoTasks = (state.settings.todoTasks || []).filter(task => task.id !== deleteButton.dataset.todoDelete);
-        saveSettings();
-        renderTodo();
-        showToast('Task deleted');
-        return;
-      }
-      const upButton = event.target.closest('[data-todo-move-up]');
-      if (upButton) {
-        await moveTodoTask(upButton.dataset.todoMoveUp, -1);
-        return;
-      }
-      const downButton = event.target.closest('[data-todo-move-down]');
-      if (downButton) await moveTodoTask(downButton.dataset.todoMoveDown, 1);
-    });
-
-    let draggedTodoId = '';
-    todoList.addEventListener('dragstart', event => {
-      const row = event.target.closest('[data-todo-row]');
-      if (!row) return;
-      draggedTodoId = row.dataset.todoRow;
-      row.classList.add('dragging');
-      event.dataTransfer.effectAllowed = 'move';
-    });
-    todoList.addEventListener('dragover', event => {
-      const row = event.target.closest('[data-todo-row]');
-      if (!row) return;
-      event.preventDefault();
-      todoList.querySelectorAll('.drag-over').forEach(item => item.classList.remove('drag-over'));
-      row.classList.add('drag-over');
-    });
-    todoList.addEventListener('drop', async event => {
-      const row = event.target.closest('[data-todo-row]');
-      if (!row) return;
-      event.preventDefault();
-      await reorderTodoTask(draggedTodoId, row.dataset.todoRow);
-    });
-    todoList.addEventListener('dragend', () => {
-      todoList.querySelectorAll('.dragging, .drag-over').forEach(item => item.classList.remove('dragging', 'drag-over'));
-      draggedTodoId = '';
+    todoList.addEventListener('click', event => {
+      const taskButton = event.target.closest('[data-todo-edit]');
+      if (taskButton) openTodoModal(taskButton.dataset.todoEdit);
     });
 
     settingShowNeedsSaved.addEventListener('change', async () => {

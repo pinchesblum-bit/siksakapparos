@@ -445,6 +445,16 @@
       cursor: grab;
     }
     .todo-drag-handle:active { cursor: grabbing; }
+    .todo-row.dragging { opacity: .62; }
+    .todo-row.drag-over { box-shadow: inset 0 3px 0 #6e80b8; }
+    .todo-readonly input:disabled,
+    .todo-readonly textarea:disabled {
+      opacity: 1;
+      color: var(--text);
+      -webkit-text-fill-color: var(--text);
+      background: #fbf8f2;
+      cursor: default;
+    }
     .todo-content {
       min-width: 0;
       padding: 2px 0;
@@ -903,8 +913,8 @@
         </button>
         <div class="menu-popover" id="menuPopover">
           <button class="menu-item" data-page="sales">Sales</button>
-          <button class="menu-item" data-page="todo">Tasks</button>
           <button class="menu-item" data-page="reports">Reports</button>
+          <button class="menu-item" data-page="todo">Tasks</button>
           <button class="menu-item" data-page="settings">Settings</button>
           <button class="menu-item logout-menu-item" id="logoutBtn">Log out</button>
         </div>
@@ -969,9 +979,8 @@
             <div class="todo-sort">
               <label for="todoSort" class="small-note">Order</label>
               <select id="todoSort">
-                <option value="manual">Default order</option>
-                <option value="name">Name א–ת / A–Z</option>
-                <option value="due">Upcoming due dates</option>
+                <option value="manual">Default</option>
+                <option value="due">Upcoming date</option>
               </select>
             </div>
             <button type="button" class="primary-btn" id="addTodoBtn">+ Add Task</button>
@@ -1041,13 +1050,17 @@
               <span class="settings-card-title">Sales Settings</span>
               <span class="settings-card-note">Edit pricing, inventory, payment methods, and sale fields.</span>
             </button>
-            <button type="button" class="settings-card" data-settings-open="login">
-              <span class="settings-card-title">Login Settings</span>
-              <span class="settings-card-note">Change the username and password.</span>
-            </button>
             <button type="button" class="settings-card" data-settings-open="reports">
               <span class="settings-card-title">Report Settings</span>
               <span class="settings-card-note">Edit the names of the report summary boxes.</span>
+            </button>
+            <button type="button" class="settings-card" data-settings-open="tasks">
+              <span class="settings-card-title">Task Settings</span>
+              <span class="settings-card-note">More task options are coming soon.</span>
+            </button>
+            <button type="button" class="settings-card" data-settings-open="login">
+              <span class="settings-card-title">Login Settings</span>
+              <span class="settings-card-note">Change the username and password.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="export">
               <span class="settings-card-title">Export Data</span>
@@ -1181,6 +1194,14 @@
           </form>
         </div>
 
+        <div class="settings-view" data-settings-view="tasks" hidden>
+          <div class="settings-view-head">
+            <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
+            <h3>Task Settings</h3>
+          </div>
+          <p class="small-note">More task settings are coming soon.</p>
+        </div>
+
         <div class="settings-view" data-settings-view="export" hidden>
           <div class="settings-view-head">
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
@@ -1281,29 +1302,6 @@
         <button type="button" class="close-btn" id="closeTodoModalBtn" aria-label="Close">×</button>
       </div>
 
-      <div class="todo-view-panel" id="todoViewPanel" hidden>
-        <div class="todo-view-item">
-          <div class="todo-view-label">Task</div>
-          <div class="todo-view-value" id="todoViewTitle"></div>
-        </div>
-        <div class="todo-view-item" id="todoViewDueWrap">
-          <div class="todo-view-label">Due date</div>
-          <div class="todo-view-value" id="todoViewDue"></div>
-        </div>
-        <div class="todo-view-item" id="todoViewNoteWrap">
-          <div class="todo-view-label">Note</div>
-          <div class="todo-view-value" id="todoViewNote"></div>
-        </div>
-        <label class="todo-complete-control" for="todoViewCompleted">
-          <input id="todoViewCompleted" type="checkbox" />
-          <span>Complete task</span>
-        </label>
-        <div class="modal-actions">
-          <button type="button" class="secondary-btn" id="closeTodoViewBtn">Close</button>
-          <button type="button" class="primary-btn" id="editTodoBtn">Edit</button>
-        </div>
-      </div>
-
       <form id="todoForm">
         <div class="form-grid">
           <div class="field full">
@@ -1328,6 +1326,7 @@
         <div class="modal-actions">
           <button type="button" class="danger-btn" id="deleteTodoBtn" hidden>Delete</button>
           <button type="button" class="secondary-btn" id="cancelTodoBtn">Cancel</button>
+          <button type="button" class="primary-btn" id="editTodoBtn" hidden>Edit</button>
           <button type="submit" class="primary-btn" id="saveTodoBtn">Save</button>
         </div>
       </form>
@@ -1395,6 +1394,7 @@
       page: 'sales',
       editingSaleId: null,
       editingTodoId: null,
+      todoSortMode: 'manual',
       searchQuery: ''
     };
 
@@ -1439,15 +1439,7 @@
     const reopenAllTasksBtn = document.getElementById('reopenAllTasksBtn');
     const todoModal = document.getElementById('todoModal');
     const todoForm = document.getElementById('todoForm');
-    const todoViewPanel = document.getElementById('todoViewPanel');
-    const todoViewTitle = document.getElementById('todoViewTitle');
-    const todoViewDueWrap = document.getElementById('todoViewDueWrap');
-    const todoViewDue = document.getElementById('todoViewDue');
-    const todoViewNoteWrap = document.getElementById('todoViewNoteWrap');
-    const todoViewNote = document.getElementById('todoViewNote');
-    const todoViewCompleted = document.getElementById('todoViewCompleted');
     const editTodoBtn = document.getElementById('editTodoBtn');
-    const closeTodoViewBtn = document.getElementById('closeTodoViewBtn');
     const todoTitle = document.getElementById('todoTitle');
     const todoDescription = document.getElementById('todoDescription');
     const todoDueDate = document.getElementById('todoDueDate');
@@ -2144,7 +2136,7 @@
       const completedOrder = Number(Boolean(a.completed)) - Number(Boolean(b.completed));
       if (completedOrder) return completedOrder;
 
-      const sortMode = state.settings.todoSortMode || 'manual';
+      const sortMode = state.todoSortMode || 'manual';
       if (sortMode === 'manual') {
         const manualOrder = Number(a.order || 0) - Number(b.order || 0);
         if (manualOrder) return manualOrder;
@@ -2180,8 +2172,8 @@
 
     function renderTodo() {
       const tasks = (state.settings.todoTasks || []).slice().sort(compareTodoTasks);
-      const isManual = (state.settings.todoSortMode || 'manual') === 'manual';
-      todoSort.value = state.settings.todoSortMode || 'manual';
+      const isManual = (state.todoSortMode || 'manual') === 'manual';
+      todoSort.value = state.todoSortMode || 'manual';
       todoArrangeHint.hidden = !isManual;
       reopenAllTasksBtn.hidden = !tasks.some(task => task.completed);
 
@@ -2213,29 +2205,39 @@
       }).join('');
     }
 
+    function setTodoFieldMode(readOnly) {
+      [todoTitle, todoDescription, todoDueDate].forEach(field => {
+        field.disabled = readOnly;
+      });
+      todoForm.classList.toggle('todo-readonly', readOnly);
+    }
+
     function showTodoView(task) {
       todoModalTitle.textContent = 'Task';
-      todoViewTitle.textContent = task.title || '';
-      todoViewDue.textContent = formatTodoDate(task.dueDate);
-      todoViewDueWrap.hidden = !task.dueDate;
-      todoViewNote.textContent = task.description || '';
-      todoViewNoteWrap.hidden = !task.description;
-      todoViewCompleted.checked = Boolean(task.completed);
-      todoViewPanel.hidden = false;
-      todoForm.hidden = true;
-      deleteTodoBtn.hidden = true;
+      todoTitle.value = task.title || '';
+      todoDescription.value = task.description || '';
+      todoDueDate.value = task.dueDate || '';
+      todoCompleted.checked = Boolean(task.completed);
+      setTodoFieldMode(true);
+      todoCompleted.disabled = false;
+      deleteTodoBtn.hidden = false;
+      cancelTodoBtn.textContent = 'Close';
+      editTodoBtn.hidden = false;
+      saveTodoBtn.hidden = true;
     }
 
     function showTodoEditor(task = null) {
       todoModalTitle.textContent = task ? 'Edit Task' : 'Add Task';
-      todoViewPanel.hidden = true;
-      todoForm.hidden = false;
       todoTitle.value = task?.title || '';
       todoDescription.value = task?.description || '';
       todoDueDate.value = task?.dueDate || '';
       todoCompleted.checked = Boolean(task?.completed);
+      setTodoFieldMode(false);
+      todoCompleted.disabled = false;
       deleteTodoBtn.hidden = !task;
-      saveTodoBtn.textContent = 'Save';
+      cancelTodoBtn.textContent = 'Cancel';
+      editTodoBtn.hidden = true;
+      saveTodoBtn.hidden = false;
       setTimeout(() => todoTitle.focus(), 0);
     }
 
@@ -2284,7 +2286,7 @@
       const [moved] = activeTasks.splice(sourceIndex, 1);
       activeTasks.splice(targetIndex, 0, moved);
       activeTasks.forEach((task, index) => { task.order = manualSlots[index]; });
-      state.settings.todoSortMode = 'manual';
+      state.todoSortMode = 'manual';
       saveSettings();
       renderTodo();
     }
@@ -2478,7 +2480,10 @@
       document.getElementById('settingsPage').classList.toggle('active', page === 'settings');
       homeBtn.hidden = false;
       setMenuOpen(false);
-      if (page === 'todo') renderTodo();
+      if (page === 'todo') {
+        state.todoSortMode = 'manual';
+        renderTodo();
+      }
       if (page === 'reports') renderReports();
       if (page === 'settings') renderSettings();
     }
@@ -2596,25 +2601,24 @@
 
     addTodoBtn.addEventListener('click', () => openTodoModal());
     closeTodoModalBtn.addEventListener('click', closeTodoModal);
-    closeTodoViewBtn.addEventListener('click', closeTodoModal);
     cancelTodoBtn.addEventListener('click', closeTodoModal);
     todoModal.addEventListener('click', event => {
       if (event.target === todoModal) closeTodoModal();
     });
     todoSort.addEventListener('change', () => {
-      state.settings.todoSortMode = todoSort.value;
-      saveSettings();
+      state.todoSortMode = todoSort.value === 'due' ? 'due' : 'manual';
       renderTodo();
     });
     editTodoBtn.addEventListener('click', () => {
       const task = (state.settings.todoTasks || []).find(item => item.id === state.editingTodoId);
       if (task) showTodoEditor(task);
     });
-    todoViewCompleted.addEventListener('change', async () => {
+    todoCompleted.addEventListener('change', async () => {
+      if (!todoTitle.disabled) return;
       const task = (state.settings.todoTasks || []).find(item => item.id === state.editingTodoId);
       if (!task) return;
-      const changed = await setTodoCompleted(task, todoViewCompleted.checked);
-      if (!changed) todoViewCompleted.checked = Boolean(task.completed);
+      const changed = await setTodoCompleted(task, todoCompleted.checked);
+      if (!changed) todoCompleted.checked = Boolean(task.completed);
       else showTodoView(task);
     });
     todoForm.addEventListener('submit', async event => {
@@ -2674,37 +2678,65 @@
       showToast('All tasks marked not complete');
     });
     todoList.addEventListener('click', event => {
+      if (event.target.closest('[data-todo-drag]')) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       const taskButton = event.target.closest('[data-todo-open]');
       if (taskButton) openTodoModal(taskButton.dataset.todoOpen);
     });
 
     let todoDrag = null;
+
+    function clearTodoDragAppearance() {
+      todoList.querySelectorAll('.drag-over, .dragging').forEach(row => {
+        row.classList.remove('drag-over', 'dragging');
+      });
+    }
+
     todoList.addEventListener('pointerdown', event => {
       const handle = event.target.closest('[data-todo-drag]');
-      if (!handle || (state.settings.todoSortMode || 'manual') !== 'manual') return;
+      if (!handle || (state.todoSortMode || 'manual') !== 'manual') return;
       event.preventDefault();
+      event.stopPropagation();
       handle.setPointerCapture?.(event.pointerId);
-      todoDrag = { id: handle.dataset.todoDrag, targetId: handle.dataset.todoDrag };
-      handle.closest('[data-todo-row]')?.classList.add('drag-over');
+      const row = handle.closest('[data-todo-row]');
+      todoDrag = {
+        id: handle.dataset.todoDrag,
+        targetId: handle.dataset.todoDrag,
+        pointerId: event.pointerId,
+        handle
+      };
+      row?.classList.add('dragging');
     });
-    document.addEventListener('pointermove', event => {
-      if (!todoDrag) return;
+
+    todoList.addEventListener('pointermove', event => {
+      if (!todoDrag || event.pointerId !== todoDrag.pointerId) return;
+      event.preventDefault();
       const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-todo-row]');
       if (!target || target.classList.contains('todo-completed-row')) return;
       todoList.querySelectorAll('.drag-over').forEach(row => row.classList.remove('drag-over'));
-      target.classList.add('drag-over');
+      if (target.dataset.todoRow !== todoDrag.id) target.classList.add('drag-over');
       todoDrag.targetId = target.dataset.todoRow;
     });
-    document.addEventListener('pointerup', async () => {
-      if (!todoDrag) return;
-      const { id, targetId } = todoDrag;
+
+    async function finishTodoDrag(event, cancelled = false) {
+      if (!todoDrag || (event.pointerId != null && event.pointerId !== todoDrag.pointerId)) return;
+      const { id, targetId, handle, pointerId } = todoDrag;
       todoDrag = null;
-      todoList.querySelectorAll('.drag-over').forEach(row => row.classList.remove('drag-over'));
-      if (!targetId || id === targetId) return;
+      clearTodoDragAppearance();
+      try {
+        if (handle?.hasPointerCapture?.(pointerId)) handle.releasePointerCapture(pointerId);
+      } catch (_) {}
+      if (cancelled || !targetId || id === targetId) return;
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
       reorderTodoTasks(id, targetId);
       showToast('Task order updated');
-    });
+    }
+
+    todoList.addEventListener('pointerup', event => finishTodoDrag(event));
+    todoList.addEventListener('pointercancel', event => finishTodoDrag(event, true));
 
     settingShowNeedsSaved.addEventListener('change', async () => {
       const previousValue = Boolean(state.settings.showNeedsSavedOnHome);

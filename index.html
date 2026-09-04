@@ -412,44 +412,51 @@
       align-items: end;
       justify-content: space-between;
       gap: 16px;
-      padding: 22px 24px;
+      padding: 20px 22px 14px;
       border-bottom: 1px solid var(--line);
     }
     .todo-head h2 { margin: 0; font-size: 26px; }
     .todo-head p { margin: 5px 0 0; color: var(--muted); }
-    .todo-tools { display: flex; align-items: end; gap: 12px; }
-    .todo-sort { display: grid; gap: 5px; min-width: 195px; }
+    .todo-tools { display: flex; align-items: end; gap: 10px; }
+    .todo-sort { display: grid; gap: 5px; min-width: 200px; }
+    .todo-arrange-hint {
+      margin: 0;
+      padding: 0 22px 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
     .todo-list { display: grid; }
     .todo-row {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-columns: 36px minmax(0, 1fr) auto;
       align-items: center;
-      gap: 13px;
-      min-height: 58px;
-      padding: 9px 18px;
+      gap: 10px;
+      min-height: 66px;
+      padding: 11px 18px;
       border-bottom: 1px solid #eee6db;
       background: var(--surface);
-      transition: background .15s ease, color .15s ease;
     }
-    .todo-row:last-child { border-bottom: 0; }
     .todo-row:hover { background: #fbf8f2; }
-    .todo-row.completed { background: #eef3ed; }
-    .todo-check {
-      appearance: none;
-      width: 21px;
-      height: 21px;
-      margin: 0;
-      border: 2px solid #8d8175;
-      border-radius: 50%;
-      background: #fff;
+    .todo-row:last-child { border-bottom: 0; }
+    .todo-row.drag-over { box-shadow: inset 0 3px 0 var(--accent); }
+    .todo-drag-handle,
+    .todo-drag-spacer {
+      width: 32px;
+      height: 38px;
       display: grid;
       place-items: center;
     }
-    .todo-check:checked {
-      border-color: var(--success);
-      background: var(--success);
-      box-shadow: inset 0 0 0 4px #fff;
+    .todo-drag-handle {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #6e80b8;
+      font-size: 24px;
+      line-height: 1;
+      touch-action: none;
+      cursor: grab;
     }
+    .todo-drag-handle:active { cursor: grabbing; }
     .todo-content {
       min-width: 0;
       padding: 2px 0;
@@ -461,7 +468,7 @@
     .todo-title {
       display: block;
       width: 100%;
-      font-weight: 700;
+      font-weight: 750;
       line-height: 1.35;
       overflow-wrap: anywhere;
     }
@@ -477,12 +484,6 @@
       -webkit-box-orient: vertical;
       -webkit-line-clamp: 2;
     }
-    .todo-row.completed .todo-title {
-      color: #55735a;
-      text-decoration: none;
-    }
-    .todo-row.completed .todo-description,
-    .todo-row.completed .todo-due { color: #78907c; }
     .todo-due {
       min-width: 118px;
       color: var(--muted);
@@ -491,8 +492,8 @@
     }
     .todo-due.overdue { color: #9d2f25; font-weight: 750; }
     .todo-section-divider {
-      padding: 12px 20px;
-      border-top: 7px solid var(--bg);
+      padding: 13px 20px;
+      border-top: 8px solid var(--bg);
       border-bottom: 1px solid #eee6db;
       background: #fbf8f2;
       color: var(--muted);
@@ -501,15 +502,28 @@
       font-weight: 800;
       letter-spacing: .03em;
     }
-    .todo-options { display: flex; gap: 18px; flex-wrap: wrap; }
-    .todo-option { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
-    .todo-option input { width: 19px; height: 19px; accent-color: var(--success); }
-    .todo-move-actions {
-      display: flex;
-      gap: 9px;
-      flex-wrap: wrap;
-      padding-top: 2px;
+    .todo-completed-row { background: #f5f9f4; }
+    .todo-completed-row .todo-title { color: #55735a; }
+    .todo-completed-row .todo-description,
+    .todo-completed-row .todo-due { color: #78907c; }
+    .status-pill.complete { color: #285c35; background: #dceddf; }
+    .todo-view-panel { display: grid; gap: 15px; }
+    .todo-view-item {
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fbf8f2;
     }
+    .todo-view-label { color: var(--muted); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .06em; }
+    .todo-view-value { margin-top: 5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .todo-complete-control {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 11px 0 2px;
+      font-weight: 750;
+    }
+    .todo-complete-control input { width: 20px; height: 20px; accent-color: var(--success); }
 
     .reports-header {
       display: flex;
@@ -850,7 +864,7 @@
       .todo-tools { align-items: stretch; flex-direction: column; }
       .todo-sort { min-width: 0; }
       .todo-row {
-        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-columns: 34px minmax(0, 1fr);
         align-items: start;
         padding: 10px 14px;
       }
@@ -968,20 +982,22 @@
         <div class="todo-head">
           <div>
             <h2>Tasks</h2>
-            <p>Create tasks, add optional due dates, and mark work complete.</p>
+            <p>Tasks, notes, and due dates.</p>
           </div>
           <div class="todo-tools">
             <div class="todo-sort">
               <label for="todoSort" class="small-note">Order</label>
               <select id="todoSort">
-                <option value="due">Due date — earliest first</option>
+                <option value="manual">Default order</option>
                 <option value="name">Name א–ת / A–Z</option>
-                <option value="manual">Manual order</option>
+                <option value="due">Upcoming due dates</option>
               </select>
             </div>
             <button type="button" class="primary-btn" id="addTodoBtn">+ Add Task</button>
+            <button type="button" class="secondary-btn" id="reopenAllTasksBtn" hidden>Mark all not complete</button>
           </div>
         </div>
+        <p class="todo-arrange-hint" id="todoArrangeHint">Use the handle on the left to arrange your tasks.</p>
         <div class="todo-list" id="todoList"></div>
       </div>
     </section>
@@ -1280,42 +1296,58 @@
   <div class="modal-backdrop" id="todoModal" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="todoModalTitle">
       <div class="modal-head">
-        <h2 id="todoModalTitle">Add Task</h2>
+        <h2 id="todoModalTitle">Task</h2>
         <button type="button" class="close-btn" id="closeTodoModalBtn" aria-label="Close">×</button>
       </div>
+
+      <div class="todo-view-panel" id="todoViewPanel" hidden>
+        <div class="todo-view-item">
+          <div class="todo-view-label">Task</div>
+          <div class="todo-view-value" id="todoViewTitle"></div>
+        </div>
+        <div class="todo-view-item" id="todoViewDueWrap">
+          <div class="todo-view-label">Due date</div>
+          <div class="todo-view-value" id="todoViewDue"></div>
+        </div>
+        <div class="todo-view-item" id="todoViewNoteWrap">
+          <div class="todo-view-label">Note</div>
+          <div class="todo-view-value" id="todoViewNote"></div>
+        </div>
+        <label class="todo-complete-control" for="todoViewCompleted">
+          <input id="todoViewCompleted" type="checkbox" />
+          <span>Complete task</span>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="secondary-btn" id="closeTodoViewBtn">Close</button>
+          <button type="button" class="primary-btn" id="editTodoBtn">Edit</button>
+        </div>
+      </div>
+
       <form id="todoForm">
         <div class="form-grid">
           <div class="field full">
-            <label for="todoTitle">Name <span class="required-mark">*</span></label>
+            <label for="todoTitle">Task name <span class="required-mark">*</span></label>
             <input id="todoTitle" maxlength="160" autocomplete="off" required />
           </div>
           <div class="field full">
-            <label for="todoDescription">Description <span class="small-note">(optional)</span></label>
-            <textarea id="todoDescription" rows="5" maxlength="3000" placeholder="Write as many lines as you need"></textarea>
+            <label for="todoDescription">Note <span class="small-note">(optional)</span></label>
+            <textarea id="todoDescription" rows="7" maxlength="3000" placeholder="Add note"></textarea>
           </div>
           <div class="field full">
             <label for="todoDueDate">Due date <span class="small-note">(optional)</span></label>
             <input id="todoDueDate" type="date" />
           </div>
-          <div class="field full todo-options">
-            <label class="todo-option" for="todoCompleted">
+          <div class="field full">
+            <label class="todo-complete-control" for="todoCompleted">
               <input id="todoCompleted" type="checkbox" />
-              <span>Completed</span>
-            </label>
-            <label class="todo-option" for="todoPinned">
-              <input id="todoPinned" type="checkbox" />
-              <span>Pinned</span>
+              <span>Complete task</span>
             </label>
           </div>
-        </div>
-        <div class="todo-move-actions" id="todoMoveActions" hidden>
-          <button type="button" class="secondary-btn" id="moveTodoTopBtn">Move to Top</button>
-          <button type="button" class="secondary-btn" id="moveTodoBottomBtn">Move to Bottom</button>
         </div>
         <div class="modal-actions">
           <button type="button" class="danger-btn" id="deleteTodoBtn" hidden>Delete</button>
           <button type="button" class="secondary-btn" id="cancelTodoBtn">Cancel</button>
-          <button type="submit" class="primary-btn" id="saveTodoBtn">Save Task</button>
+          <button type="submit" class="primary-btn" id="saveTodoBtn">Save</button>
         </div>
       </form>
     </div>
@@ -1350,7 +1382,7 @@
       homeSummaryLabel: 'Needs to Be Saved',
       homeSummaryScope: 'paid',
       salesSortMode: 'name',
-      todoSortMode: 'due',
+      todoSortMode: 'manual',
       todoTasks: [],
       defaultPrice: 23,
       inventory: 100,
@@ -1421,20 +1453,27 @@
     const homeBtn = document.getElementById('homeBtn');
     const todoList = document.getElementById('todoList');
     const todoSort = document.getElementById('todoSort');
+    const todoArrangeHint = document.getElementById('todoArrangeHint');
     const addTodoBtn = document.getElementById('addTodoBtn');
+    const reopenAllTasksBtn = document.getElementById('reopenAllTasksBtn');
     const todoModal = document.getElementById('todoModal');
     const todoForm = document.getElementById('todoForm');
+    const todoViewPanel = document.getElementById('todoViewPanel');
+    const todoViewTitle = document.getElementById('todoViewTitle');
+    const todoViewDueWrap = document.getElementById('todoViewDueWrap');
+    const todoViewDue = document.getElementById('todoViewDue');
+    const todoViewNoteWrap = document.getElementById('todoViewNoteWrap');
+    const todoViewNote = document.getElementById('todoViewNote');
+    const todoViewCompleted = document.getElementById('todoViewCompleted');
+    const editTodoBtn = document.getElementById('editTodoBtn');
+    const closeTodoViewBtn = document.getElementById('closeTodoViewBtn');
     const todoTitle = document.getElementById('todoTitle');
     const todoDescription = document.getElementById('todoDescription');
     const todoDueDate = document.getElementById('todoDueDate');
     const todoCompleted = document.getElementById('todoCompleted');
-    const todoPinned = document.getElementById('todoPinned');
     const todoModalTitle = document.getElementById('todoModalTitle');
     const saveTodoBtn = document.getElementById('saveTodoBtn');
     const deleteTodoBtn = document.getElementById('deleteTodoBtn');
-    const todoMoveActions = document.getElementById('todoMoveActions');
-    const moveTodoTopBtn = document.getElementById('moveTodoTopBtn');
-    const moveTodoBottomBtn = document.getElementById('moveTodoBottomBtn');
     const closeTodoModalBtn = document.getElementById('closeTodoModalBtn');
     const cancelTodoBtn = document.getElementById('cancelTodoBtn');
     const salesSummaryTitle = document.getElementById('salesSummaryTitle');
@@ -1561,7 +1600,7 @@
           showNeedsSavedOnHome: Boolean(saved.showNeedsSavedOnHome),
           homeSummaryLabel: typeof saved.homeSummaryLabel === 'string' && saved.homeSummaryLabel.trim() ? saved.homeSummaryLabel.trim() : DEFAULT_SETTINGS.homeSummaryLabel,
           homeSummaryScope: saved.homeSummaryScope === 'paid_reserved' ? 'paid_reserved' : 'paid',
-          todoSortMode: ['due', 'name', 'manual'].includes(saved.todoSortMode) ? saved.todoSortMode : DEFAULT_SETTINGS.todoSortMode,
+          todoSortMode: ['manual', 'name', 'due'].includes(saved.todoSortMode) ? saved.todoSortMode : DEFAULT_SETTINGS.todoSortMode,
           todoTasks: savedTodoTasks.map((task, index) => ({
             id: String(task.id),
             title: String(task.title).trim(),
@@ -1794,7 +1833,7 @@
         : 'name';
       todoSort.value = ['due', 'name', 'manual'].includes(state.settings.todoSortMode)
         ? state.settings.todoSortMode
-        : 'due';
+        : 'manual';
       updateHomeSummary();
     }
 
@@ -2118,10 +2157,8 @@
     function compareTodoTasks(a, b) {
       const completedOrder = Number(Boolean(a.completed)) - Number(Boolean(b.completed));
       if (completedOrder) return completedOrder;
-      const pinnedOrder = Number(Boolean(b.pinned)) - Number(Boolean(a.pinned));
-      if (pinnedOrder) return pinnedOrder;
 
-      const sortMode = state.settings.todoSortMode || 'due';
+      const sortMode = state.settings.todoSortMode || 'manual';
       if (sortMode === 'manual') {
         const manualOrder = Number(a.order || 0) - Number(b.order || 0);
         if (manualOrder) return manualOrder;
@@ -2143,28 +2180,77 @@
         : parsed.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
     }
 
+    function getNextTodoOrder() {
+      return (state.settings.todoTasks || []).reduce((highest, task) => Math.max(highest, Number(task.order || 0)), -1) + 1;
+    }
+
+    function normalizeIncompleteTaskOrder() {
+      const activeTasks = (state.settings.todoTasks || [])
+        .filter(task => !task.completed)
+        .slice()
+        .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+      activeTasks.forEach((task, index) => { task.order = index; });
+    }
+
     function renderTodo() {
       const tasks = (state.settings.todoTasks || []).slice().sort(compareTodoTasks);
-      todoSort.value = state.settings.todoSortMode || 'due';
+      const isManual = (state.settings.todoSortMode || 'manual') === 'manual';
+      todoSort.value = state.settings.todoSortMode || 'manual';
+      todoArrangeHint.hidden = !isManual;
+      reopenAllTasksBtn.hidden = !tasks.some(task => task.completed);
+
       if (!tasks.length) {
         todoList.innerHTML = '<div class="empty-state">No tasks yet. Click <strong>Add Task</strong> to create the first one.</div>';
         return;
       }
+
       const today = new Date().toISOString().slice(0, 10);
       todoList.innerHTML = tasks.map((task, index) => {
         const overdue = task.dueDate && task.dueDate < today && !task.completed;
         const startsCompleted = task.completed && (index === 0 || !tasks[index - 1].completed);
         const divider = startsCompleted ? '<div class="todo-section-divider">Completed</div>' : '';
+        const handle = isManual && !task.completed
+          ? `<button type="button" class="todo-drag-handle" data-todo-drag="${escapeHtml(task.id)}" aria-label="Move task" title="Drag to move">⠿</button>`
+          : '<span class="todo-drag-spacer" aria-hidden="true"></span>';
         return `${divider}
-          <div class="todo-row${task.completed ? ' completed' : ''}">
-            <input class="todo-check" type="checkbox" data-todo-complete="${escapeHtml(task.id)}" aria-label="Mark task completed" ${task.completed ? 'checked' : ''} />
-            <button type="button" class="todo-content" data-todo-edit="${escapeHtml(task.id)}" title="Open task">
+          <div class="todo-row${task.completed ? ' todo-completed-row' : ''}" data-todo-row="${escapeHtml(task.id)}">
+            ${handle}
+            <button type="button" class="todo-content" data-todo-open="${escapeHtml(task.id)}" title="Open task">
               <span class="todo-title">${escapeHtml(task.title)}</span>
               ${task.description ? `<span class="todo-description">${escapeHtml(task.description)}</span>` : ''}
+              ${task.dueDate ? `<span class="todo-description">Due ${escapeHtml(formatTodoDate(task.dueDate))}</span>` : ''}
             </button>
-            <span class="todo-due${overdue ? ' overdue' : ''}">${escapeHtml(formatTodoDate(task.dueDate))}</span>
+            ${task.completed
+              ? '<span class="status-pill complete">Complete</span>'
+              : `<span class="todo-due${overdue ? ' overdue' : ''}">${escapeHtml(task.dueDate ? formatTodoDate(task.dueDate) : '')}</span>`}
           </div>`;
       }).join('');
+    }
+
+    function showTodoView(task) {
+      todoModalTitle.textContent = 'Task';
+      todoViewTitle.textContent = task.title || '';
+      todoViewDue.textContent = formatTodoDate(task.dueDate);
+      todoViewDueWrap.hidden = !task.dueDate;
+      todoViewNote.textContent = task.description || '';
+      todoViewNoteWrap.hidden = !task.description;
+      todoViewCompleted.checked = Boolean(task.completed);
+      todoViewPanel.hidden = false;
+      todoForm.hidden = true;
+      deleteTodoBtn.hidden = true;
+    }
+
+    function showTodoEditor(task = null) {
+      todoModalTitle.textContent = task ? 'Edit Task' : 'Add Task';
+      todoViewPanel.hidden = true;
+      todoForm.hidden = false;
+      todoTitle.value = task?.title || '';
+      todoDescription.value = task?.description || '';
+      todoDueDate.value = task?.dueDate || '';
+      todoCompleted.checked = Boolean(task?.completed);
+      deleteTodoBtn.hidden = !task;
+      saveTodoBtn.textContent = 'Save';
+      setTimeout(() => todoTitle.focus(), 0);
     }
 
     function openTodoModal(taskId = null) {
@@ -2175,20 +2261,10 @@
         : null;
       if (taskId && !task) return;
 
-      todoModalTitle.textContent = task ? 'Edit Task' : 'Add Task';
-      saveTodoBtn.textContent = task ? 'Save' : 'Save Task';
-      deleteTodoBtn.hidden = !task;
-      todoMoveActions.hidden = !task;
-      if (task) {
-        todoTitle.value = task.title || '';
-        todoDescription.value = task.description || '';
-        todoDueDate.value = task.dueDate || '';
-        todoCompleted.checked = Boolean(task.completed);
-        todoPinned.checked = Boolean(task.pinned);
-      }
       todoModal.classList.add('open');
       todoModal.setAttribute('aria-hidden', 'false');
-      setTimeout(() => todoTitle.focus(), 0);
+      if (task) showTodoView(task);
+      else showTodoEditor();
     }
 
     function closeTodoModal() {
@@ -2198,30 +2274,33 @@
       state.editingTodoId = null;
     }
 
-    async function moveEditingTodo(toEnd) {
-      const allTasks = state.settings.todoTasks || [];
-      const task = allTasks.find(item => item.id === state.editingTodoId);
-      if (!task) return;
-      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
-
-      const visualTasks = allTasks.slice().sort(compareTodoTasks);
-      const sameSection = visualTasks.filter(item =>
-        item.completed === task.completed && item.pinned === task.pinned && item.id !== task.id
-      );
-      const reorderedSection = toEnd ? [...sameSection, task] : [task, ...sameSection];
-      const sectionIds = new Set(reorderedSection.map(item => item.id));
-      let sectionIndex = 0;
-      visualTasks.forEach(item => {
-        if (sectionIds.has(item.id)) {
-          const replacement = reorderedSection[sectionIndex++];
-          replacement.order = visualTasks.indexOf(item);
-        }
-      });
-      state.settings.todoSortMode = 'manual';
-      todoSort.value = 'manual';
+    async function setTodoCompleted(task, completed) {
+      if (Boolean(task.completed) === Boolean(completed)) return;
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return false;
+      task.completed = Boolean(completed);
+      task.updatedAt = new Date().toISOString();
       saveSettings();
       renderTodo();
-      showToast(toEnd ? 'Task moved to bottom' : 'Task moved to top');
+      return true;
+    }
+
+    function reorderTodoTasks(sourceId, targetId) {
+      if (!sourceId || !targetId || sourceId === targetId) return;
+      const allByOrder = (state.settings.todoTasks || [])
+        .slice()
+        .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+      const activeTasks = allByOrder.filter(task => !task.completed);
+      const sourceIndex = activeTasks.findIndex(task => task.id === sourceId);
+      const targetIndex = activeTasks.findIndex(task => task.id === targetId);
+      if (sourceIndex < 0 || targetIndex < 0) return;
+
+      const manualSlots = activeTasks.map(task => Number(task.order || 0));
+      const [moved] = activeTasks.splice(sourceIndex, 1);
+      activeTasks.splice(targetIndex, 0, moved);
+      activeTasks.forEach((task, index) => { task.order = manualSlots[index]; });
+      state.settings.todoSortMode = 'manual';
+      saveSettings();
+      renderTodo();
     }
 
     function renderReports() {
@@ -2529,6 +2608,7 @@
 
     addTodoBtn.addEventListener('click', () => openTodoModal());
     closeTodoModalBtn.addEventListener('click', closeTodoModal);
+    closeTodoViewBtn.addEventListener('click', closeTodoModal);
     cancelTodoBtn.addEventListener('click', closeTodoModal);
     todoModal.addEventListener('click', event => {
       if (event.target === todoModal) closeTodoModal();
@@ -2537,6 +2617,17 @@
       state.settings.todoSortMode = todoSort.value;
       saveSettings();
       renderTodo();
+    });
+    editTodoBtn.addEventListener('click', () => {
+      const task = (state.settings.todoTasks || []).find(item => item.id === state.editingTodoId);
+      if (task) showTodoEditor(task);
+    });
+    todoViewCompleted.addEventListener('change', async () => {
+      const task = (state.settings.todoTasks || []).find(item => item.id === state.editingTodoId);
+      if (!task) return;
+      const changed = await setTodoCompleted(task, todoViewCompleted.checked);
+      if (!changed) todoViewCompleted.checked = Boolean(task.completed);
+      else showTodoView(task);
     });
     todoForm.addEventListener('submit', async event => {
       event.preventDefault();
@@ -2554,7 +2645,6 @@
         existingTask.description = todoDescription.value.trim();
         existingTask.dueDate = todoDueDate.value || '';
         existingTask.completed = todoCompleted.checked;
-        existingTask.pinned = todoPinned.checked;
         existingTask.updatedAt = new Date().toISOString();
       } else {
         tasks.push({
@@ -2563,8 +2653,7 @@
           description: todoDescription.value.trim(),
           dueDate: todoDueDate.value || '',
           completed: todoCompleted.checked,
-          pinned: todoPinned.checked,
-          order: tasks.length,
+          order: getNextTodoOrder(),
           createdAt: new Date().toISOString(),
           updatedAt: ''
         });
@@ -2573,7 +2662,7 @@
       saveSettings();
       renderTodo();
       closeTodoModal();
-      showToast(existingTask ? 'Task updated' : 'Task added');
+      showToast(existingTask ? 'Task saved' : 'Task added');
     });
     deleteTodoBtn.addEventListener('click', async () => {
       if (!state.editingTodoId) return;
@@ -2584,26 +2673,49 @@
       closeTodoModal();
       showToast('Task deleted');
     });
-    moveTodoTopBtn.addEventListener('click', () => moveEditingTodo(false));
-    moveTodoBottomBtn.addEventListener('click', () => moveEditingTodo(true));
-    todoList.addEventListener('change', async event => {
-      const checkbox = event.target.closest('[data-todo-complete]');
-      if (!checkbox) return;
-      const task = (state.settings.todoTasks || []).find(item => item.id === checkbox.dataset.todoComplete);
-      if (!task) return;
-      if (!(await askConfirmation(CHANGE_CONFIRMATION))) {
-        checkbox.checked = Boolean(task.completed);
-        return;
-      }
-      task.completed = checkbox.checked;
-      task.updatedAt = new Date().toISOString();
+    reopenAllTasksBtn.addEventListener('click', async () => {
+      const completedTasks = (state.settings.todoTasks || []).filter(task => task.completed);
+      if (!completedTasks.length) return;
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+      completedTasks.forEach(task => {
+        task.completed = false;
+        task.updatedAt = new Date().toISOString();
+      });
       saveSettings();
       renderTodo();
-      showToast(task.completed ? 'Task completed' : 'Task reopened');
+      showToast('All tasks marked not complete');
     });
     todoList.addEventListener('click', event => {
-      const taskButton = event.target.closest('[data-todo-edit]');
-      if (taskButton) openTodoModal(taskButton.dataset.todoEdit);
+      const taskButton = event.target.closest('[data-todo-open]');
+      if (taskButton) openTodoModal(taskButton.dataset.todoOpen);
+    });
+
+    let todoDrag = null;
+    todoList.addEventListener('pointerdown', event => {
+      const handle = event.target.closest('[data-todo-drag]');
+      if (!handle || (state.settings.todoSortMode || 'manual') !== 'manual') return;
+      event.preventDefault();
+      handle.setPointerCapture?.(event.pointerId);
+      todoDrag = { id: handle.dataset.todoDrag, targetId: handle.dataset.todoDrag };
+      handle.closest('[data-todo-row]')?.classList.add('drag-over');
+    });
+    document.addEventListener('pointermove', event => {
+      if (!todoDrag) return;
+      const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-todo-row]');
+      if (!target || target.classList.contains('todo-completed-row')) return;
+      todoList.querySelectorAll('.drag-over').forEach(row => row.classList.remove('drag-over'));
+      target.classList.add('drag-over');
+      todoDrag.targetId = target.dataset.todoRow;
+    });
+    document.addEventListener('pointerup', async () => {
+      if (!todoDrag) return;
+      const { id, targetId } = todoDrag;
+      todoDrag = null;
+      todoList.querySelectorAll('.drag-over').forEach(row => row.classList.remove('drag-over'));
+      if (!targetId || id === targetId) return;
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+      reorderTodoTasks(id, targetId);
+      showToast('Task order updated');
     });
 
     settingShowNeedsSaved.addEventListener('change', async () => {

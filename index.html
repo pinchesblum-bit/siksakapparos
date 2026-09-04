@@ -883,7 +883,7 @@
         </button>
         <div class="menu-popover" id="menuPopover">
           <button class="menu-item" data-page="sales">Sales</button>
-          <button class="menu-item" data-page="todo">To Do</button>
+          <button class="menu-item" data-page="todo">Tasks</button>
           <button class="menu-item" data-page="reports">Reports</button>
           <button class="menu-item" data-page="settings">Settings</button>
           <button class="menu-item logout-menu-item" id="logoutBtn">Log out</button>
@@ -949,7 +949,7 @@
       <div class="panel">
         <div class="todo-head">
           <div>
-            <h2>To Do</h2>
+            <h2>Tasks</h2>
             <p>Create tasks, add optional due dates, and mark work complete.</p>
           </div>
           <div class="todo-tools">
@@ -1255,7 +1255,7 @@
         </div>
 
         <div class="modal-actions">
-          <button type="button" class="danger-btn" id="deleteSaleBtn" hidden>Delete Sale</button>
+          <button type="button" class="danger-btn" id="deleteSaleBtn" hidden>Delete</button>
           <button type="button" class="secondary-btn" id="cancelBtn">Cancel</button>
           <button type="submit" class="primary-btn" id="saveSaleBtn">Save Sale</button>
         </div>
@@ -1299,7 +1299,7 @@
           <button type="button" class="secondary-btn" id="moveTodoBottomBtn">Move to Bottom</button>
         </div>
         <div class="modal-actions">
-          <button type="button" class="danger-btn" id="deleteTodoBtn" hidden>Delete Task</button>
+          <button type="button" class="danger-btn" id="deleteTodoBtn" hidden>Delete</button>
           <button type="button" class="secondary-btn" id="cancelTodoBtn">Cancel</button>
           <button type="submit" class="primary-btn" id="saveTodoBtn">Save Task</button>
         </div>
@@ -1833,7 +1833,7 @@
               <label for="paymentMethod${index}">Payment method name</label>
               <input id="paymentMethod${index}" class="payment-method-name" value="${escapeHtml(method.label)}" required ${settingsEditMode.sales ? '' : 'disabled'} />
             </div>
-            <button type="button" class="remove-method-btn" data-remove-method="${escapeHtml(method.id)}" ${used || !settingsEditMode.sales ? 'disabled' : ''} ${used ? 'title="This method is used by an existing sale"' : ''}>Remove</button>
+            <button type="button" class="remove-method-btn" data-remove-method="${escapeHtml(method.id)}" ${used || !settingsEditMode.sales ? 'disabled' : ''} ${used ? 'title="This method is used by an existing sale"' : ''}>Delete</button>
           </div>`;
       }).join('');
     }
@@ -1850,7 +1850,7 @@
             <label class="required-toggle">
               <input type="checkbox" class="payment-plan-needs-date" ${plan.needsDate ? 'checked' : ''} ${settingsEditMode.sales ? '' : 'disabled'} /> Calendar date
             </label>
-            <button type="button" class="remove-method-btn" data-remove-plan="${escapeHtml(plan.id)}" ${used || !settingsEditMode.sales ? 'disabled' : ''} ${used ? 'title="This plan is used by an existing sale"' : ''}>Remove</button>
+            <button type="button" class="remove-method-btn" data-remove-plan="${escapeHtml(plan.id)}" ${used || !settingsEditMode.sales ? 'disabled' : ''} ${used ? 'title="This plan is used by an existing sale"' : ''}>Delete</button>
           </div>`;
       }).join('');
     }
@@ -1865,7 +1865,7 @@
           <label class="required-toggle">
             <input type="checkbox" class="custom-field-required" ${field.required ? 'checked' : ''} ${settingsEditMode.sales ? '' : 'disabled'} /> Required
           </label>
-          <button type="button" class="remove-method-btn" data-remove-custom-field="${escapeHtml(field.id)}" ${settingsEditMode.sales ? '' : 'disabled'}>Remove</button>
+          <button type="button" class="remove-method-btn" data-remove-custom-field="${escapeHtml(field.id)}" ${settingsEditMode.sales ? '' : 'disabled'}>Delete</button>
         </div>`).join('') : '<div class="small-note">No additional sale fields yet.</div>';
     }
 
@@ -2154,7 +2154,7 @@
       if (taskId && !task) return;
 
       todoModalTitle.textContent = task ? 'Edit Task' : 'Add Task';
-      saveTodoBtn.textContent = task ? 'Save Changes' : 'Save Task';
+      saveTodoBtn.textContent = task ? 'Save' : 'Save Task';
       deleteTodoBtn.hidden = !task;
       todoMoveActions.hidden = !task;
       if (task) {
@@ -2407,7 +2407,7 @@
         const sale = state.sales.find(item => item.id === saleId);
         if (!sale) return;
         saleModalTitle.textContent = 'Edit Sale';
-        saveSaleBtn.textContent = 'Save Changes';
+        saveSaleBtn.textContent = 'Save';
         deleteSaleBtn.hidden = false;
         fullNameInput.value = sale.fullName || '';
         phoneInput.value = sale.phone || '';

@@ -2042,6 +2042,36 @@
       return compareSalesByName(a, b);
     }
 
+    function getSaleSearchRank(sale, query) {
+      const includesQuery = value => String(value ?? '').toLocaleLowerCase().includes(query);
+
+      // Search relevance: a matching name is always first, followed by a matching note.
+      if (includesQuery(sale.fullName)) return 0;
+      if (includesQuery(getNotesValue(sale))) return 1;
+      if (includesQuery(sale.phone)) return 2;
+
+      const paymentAndStatus = [
+        sale.status || 'paid',
+        sale.paymentType,
+        getPaymentMethod(sale.paymentType)?.label || '',
+        sale.plannedPaymentType,
+        getPaymentPlan(sale.plannedPaymentType)?.label || '',
+        sale.plannedPaymentDate,
+        sale.otherDetails,
+        sale.geschlagen ? 'געשלאגן' : '',
+        sale.quantity,
+        sale.price
+      ];
+      if (paymentAndStatus.some(includesQuery)) return 3;
+
+      const notesField = getNotesField();
+      const otherCustomValues = Object.entries(sale.customFields || {})
+        .filter(([fieldId]) => fieldId !== notesField?.id)
+        .map(([, value]) => value);
+      if (otherCustomValues.some(includesQuery)) return 4;
+      return Number.POSITIVE_INFINITY;
+    }
+
     function renderSales() {
       const wrap = document.getElementById('salesTableWrap');
       expirePastReservations();
@@ -2053,24 +2083,7 @@
 
       const query = state.searchQuery.trim().toLocaleLowerCase();
       const matchingSales = query
-        ? state.sales.filter(sale => {
-            const searchableText = [
-              sale.fullName,
-              sale.phone,
-              sale.status || 'paid',
-              sale.quantity,
-              sale.price,
-              sale.paymentType,
-              getPaymentMethod(sale.paymentType)?.label || '',
-              sale.plannedPaymentType,
-              getPaymentPlan(sale.plannedPaymentType)?.label || '',
-              sale.plannedPaymentDate,
-              sale.otherDetails,
-              sale.geschlagen ? 'געשלאגן' : '',
-              ...Object.values(sale.customFields || {})
-            ].join(' ').toLocaleLowerCase();
-            return searchableText.includes(query);
-          })
+        ? state.sales.filter(sale => Number.isFinite(getSaleSearchRank(sale, query)))
         : state.sales;
 
       if (!matchingSales.length) {
@@ -2078,7 +2091,15 @@
         return;
       }
 
-      const sortedSales = matchingSales.slice().sort(compareSalesForHome);
+      const sortedSales = matchingSales.slice().sort((a, b) => {
+        const geschlagenOrder = Number(Boolean(a.geschlagen)) - Number(Boolean(b.geschlagen));
+        if (geschlagenOrder) return geschlagenOrder;
+        if (query) {
+          const relevanceOrder = getSaleSearchRank(a, query) - getSaleSearchRank(b, query);
+          if (relevanceOrder) return relevanceOrder;
+        }
+        return compareSalesForHome(a, b);
+      });
       const rows = sortedSales
         .map((sale, index) => {
           const notes = getNotesValue(sale);
@@ -2505,7 +2526,13 @@
         setSettingsEditMode(section, false);
       });
     });
-    homeBtn.addEventListener('click', () => showPage('sales'));
+    homeBtn.addEventListener('click', () => {
+      if (state.page === 'sales') {
+        window.location.reload();
+        return;
+      }
+      showPage('sales');
+    });
 
     addTodoBtn.addEventListener('click', () => openTodoModal());
     closeTodoModalBtn.addEventListener('click', closeTodoModal);

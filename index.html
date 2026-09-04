@@ -401,7 +401,7 @@
       justify-content: space-between;
       gap: 16px;
       padding: 20px 22px 14px;
-      border-bottom: 1px solid var(--line);
+      border-bottom: 0;
     }
     .todo-head h2 { margin: 0; font-size: 26px; }
     .todo-head p { margin: 5px 0 0; color: var(--muted); }
@@ -428,8 +428,8 @@
     .todo-active-divider {
       margin-top: 18px;
       padding: 12px 20px;
-      border-top: 1px solid #dfd3c4;
-      border-bottom: 0;
+      border-top: 0;
+      border-bottom: 1px solid #dfd3c4;
       background: #fbf8f2;
       color: var(--muted);
       text-align: center;
@@ -1162,9 +1162,9 @@
           <div class="settings-view-head">
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
             <h3>Login Settings</h3>
-            <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="login">Edit</button>
           </div>
-          <form id="loginSettingsForm">
+          <button type="button" class="secondary-btn" id="openLoginSettingsBtn">Change password</button>
+          <form id="loginSettingsForm" hidden>
             <div class="settings-grid">
               <div class="field">
                 <label for="settingCurrentPassword">Current password</label>
@@ -1213,17 +1213,23 @@
             <h3>Task Settings</h3>
           </div>
           <div class="settings-section">
-            <div class="field">
-              <label for="taskActionPassword">Website password</label>
-              <input id="taskActionPassword" type="password" autocomplete="current-password" placeholder="Enter password" />
-            </div>
-            <p class="settings-message" id="taskSettingsMessage" role="alert"></p>
             <div class="payment-method-row">
               <div>
                 <div class="settings-card-title">Completed tasks</div>
                 <div class="settings-card-note">Move every completed task back to the active task list.</div>
               </div>
               <button type="button" class="secondary-btn" id="reopenAllTasksBtn">Mark all not complete</button>
+            </div>
+            <div id="taskPasswordPanel" hidden>
+              <div class="field">
+                <label for="taskActionPassword">Website password</label>
+                <input id="taskActionPassword" type="password" autocomplete="current-password" placeholder="Enter password" />
+              </div>
+              <p class="settings-message" id="taskSettingsMessage" role="alert"></p>
+              <div class="settings-actions">
+                <button type="button" class="secondary-btn" id="cancelTaskPasswordBtn">Cancel</button>
+                <button type="button" class="primary-btn" id="confirmReopenAllTasksBtn">Continue</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1462,8 +1468,11 @@
     const todoSort = document.getElementById('todoSort');
     const addTodoBtn = document.getElementById('addTodoBtn');
     const reopenAllTasksBtn = document.getElementById('reopenAllTasksBtn');
+    const taskPasswordPanel = document.getElementById('taskPasswordPanel');
     const taskActionPassword = document.getElementById('taskActionPassword');
     const taskSettingsMessage = document.getElementById('taskSettingsMessage');
+    const cancelTaskPasswordBtn = document.getElementById('cancelTaskPasswordBtn');
+    const confirmReopenAllTasksBtn = document.getElementById('confirmReopenAllTasksBtn');
     const todoModal = document.getElementById('todoModal');
     const todoForm = document.getElementById('todoForm');
     const editTodoBtn = document.getElementById('editTodoBtn');
@@ -1487,6 +1496,7 @@
     const websiteSettingsForm = document.getElementById('websiteSettingsForm');
     const salesSettingsForm = document.getElementById('salesSettingsForm');
     const loginSettingsForm = document.getElementById('loginSettingsForm');
+    const openLoginSettingsBtn = document.getElementById('openLoginSettingsBtn');
     const reportSettingsForm = document.getElementById('reportSettingsForm');
     const settingTitle = document.getElementById('settingTitle');
     const settingSubtitle = document.getElementById('settingSubtitle');
@@ -1987,7 +1997,8 @@
       form.querySelectorAll('input, select, button').forEach(control => { control.disabled = !editing; });
       if (section === 'website') settingShowNeedsSaved.disabled = false;
       document.querySelector(`[data-settings-actions="${section}"]`).hidden = !editing;
-      document.querySelector(`[data-edit-settings="${section}"]`).hidden = editing;
+      const editButton = document.querySelector(`[data-edit-settings="${section}"]`);
+      if (editButton) editButton.hidden = editing;
       if (section === 'login' && !editing) {
         settingCurrentPassword.value = '';
         settingPassword.value = '';
@@ -2052,6 +2063,15 @@
       if (settingsEditMode[viewName] !== undefined) {
         resetSettingsSection(viewName);
         setSettingsEditMode(viewName, false);
+      }
+      if (viewName === 'login') {
+        loginSettingsForm.hidden = true;
+        openLoginSettingsBtn.hidden = false;
+      }
+      if (viewName === 'tasks') {
+        taskPasswordPanel.hidden = true;
+        taskActionPassword.value = '';
+        taskSettingsMessage.textContent = '';
       }
     }
 
@@ -2589,6 +2609,14 @@
     document.querySelectorAll('[data-settings-back]').forEach(btn => {
       btn.addEventListener('click', showSettingsHome);
     });
+    openLoginSettingsBtn.addEventListener('click', () => {
+      resetSettingsSection('login');
+      loginSettingsForm.hidden = false;
+      openLoginSettingsBtn.hidden = true;
+      setSettingsEditMode('login', true);
+      settingCurrentPassword.focus();
+    });
+
     document.querySelectorAll('[data-edit-settings]').forEach(btn => {
       btn.addEventListener('click', () => {
         const section = btn.dataset.editSettings;
@@ -2602,6 +2630,10 @@
         const section = btn.dataset.cancelSettings;
         resetSettingsSection(section);
         setSettingsEditMode(section, false);
+        if (section === 'login') {
+          loginSettingsForm.hidden = true;
+          openLoginSettingsBtn.hidden = false;
+        }
       });
     });
     homeBtn.addEventListener('click', async () => {
@@ -2691,10 +2723,28 @@
       closeTodoModal();
       showToast('Task deleted');
     });
-    reopenAllTasksBtn.addEventListener('click', async () => {
+    reopenAllTasksBtn.addEventListener('click', () => {
       const completedTasks = (state.settings.todoTasks || []).filter(task => task.completed);
       if (!completedTasks.length) return;
+      taskPasswordPanel.hidden = false;
+      taskSettingsMessage.style.color = '#9d2f25';
+      taskSettingsMessage.textContent = '';
+      taskActionPassword.value = '';
+      taskActionPassword.focus();
+    });
 
+    cancelTaskPasswordBtn.addEventListener('click', () => {
+      taskPasswordPanel.hidden = true;
+      taskActionPassword.value = '';
+      taskSettingsMessage.textContent = '';
+    });
+
+    confirmReopenAllTasksBtn.addEventListener('click', async () => {
+      const completedTasks = (state.settings.todoTasks || []).filter(task => task.completed);
+      if (!completedTasks.length) {
+        taskPasswordPanel.hidden = true;
+        return;
+      }
       taskSettingsMessage.style.color = '#9d2f25';
       taskSettingsMessage.textContent = '';
       const password = taskActionPassword.value;
@@ -2709,14 +2759,12 @@
         return;
       }
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
-
       completedTasks.forEach(task => {
         task.completed = false;
         task.updatedAt = new Date().toISOString();
       });
       taskActionPassword.value = '';
-      taskSettingsMessage.style.color = '#426447';
-      taskSettingsMessage.textContent = 'All completed tasks were returned to the active list.';
+      taskPasswordPanel.hidden = true;
       saveSettings();
       renderTodo();
       showToast('All tasks marked not complete');
@@ -3254,6 +3302,8 @@
         loginSettingsMessage.style.color = '#426447';
         loginSettingsMessage.textContent = 'Login settings saved.';
         setSettingsEditMode('login', false);
+        loginSettingsForm.hidden = true;
+        openLoginSettingsBtn.hidden = false;
         showToast('Login settings saved');
       } catch (error) {
         loginSettingsMessage.style.color = '#9d2f25';

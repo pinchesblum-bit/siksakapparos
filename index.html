@@ -763,9 +763,15 @@
     .calendar-day {
       min-height: 92px;
       padding: 9px;
+      border: 0;
       background: var(--surface);
+      color: var(--ink);
+      text-align: left;
     }
     .calendar-day.empty { background: #faf7f1; }
+    button.calendar-day:hover { background: #fbf5eb; }
+    button.calendar-day:focus-visible { outline: 3px solid rgba(111,75,47,.28); outline-offset: -3px; }
+    button.calendar-day.has-expenses { box-shadow: inset 0 -3px 0 #a33b2f; }
     .calendar-day-number { font-size: 12px; font-weight: 850; }
     .calendar-amount {
       display: block;
@@ -777,12 +783,45 @@
     .calendar-amount.income { color: #35683f; }
     .calendar-amount.expense { color: #a33b2f; }
     .expense-list-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 15px; }
+    .expense-tools { display: flex; align-items: end; gap: 10px; }
+    .expense-search { width: min(320px, 44vw); }
     .expense-table { min-width: 720px; }
     .expense-table th:last-child,
     .expense-table td:last-child { text-align: right; }
     .expense-row { cursor: pointer; }
     .expense-row:hover { background: #fbf7f0; }
     .expense-row:focus-visible { outline: 3px solid rgba(111,75,47,.24); outline-offset: -3px; }
+    .expense-row.expense-dragging { opacity: .28; background: #fff8ec; }
+    .expense-drag-handle {
+      width: 30px;
+      height: 34px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #6e80b8;
+      font-size: 23px;
+      line-height: 1;
+      touch-action: none;
+      cursor: grab;
+    }
+    .expense-drag-handle.hold-ready { color: var(--accent); transform: scale(1.12); }
+    .calendar-expense-list { display: grid; gap: 9px; margin-top: 16px; }
+    .calendar-expense-item {
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 5px 14px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #faf7f1;
+      color: var(--ink);
+      text-align: left;
+    }
+    .calendar-expense-item:hover { background: #f6efe5; }
+    .calendar-expense-item strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .calendar-expense-item .expense-amount { grid-column: 2; grid-row: 1; }
+    .calendar-expense-item .small-note { grid-column: 1 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .expense-amount { color: #9d2f25; font-weight: 850; }
     .expense-readonly input:disabled,
     .expense-readonly textarea:disabled {
@@ -1161,6 +1200,8 @@
       .accounting-summary-grid { grid-template-columns: 1fr; }
       .accounting-section-head { align-items: stretch; flex-direction: column; }
       .accounting-section-head .primary-btn { width: 100%; }
+      .expense-tools { align-items: stretch; flex-direction: column; }
+      .expense-search { width: 100%; }
       .settings-grid { grid-template-columns: 1fr; }
       .settings-cards { grid-template-columns: 1fr; }
       .custom-field-row, .payment-plan-row { grid-template-columns: 1fr; align-items: stretch; }
@@ -1399,12 +1440,19 @@
               <h3>Expenses</h3>
               <p id="accountingExpensePeriodLabel">Expenses for this month</p>
             </div>
-            <button type="button" class="primary-btn" id="addExpenseBtn">+ Add Expense</button>
+            <div class="expense-tools">
+              <label class="sales-search expense-search">
+                <span>Search expenses</span>
+                <input id="expenseSearch" type="search" placeholder="Name, category, or note" autocomplete="off" />
+              </label>
+              <button type="button" class="primary-btn" id="addExpenseBtn">+ Add Expense</button>
+            </div>
           </div>
           <div class="expense-list-wrap">
             <table class="expense-table">
               <thead>
                 <tr>
+                  <th aria-label="Move"></th>
                   <th>Date</th>
                   <th>Expense</th>
                   <th>Category</th>
@@ -1775,6 +1823,19 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="calendarExpenseModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="calendarExpenseModalTitle">
+      <div class="modal-head">
+        <h2 id="calendarExpenseModalTitle">Expenses</h2>
+        <button type="button" class="close-btn" id="closeCalendarExpenseModalBtn" aria-label="Close">×</button>
+      </div>
+      <div id="calendarExpenseDetails" class="calendar-expense-list"></div>
+      <div class="modal-actions">
+        <button type="button" class="secondary-btn" id="closeCalendarExpenseDetailsBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="securityModal" aria-hidden="true">
     <div class="modal security-modal" role="dialog" aria-modal="true" aria-labelledby="securityModalTitle" aria-describedby="securityModalDescription">
       <div class="security-icon" aria-hidden="true">
@@ -1872,6 +1933,7 @@
       accountingRange: 'all',
       accountingTab: sessionStorage.getItem('kapparos_accounting_tab') === 'expenses' ? 'expenses' : 'overview',
       todoSortMode: 'manual',
+      expenseSearchQuery: '',
       searchQuery: ''
     };
 
@@ -1961,6 +2023,7 @@
     const accountingNet = document.getElementById('accountingNet');
     const accountingCalendar = document.getElementById('accountingCalendar');
     const accountingExpensePeriodLabel = document.getElementById('accountingExpensePeriodLabel');
+    const expenseSearch = document.getElementById('expenseSearch');
     const expenseList = document.getElementById('expenseList');
     const expenseEmpty = document.getElementById('expenseEmpty');
     const addExpenseBtn = document.getElementById('addExpenseBtn');
@@ -1977,6 +2040,11 @@
     const saveExpenseBtn = document.getElementById('saveExpenseBtn');
     const closeExpenseModalBtn = document.getElementById('closeExpenseModalBtn');
     const cancelExpenseBtn = document.getElementById('cancelExpenseBtn');
+    const calendarExpenseModal = document.getElementById('calendarExpenseModal');
+    const calendarExpenseModalTitle = document.getElementById('calendarExpenseModalTitle');
+    const calendarExpenseDetails = document.getElementById('calendarExpenseDetails');
+    const closeCalendarExpenseModalBtn = document.getElementById('closeCalendarExpenseModalBtn');
+    const closeCalendarExpenseDetailsBtn = document.getElementById('closeCalendarExpenseDetailsBtn');
     const settingsHome = document.getElementById('settingsHome');
     const settingsViews = document.querySelectorAll('[data-settings-view]');
     const websiteSettingsForm = document.getElementById('websiteSettingsForm');
@@ -2205,13 +2273,14 @@
           homeSummaryLabel: typeof saved.homeSummaryLabel === 'string' && saved.homeSummaryLabel.trim() ? saved.homeSummaryLabel.trim() : DEFAULT_SETTINGS.homeSummaryLabel,
           homeSummaryScope: saved.homeSummaryScope === 'paid_reserved' ? 'paid_reserved' : 'paid',
           todoSortMode: ['manual', 'name', 'due'].includes(saved.todoSortMode) ? saved.todoSortMode : DEFAULT_SETTINGS.todoSortMode,
-          accountingExpenses: savedExpenses.map(expense => ({
+          accountingExpenses: savedExpenses.map((expense, index) => ({
             id: String(expense.id),
             name: String(expense.name).trim(),
             amount: Number.isFinite(Number(expense.amount)) ? Math.max(0, Number(expense.amount)) : 0,
             date: /^\d{4}-\d{2}-\d{2}$/.test(String(expense.date || '')) ? String(expense.date) : '',
             category: String(expense.category || ''),
             note: String(expense.note || ''),
+            order: Number.isFinite(Number(expense.order)) ? Number(expense.order) : index,
             createdAt: String(expense.createdAt || ''),
             updatedAt: String(expense.updatedAt || '')
           })),
@@ -3077,27 +3146,39 @@
         const date = `${month}-${String(day).padStart(2, '0')}`;
         const totals = dailyTotals[date] || { income: 0, expenses: 0 };
         cells.push(`
-          <div class="calendar-day">
+          <button type="button" class="calendar-day${totals.expenses ? ' has-expenses' : ''}" data-calendar-date="${date}" aria-label="View expenses for ${date}">
             <span class="calendar-day-number">${day}</span>
             ${totals.income ? `<span class="calendar-amount income">Income ${money(totals.income)}</span>` : ''}
             ${totals.expenses ? `<span class="calendar-amount expense">Expense ${money(totals.expenses)}</span>` : ''}
-          </div>`);
+          </button>`);
       }
       accountingCalendar.innerHTML = cells.join('');
     }
 
     function renderExpenseList(expenses, month, isAllTime) {
+      const query = state.expenseSearchQuery.trim().toLocaleLowerCase();
+      const visibleExpenses = query
+        ? expenses.filter(expense => [expense.name, expense.category, expense.note]
+            .some(value => String(value || '').toLocaleLowerCase().includes(query)))
+        : expenses;
+      const canReorder = isAllTime && !query;
       accountingExpensePeriodLabel.textContent = isAllTime
         ? 'All Expenses'
         : `Expenses for ${getAccountingMonthLabel(month)}`;
       const listWrap = expenseList.closest('.expense-list-wrap');
-      listWrap.hidden = expenses.length === 0;
-      expenseEmpty.hidden = expenses.length !== 0;
-      expenseList.innerHTML = expenses
+      listWrap.hidden = visibleExpenses.length === 0;
+      expenseEmpty.hidden = visibleExpenses.length !== 0;
+      expenseEmpty.textContent = query
+        ? 'No expenses match your search.'
+        : isAllTime ? 'No expenses recorded.' : 'No expenses recorded for this month.';
+      expenseList.innerHTML = visibleExpenses
         .slice()
-        .sort((a, b) => b.date.localeCompare(a.date) || String(a.name).localeCompare(String(b.name)))
+        .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
         .map(expense => `
-          <tr class="expense-row" data-expense-open="${escapeHtml(expense.id)}" tabindex="0" title="Open expense">
+          <tr class="expense-row" data-expense-row="${escapeHtml(expense.id)}" data-expense-open="${escapeHtml(expense.id)}" tabindex="0" title="Open expense">
+            <td>${canReorder
+              ? `<button type="button" class="expense-drag-handle" data-expense-drag="${escapeHtml(expense.id)}" aria-label="Move expense" title="Press and hold to move">⠿</button>`
+              : ''}</td>
             <td>${escapeHtml(formatTodoDate(expense.date))}</td>
             <td>
               <strong>${escapeHtml(expense.name)}</strong>
@@ -3149,6 +3230,29 @@
       else renderAccountingCalendar(month, dailyTotals);
       renderExpenseList(expenses, month, isAllTime);
       setAccountingTab(state.accountingTab);
+    }
+
+    function openCalendarExpenseDetails(date) {
+      const expenses = (state.settings.accountingExpenses || [])
+        .filter(expense => expense.date === date)
+        .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+      calendarExpenseModalTitle.textContent = `Expenses — ${formatTodoDate(date)}`;
+      calendarExpenseDetails.innerHTML = expenses.length
+        ? expenses.map(expense => `
+            <button type="button" class="calendar-expense-item" data-calendar-expense-open="${escapeHtml(expense.id)}">
+              <strong>${escapeHtml(expense.name)}</strong>
+              <span class="expense-amount">${money(expense.amount)}</span>
+              <span class="small-note">${escapeHtml([expense.category, expense.note].filter(Boolean).join(' — ') || 'No additional details')}</span>
+            </button>`).join('')
+        : '<div class="empty-state">No expenses recorded for this date.</div>';
+      calendarExpenseModal.classList.add('open');
+      calendarExpenseModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeCalendarExpenseDetails() {
+      calendarExpenseModal.classList.remove('open');
+      calendarExpenseModal.setAttribute('aria-hidden', 'true');
+      calendarExpenseDetails.innerHTML = '';
     }
 
     function setExpenseFieldMode(readOnly) {
@@ -3595,6 +3699,10 @@
       renderAccounting();
     });
     accountingMonth.addEventListener('change', renderAccounting);
+    expenseSearch.addEventListener('input', () => {
+      state.expenseSearchQuery = expenseSearch.value;
+      renderAccounting();
+    });
     addExpenseBtn.addEventListener('click', () => openExpenseModal());
     closeExpenseModalBtn.addEventListener('click', closeExpenseModal);
     cancelExpenseBtn.addEventListener('click', closeExpenseModal);
@@ -3602,10 +3710,16 @@
       if (event.target === expenseModal) closeExpenseModal();
     });
     expenseList.addEventListener('click', event => {
+      if (event.target.closest('[data-expense-drag]')) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       const row = event.target.closest('[data-expense-open]');
       if (row) openExpenseModal(row.dataset.expenseOpen);
     });
     expenseList.addEventListener('keydown', event => {
+      if (event.target.closest('[data-expense-drag]')) return;
       if (!['Enter', ' '].includes(event.key)) return;
       const row = event.target.closest('[data-expense-open]');
       if (!row) return;
@@ -3615,6 +3729,21 @@
     editExpenseBtn.addEventListener('click', () => {
       const expense = (state.settings.accountingExpenses || []).find(item => item.id === state.editingExpenseId);
       if (expense) showExpenseEditor(expense);
+    });
+    accountingCalendar.addEventListener('click', event => {
+      const day = event.target.closest('[data-calendar-date]');
+      if (day) openCalendarExpenseDetails(day.dataset.calendarDate);
+    });
+    closeCalendarExpenseModalBtn.addEventListener('click', closeCalendarExpenseDetails);
+    closeCalendarExpenseDetailsBtn.addEventListener('click', closeCalendarExpenseDetails);
+    calendarExpenseModal.addEventListener('click', event => {
+      if (event.target === calendarExpenseModal) closeCalendarExpenseDetails();
+    });
+    calendarExpenseDetails.addEventListener('click', event => {
+      const item = event.target.closest('[data-calendar-expense-open]');
+      if (!item) return;
+      closeCalendarExpenseDetails();
+      openExpenseModal(item.dataset.calendarExpenseOpen);
     });
     deleteExpenseBtn.addEventListener('click', () => {
       if (state.editingExpenseId) deleteExpense(state.editingExpenseId);
@@ -3644,6 +3773,7 @@
         expenses.push({
           id: crypto.randomUUID ? crypto.randomUUID() : `expense-${Date.now()}-${Math.random().toString(16).slice(2)}`,
           ...values,
+          order: expenses.reduce((maximum, item) => Math.max(maximum, Number(item.order || 0)), -1) + 1,
           createdAt: new Date().toISOString(),
           updatedAt: ''
         });
@@ -3655,6 +3785,86 @@
       closeExpenseModal();
       showToast(existingExpense ? 'Expense saved' : 'Expense added');
     });
+
+    let expenseDrag = null;
+    const EXPENSE_HOLD_DELAY = 650;
+
+    function getExpenseRows() {
+      return [...expenseList.querySelectorAll('[data-expense-row]')];
+    }
+
+    function finishExpenseDrag(event, cancelled = false) {
+      if (!expenseDrag || (event.pointerId != null && event.pointerId !== expenseDrag.pointerId)) return;
+      const { handle, row, timer, active, originalOrder, pointerId } = expenseDrag;
+      clearTimeout(timer);
+      const currentOrder = active ? getExpenseRows().map(item => item.dataset.expenseRow) : originalOrder;
+      const changed = active && currentOrder.join('|') !== originalOrder.join('|');
+      expenseDrag = null;
+      row?.classList.remove('expense-dragging');
+      handle?.classList.remove('hold-ready');
+      try {
+        if (handle?.hasPointerCapture?.(pointerId)) handle.releasePointerCapture(pointerId);
+      } catch (_) {}
+      if (cancelled || !changed) {
+        if (active) renderAccounting();
+        return;
+      }
+      currentOrder.forEach((id, index) => {
+        const expense = (state.settings.accountingExpenses || []).find(item => item.id === id);
+        if (expense) expense.order = index;
+      });
+      saveSettings();
+      renderAccounting();
+      showToast('Expense order updated');
+    }
+
+    expenseList.addEventListener('pointerdown', event => {
+      const handle = event.target.closest('[data-expense-drag]');
+      if (!handle || state.accountingRange !== 'all' || state.expenseSearchQuery.trim()) return;
+      event.stopPropagation();
+      handle.setPointerCapture?.(event.pointerId);
+      const row = handle.closest('[data-expense-row]');
+      const drag = {
+        pointerId: event.pointerId,
+        handle,
+        row,
+        startX: event.clientX,
+        startY: event.clientY,
+        active: false,
+        cancelled: false,
+        timer: null,
+        originalOrder: getExpenseRows().map(item => item.dataset.expenseRow)
+      };
+      drag.timer = setTimeout(() => {
+        if (expenseDrag !== drag || drag.cancelled) return;
+        drag.active = true;
+        drag.row.classList.add('expense-dragging');
+        drag.handle.classList.add('hold-ready');
+        if (navigator.vibrate) navigator.vibrate(30);
+      }, EXPENSE_HOLD_DELAY);
+      expenseDrag = drag;
+    });
+
+    expenseList.addEventListener('pointermove', event => {
+      if (!expenseDrag || event.pointerId !== expenseDrag.pointerId) return;
+      const distance = Math.hypot(event.clientX - expenseDrag.startX, event.clientY - expenseDrag.startY);
+      if (!expenseDrag.active) {
+        if (distance > 12) {
+          expenseDrag.cancelled = true;
+          clearTimeout(expenseDrag.timer);
+        }
+        return;
+      }
+      event.preventDefault();
+      const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-expense-row]');
+      if (!target || target === expenseDrag.row) return;
+      const rect = target.getBoundingClientRect();
+      const placeBefore = event.clientY < rect.top + rect.height / 2;
+      expenseList.insertBefore(expenseDrag.row, placeBefore ? target : target.nextSibling);
+    });
+
+    expenseList.addEventListener('pointerup', event => finishExpenseDrag(event));
+    expenseList.addEventListener('pointercancel', event => finishExpenseDrag(event, true));
 
     addTodoBtn.addEventListener('click', () => openTodoModal());
     closeTodoModalBtn.addEventListener('click', closeTodoModal);
@@ -4487,6 +4697,10 @@
         }
         if (confirmModal.classList.contains('open')) {
           finishConfirmation(false);
+          return;
+        }
+        if (calendarExpenseModal.classList.contains('open')) {
+          closeCalendarExpenseDetails();
           return;
         }
         if (expenseModal.classList.contains('open')) {

@@ -1714,6 +1714,23 @@
               </div>
             </div>
             <div class="settings-section">
+              <h3>Contact Fields</h3>
+              <label class="settings-switch-row field full">
+                <span>Require Phone Number</span>
+                <span class="toggle-switch">
+                  <input type="checkbox" id="settingPhoneRequired" />
+                  <span class="toggle-slider" aria-hidden="true"></span>
+                </span>
+              </label>
+              <label class="settings-switch-row field full">
+                <span>Require Email Address</span>
+                <span class="toggle-switch">
+                  <input type="checkbox" id="settingEmailRequired" />
+                  <span class="toggle-slider" aria-hidden="true"></span>
+                </span>
+              </label>
+            </div>
+            <div class="settings-section">
               <h3>Payment Methods</h3>
               <div class="payment-methods-list" id="paymentMethodsList"></div>
               <button type="button" class="secondary-btn" id="addPaymentMethodBtn">+ Add Payment Method</button>
@@ -1742,7 +1759,7 @@
           </div>
           <form id="ticketSettingsForm">
             <label class="settings-switch-row field full">
-              <span>Show Print Ticket on Sales</span>
+              <span>Enable Tickets and Ticket Scanner</span>
               <span class="toggle-switch">
                 <input type="checkbox" id="settingPrintTicketsEnabled" />
                 <span class="toggle-slider" aria-hidden="true"></span>
@@ -1861,13 +1878,13 @@
           </div>
 
           <div class="field full">
-            <label for="phone">Phone Number <span class="required-mark">*</span></label>
+            <label for="phone">Phone Number <span class="required-mark" id="phoneRequiredMark">*</span></label>
             <input id="phone" name="phone" inputmode="numeric" autocomplete="tel" pattern="[0-9]{10}" maxlength="10" required />
             <div class="helper">Enter exactly 10 digits.</div>
           </div>
 
           <div class="field full">
-            <label for="saleEmail">Email Address</label>
+            <label for="saleEmail">Email Address <span class="required-mark" id="emailRequiredMark" hidden>*</span></label>
             <input id="saleEmail" name="email" type="email" autocomplete="email" placeholder="name@example.com" />
           </div>
 
@@ -2100,6 +2117,8 @@
       homeSummaryScope: 'paid',
       salesSortMode: 'name',
       printTicketsEnabled: true,
+      phoneRequired: true,
+      emailRequired: false,
       todoSortMode: 'manual',
       todoTasks: [],
       accountingExpenses: [],
@@ -2175,6 +2194,8 @@
     const fullNameInput = document.getElementById('fullName');
     const phoneInput = document.getElementById('phone');
     const saleEmailInput = document.getElementById('saleEmail');
+    const phoneRequiredMark = document.getElementById('phoneRequiredMark');
+    const emailRequiredMark = document.getElementById('emailRequiredMark');
     const saleModalTitle = document.getElementById('saleModalTitle');
     const saveSaleBtn = document.getElementById('saveSaleBtn');
     const editSaleBtn = document.getElementById('editSaleBtn');
@@ -2273,6 +2294,8 @@
     const settingHomeSummaryScope = document.getElementById('settingHomeSummaryScope');
     const settingDefaultPrice = document.getElementById('settingDefaultPrice');
     const settingInventory = document.getElementById('settingInventory');
+    const settingPhoneRequired = document.getElementById('settingPhoneRequired');
+    const settingEmailRequired = document.getElementById('settingEmailRequired');
     const settingUsername = document.getElementById('settingUsername');
     const settingCurrentPassword = document.getElementById('settingCurrentPassword');
     const settingPassword = document.getElementById('settingPassword');
@@ -2518,6 +2541,8 @@
           homeSummaryLabel: typeof saved.homeSummaryLabel === 'string' && saved.homeSummaryLabel.trim() ? saved.homeSummaryLabel.trim() : DEFAULT_SETTINGS.homeSummaryLabel,
           homeSummaryScope: saved.homeSummaryScope === 'paid_reserved' ? 'paid_reserved' : 'paid',
           printTicketsEnabled: saved.printTicketsEnabled !== false,
+          phoneRequired: saved.phoneRequired !== false,
+          emailRequired: Boolean(saved.emailRequired),
           todoSortMode: ['manual', 'name', 'due'].includes(saved.todoSortMode) ? saved.todoSortMode : DEFAULT_SETTINGS.todoSortMode,
           accountingExpenses: savedExpenses.map((expense, index) => ({
             id: String(expense.id),
@@ -3099,6 +3124,13 @@
       salesSort.value = ['name', 'newest', 'oldest'].includes(state.settings.salesSortMode)
         ? state.settings.salesSortMode
         : 'name';
+      const phoneRequired = state.settings.phoneRequired !== false;
+      const emailRequired = Boolean(state.settings.emailRequired);
+      phoneInput.required = phoneRequired;
+      saleEmailInput.required = emailRequired;
+      phoneRequiredMark.hidden = !phoneRequired;
+      emailRequiredMark.hidden = !emailRequired;
+      ticketScanner.hidden = state.settings.printTicketsEnabled === false;
       todoSort.value = ['due', 'name', 'manual'].includes(state.settings.todoSortMode)
         ? state.settings.todoSortMode
         : 'manual';
@@ -3215,6 +3247,8 @@
       settingHomeSummaryScope.value = state.settings.homeSummaryScope;
       settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
       settingInventory.value = state.settings.inventory;
+      settingPhoneRequired.checked = state.settings.phoneRequired !== false;
+      settingEmailRequired.checked = Boolean(state.settings.emailRequired);
       settingPrintTicketsEnabled.checked = state.settings.printTicketsEnabled !== false;
       settingUsername.value = state.settings.username;
       settingCurrentPassword.value = '';
@@ -3289,6 +3323,8 @@
       if (section === 'sales') {
         settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
         settingInventory.value = state.settings.inventory;
+        settingPhoneRequired.checked = state.settings.phoneRequired !== false;
+        settingEmailRequired.checked = Boolean(state.settings.emailRequired);
         settingsDraftMethods = state.settings.paymentMethods.map(method => ({ ...method }));
         settingsDraftPlans = state.settings.paymentPlans.map(plan => ({ ...plan }));
         settingsDraftFields = state.settings.customFields.map(field => ({ ...field }));
@@ -5041,11 +5077,11 @@
       const geschlagen = geschlagenInput.checked;
       const usesPlan = status === 'reserved' || (Boolean(state.editingSaleId) && status === 'expired');
 
-      if (!fullName || !phone || !['paid', 'reserved', 'expired'].includes(status) || !Number.isFinite(qty) || qty < 1 || !Number.isFinite(price) || price < 0 || (!usesPlan && !selectedPaymentType) || (usesPlan && !selectedPaymentPlan)) {
+      if (!fullName || (state.settings.phoneRequired !== false && !phone) || (state.settings.emailRequired && !email) || !['paid', 'reserved', 'expired'].includes(status) || !Number.isFinite(qty) || qty < 1 || !Number.isFinite(price) || price < 0 || (!usesPlan && !selectedPaymentType) || (usesPlan && !selectedPaymentPlan)) {
         showToast('Please fill out every required field');
         return;
       }
-      if (phone.length !== 10) {
+      if (phone && phone.length !== 10) {
         phoneInput.focus();
         showToast('Phone Number must be exactly 10 digits');
         return;
@@ -5298,6 +5334,8 @@
       if (!salesSettingsForm.reportValidity()) return;
       const defaultPrice = Number(settingDefaultPrice.value);
       const inventory = Math.floor(Number(settingInventory.value));
+      const phoneRequired = settingPhoneRequired.checked;
+      const emailRequired = settingEmailRequired.checked;
       const sold = getKapparosSold();
       const methodNames = settingsDraftMethods.map(method => method.label.trim());
       const normalizedMethodNames = methodNames.map(name => name.toLocaleLowerCase());
@@ -5344,6 +5382,8 @@
       const nextFields = settingsDraftFields.map((field, index) => ({ ...field, label: fieldNames[index] }));
       const salesChanged = defaultPrice !== Number(state.settings.defaultPrice)
         || inventory !== Number(state.settings.inventory)
+        || phoneRequired !== (state.settings.phoneRequired !== false)
+        || emailRequired !== Boolean(state.settings.emailRequired)
         || JSON.stringify(nextMethods) !== JSON.stringify(state.settings.paymentMethods)
         || JSON.stringify(nextPlans) !== JSON.stringify(state.settings.paymentPlans)
         || JSON.stringify(nextFields) !== JSON.stringify(state.settings.customFields);
@@ -5356,6 +5396,8 @@
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
       state.settings.defaultPrice = defaultPrice;
       state.settings.inventory = inventory;
+      state.settings.phoneRequired = phoneRequired;
+      state.settings.emailRequired = emailRequired;
       state.settings.paymentMethods = nextMethods;
       state.settings.paymentPlans = nextPlans;
       state.settings.customFields = nextFields;
@@ -5381,11 +5423,12 @@
       }
       state.settings.printTicketsEnabled = nextValue;
       saveSettings();
+      applySettingsToUi();
       ticketSettingsMessage.style.color = '#426447';
       ticketSettingsMessage.textContent = nextValue
-        ? 'Print Ticket is now available on sales.'
-        : 'Print Ticket is now hidden from sales.';
-      showToast(nextValue ? 'Print Ticket turned on' : 'Print Ticket turned off');
+        ? 'Tickets, email delivery, and the ticket scanner are now available.'
+        : 'Tickets, email delivery, and the ticket scanner are now hidden.';
+      showToast(nextValue ? 'Tickets turned on' : 'Tickets turned off');
     });
 
     loginSettingsForm.addEventListener('submit', async e => {

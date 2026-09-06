@@ -3590,7 +3590,7 @@
         showSaleView();
       } else {
         if (getKapparosSold() >= state.settings.inventory) {
-          showToast('No כפרות are available. Increase inventory in Settings.');
+          showToast('עס איז נישט דא גענוג כפרות');
           return;
         }
         saleModalTitle.textContent = 'Add Sale';
@@ -4295,7 +4295,7 @@
       const availableForThisSale = state.settings.inventory - getKapparosSold(state.editingSaleId);
       if (qty > availableForThisSale) {
         quantityInput.focus();
-        showToast(`Only ${Math.max(0, availableForThisSale)} כפרות are available`);
+        showToast('עס איז נישט דא גענוג כפרות');
         return;
       }
 

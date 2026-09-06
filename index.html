@@ -671,6 +671,36 @@
     .report-summary-card.available { background: var(--success); }
     .report-summary-card.needs-save { background: #a33b2f; }
 
+    .coming-soon-panel {
+      min-height: 360px;
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      padding: 48px 24px;
+      text-align: center;
+    }
+    .coming-soon-icon {
+      width: 68px;
+      height: 68px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 18px;
+      border-radius: 20px;
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .coming-soon-icon svg {
+      width: 34px;
+      height: 34px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .coming-soon-panel h2 { margin: 0; font-size: 30px; }
+    .coming-soon-panel p { margin: 8px 0 0; color: var(--muted); font-size: 17px; }
+
     .settings-panel { padding: 24px; }
     .settings-panel h2 { margin: 0 0 5px; font-size: 28px; }
     .settings-home[hidden], .settings-view[hidden] { display: none; }
@@ -1085,6 +1115,7 @@
           <button class="menu-item" data-page="sales">Sales</button>
           <button class="menu-item" data-page="reports">Reports</button>
           <button class="menu-item" data-page="todo">Tasks</button>
+          <button class="menu-item" data-page="accounting">Accounting</button>
           <button class="menu-item" data-page="settings">Settings</button>
           <button class="menu-item logout-menu-item" id="logoutBtn">Log Out</button>
         </div>
@@ -1200,6 +1231,19 @@
           <div class="small-note" style="color:rgba(255,255,255,.72)">Paid payment types only; excludes בנש״ק</div>
         </div>
         <div class="value" id="subtotalMoney">$0</div>
+      </div>
+    </section>
+
+    <section class="page" id="accountingPage">
+      <div class="panel coming-soon-panel">
+        <div class="coming-soon-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <rect x="4" y="2.5" width="16" height="19" rx="2.5"></rect>
+            <path d="M7.5 6.5h9M8 11h1M11.5 11h1M15 11h1M8 14.5h1M11.5 14.5h1M15 14.5h1M8 18h1M11.5 18h4.5"></path>
+          </svg>
+        </div>
+        <h2>Accounting</h2>
+        <p>Coming Soon</p>
       </div>
     </section>
 
@@ -1727,7 +1771,8 @@
 
     const LAST_PAGE_KEY = 'kapparos_last_page';
     const LAST_SETTINGS_VIEW_KEY = 'kapparos_last_settings_view';
-    const VALID_PAGES = new Set(['sales', 'todo', 'reports', 'settings']);
+    const ACCOUNTING_ACCESS_KEY = 'kapparos_accounting_access';
+    const VALID_PAGES = new Set(['sales', 'todo', 'reports', 'accounting', 'settings']);
     const VALID_SETTINGS_VIEWS = new Set(['website', 'sales', 'reports', 'tasks', 'login', 'export']);
 
     function setLoginPasswordVisible(visible) {
@@ -1748,7 +1793,9 @@
       loginForm.reset();
       setLoginPasswordVisible(false);
       const savedPage = sessionStorage.getItem(LAST_PAGE_KEY);
-      showPage(VALID_PAGES.has(savedPage) ? savedPage : 'sales');
+      const canRestoreAccounting = savedPage !== 'accounting'
+        || sessionStorage.getItem(ACCOUNTING_ACCESS_KEY) === 'true';
+      showPage(VALID_PAGES.has(savedPage) && canRestoreAccounting ? savedPage : 'sales');
     }
 
     function lockWebsite() {
@@ -1756,6 +1803,7 @@
       sessionStorage.removeItem(LOGIN_SESSION_KEY);
       sessionStorage.removeItem(LAST_PAGE_KEY);
       sessionStorage.removeItem(LAST_SETTINGS_VIEW_KEY);
+      sessionStorage.removeItem(ACCOUNTING_ACCESS_KEY);
       loginGate.hidden = false;
       appShell.classList.add('locked');
       appShell.setAttribute('aria-hidden', 'true');
@@ -1790,11 +1838,25 @@
 
     function openSecurityDialog(action) {
       pendingSecurityAction = action;
-      const isLoginChange = action === 'login-settings';
-      securityModalTitle.textContent = isLoginChange ? 'Verify Your Identity' : 'Confirm This Action';
-      securityModalDescription.textContent = isLoginChange
-        ? 'Enter your current password before changing the username or password.'
-        : 'Enter your website password to mark all מסדר tasks as not מסדר.';
+      const securityContent = {
+        'login-settings': {
+          title: 'Verify Your Identity',
+          description: 'Enter your current password before changing the username or password.'
+        },
+        'reopen-tasks': {
+          title: 'Confirm This Action',
+          description: 'Enter your website password to mark all מסדר tasks as not מסדר.'
+        },
+        accounting: {
+          title: 'Accounting Access',
+          description: 'Enter your website password to open Accounting.'
+        }
+      }[action] || {
+        title: 'Verify Your Identity',
+        description: 'Enter your website password to continue.'
+      };
+      securityModalTitle.textContent = securityContent.title;
+      securityModalDescription.textContent = securityContent.description;
       securityForm.reset();
       securityPassword.type = 'password';
       toggleSecurityPassword.textContent = 'Show';
@@ -1820,6 +1882,12 @@
     async function completeSecurityAction(password) {
       const action = pendingSecurityAction;
       closeSecurityDialog();
+
+      if (action === 'accounting') {
+        sessionStorage.setItem(ACCOUNTING_ACCESS_KEY, 'true');
+        showPage('accounting');
+        return;
+      }
 
       if (action === 'login-settings') {
         resetSettingsSection('login');
@@ -2834,6 +2902,7 @@
       document.getElementById('salesPage').classList.toggle('active', page === 'sales');
       document.getElementById('todoPage').classList.toggle('active', page === 'todo');
       document.getElementById('reportsPage').classList.toggle('active', page === 'reports');
+      document.getElementById('accountingPage').classList.toggle('active', page === 'accounting');
       document.getElementById('settingsPage').classList.toggle('active', page === 'settings');
       homeBtn.hidden = false;
       setMenuOpen(false);
@@ -2945,6 +3014,11 @@
     document.querySelectorAll('.menu-item[data-page]').forEach(btn => {
       btn.addEventListener('click', () => {
         const selectedPage = btn.dataset.page;
+        if (selectedPage === 'accounting') {
+          setMenuOpen(false);
+          openSecurityDialog('accounting');
+          return;
+        }
         if (selectedPage === 'settings') {
           sessionStorage.removeItem(LAST_SETTINGS_VIEW_KEY);
           showPage('settings');

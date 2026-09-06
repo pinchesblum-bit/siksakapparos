@@ -2671,7 +2671,16 @@
 
     menuBtn.addEventListener('click', () => setMenuOpen(!menuPopover.classList.contains('open')));
     document.querySelectorAll('.menu-item[data-page]').forEach(btn => {
-      btn.addEventListener('click', () => showPage(btn.dataset.page));
+      btn.addEventListener('click', () => {
+        const selectedPage = btn.dataset.page;
+        if (selectedPage === 'settings') {
+          sessionStorage.removeItem(LAST_SETTINGS_VIEW_KEY);
+          showPage('settings');
+          showSettingsHome();
+          return;
+        }
+        showPage(selectedPage);
+      });
     });
     document.querySelectorAll('[data-settings-open]').forEach(btn => {
       btn.addEventListener('click', () => openSettingsView(btn.dataset.settingsOpen));

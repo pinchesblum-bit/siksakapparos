@@ -2897,6 +2897,9 @@
 
     function showPage(page) {
       page = VALID_PAGES.has(page) ? page : 'sales';
+      if (state.page === 'accounting' && page !== 'accounting') {
+        sessionStorage.removeItem(ACCOUNTING_ACCESS_KEY);
+      }
       state.page = page;
       sessionStorage.setItem(LAST_PAGE_KEY, page);
       document.getElementById('salesPage').classList.toggle('active', page === 'sales');

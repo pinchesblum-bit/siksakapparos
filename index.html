@@ -5180,7 +5180,7 @@
         saveSales();
         renderSales();
         renderReports();
-        closeModal();
+        openModal(state.sales[index].id);
         showToast('Sale updated');
         return;
       }

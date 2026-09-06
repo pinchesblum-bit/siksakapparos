@@ -785,9 +785,11 @@
     .expense-list-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 15px; }
     .expense-tools { display: flex; align-items: end; gap: 10px; }
     .expense-search { width: min(320px, 44vw); }
-    .expense-table { min-width: 720px; }
-    .expense-table th:last-child,
-    .expense-table td:last-child { text-align: right; }
+    .expense-table { min-width: 820px; }
+    .expense-table th:nth-child(5),
+    .expense-table td:nth-child(5) { text-align: right; }
+    .expense-table th:nth-child(6),
+    .expense-table td:nth-child(6) { text-align: center; }
     .expense-row { cursor: pointer; }
     .expense-row:hover { background: #fbf7f0; }
     .expense-row:focus-visible { outline: 3px solid rgba(111,75,47,.24); outline-offset: -3px; }
@@ -1467,10 +1469,11 @@
               <thead>
                 <tr>
                   <th aria-label="Move"></th>
-                  <th>Date</th>
                   <th>Expense</th>
+                  <th>Date</th>
                   <th>Category</th>
                   <th>Amount</th>
+                  <th>באצאלט</th>
                 </tr>
               </thead>
               <tbody id="expenseList"></tbody>
@@ -1503,6 +1506,10 @@
             <button type="button" class="settings-card" data-settings-open="tasks">
               <span class="settings-card-title">Tasks</span>
               <span class="settings-card-note">Manage tasks marked מסדר.</span>
+            </button>
+            <button type="button" class="settings-card" data-settings-open="accounting">
+              <span class="settings-card-title">Accounting Settings</span>
+              <span class="settings-card-note">Manage expense payment statuses.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="login">
               <span class="settings-card-title">Login Settings</span>
@@ -1649,6 +1656,22 @@
                 <div class="settings-card-note">Move every מסדר task back to the active task list.</div>
               </div>
               <button type="button" class="secondary-btn" id="reopenAllTasksBtn">Mark All as Not מסדר</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-view" data-settings-view="accounting" hidden>
+          <div class="settings-view-head">
+            <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
+            <h3>Accounting Settings</h3>
+          </div>
+          <div class="settings-section">
+            <div class="payment-method-row">
+              <div>
+                <div class="settings-card-title">Expense Status</div>
+                <div class="settings-card-note">Move every באצאלט expense back to the unpaid expense list.</div>
+              </div>
+              <button type="button" class="secondary-btn" id="resetAllExpensesBtn">Mark All as Unpaid</button>
             </div>
           </div>
         </div>
@@ -1803,6 +1826,10 @@
         <button type="button" class="close-btn" id="closeExpenseModalBtn" aria-label="Close">×</button>
       </div>
       <form id="expenseForm">
+        <label class="geschlagen-check" for="expensePaid">
+          <span>באצאלט</span>
+          <input id="expensePaid" name="expensePaid" type="checkbox" />
+        </label>
         <div class="form-grid">
           <div class="field full">
             <label for="expenseName">Expense Name <span class="required-mark">*</span></label>
@@ -1995,6 +2022,7 @@
     const todoSort = document.getElementById('todoSort');
     const addTodoBtn = document.getElementById('addTodoBtn');
     const reopenAllTasksBtn = document.getElementById('reopenAllTasksBtn');
+    const resetAllExpensesBtn = document.getElementById('resetAllExpensesBtn');
     const securityModal = document.getElementById('securityModal');
     const securityForm = document.getElementById('securityForm');
     const securityModalTitle = document.getElementById('securityModalTitle');
@@ -2051,6 +2079,7 @@
     const expenseDate = document.getElementById('expenseDate');
     const expenseCategory = document.getElementById('expenseCategory');
     const expenseNote = document.getElementById('expenseNote');
+    const expensePaid = document.getElementById('expensePaid');
     const deleteExpenseBtn = document.getElementById('deleteExpenseBtn');
     const editExpenseBtn = document.getElementById('editExpenseBtn');
     const saveExpenseBtn = document.getElementById('saveExpenseBtn');
@@ -2105,7 +2134,7 @@
     const LAST_SETTINGS_VIEW_KEY = 'kapparos_last_settings_view';
     const ACCOUNTING_ACCESS_KEY = 'kapparos_accounting_access';
     const VALID_PAGES = new Set(['sales', 'todo', 'reports', 'accounting', 'settings']);
-    const VALID_SETTINGS_VIEWS = new Set(['website', 'sales', 'reports', 'tasks', 'login', 'export']);
+    const VALID_SETTINGS_VIEWS = new Set(['website', 'sales', 'reports', 'tasks', 'accounting', 'login', 'export']);
 
     function setLoginPasswordVisible(visible) {
       loginPassword.type = visible ? 'text' : 'password';
@@ -2179,6 +2208,10 @@
           title: 'Confirm This Action',
           description: 'Enter your website password to mark all מסדר tasks as not מסדר.'
         },
+        'unpay-expenses': {
+          title: 'Confirm This Action',
+          description: 'Enter your website password to mark all באצאלט expenses as unpaid.'
+        },
         accounting: {
           title: 'Accounting Access',
           description: 'Enter your website password to open Accounting.'
@@ -2246,6 +2279,20 @@
         saveSettings();
         renderTodo();
         showToast('All tasks marked as not מסדר');
+        return;
+      }
+
+      if (action === 'unpay-expenses') {
+        const paidExpenses = (state.settings.accountingExpenses || []).filter(expense => expense.paid);
+        if (!paidExpenses.length) return;
+        if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+        paidExpenses.forEach(expense => {
+          expense.paid = false;
+          expense.updatedAt = new Date().toISOString();
+        });
+        saveSettings();
+        renderAccounting();
+        showToast('All expenses marked as unpaid');
       }
     }
 
@@ -2296,6 +2343,7 @@
             date: /^\d{4}-\d{2}-\d{2}$/.test(String(expense.date || '')) ? String(expense.date) : '',
             category: String(expense.category || ''),
             note: String(expense.note || ''),
+            paid: Boolean(expense.paid),
             order: Number.isFinite(Number(expense.order)) ? Number(expense.order) : index,
             createdAt: String(expense.createdAt || ''),
             updatedAt: String(expense.updatedAt || '')
@@ -3198,22 +3246,35 @@
       expenseEmpty.textContent = query
         ? 'No expenses match your search.'
         : isAllTime ? 'No expenses recorded.' : 'No expenses recorded for this month.';
-      expenseList.innerHTML = visibleExpenses
+      const sortedExpenses = visibleExpenses
         .slice()
-        .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
-        .map(expense => `
+        .sort((a, b) =>
+          Number(Boolean(a.paid)) - Number(Boolean(b.paid))
+          || Number(a.order || 0) - Number(b.order || 0)
+        );
+      expenseList.innerHTML = sortedExpenses
+        .map((expense, index) => {
+          const startsPaidGroup = index > 0
+            && Boolean(expense.paid)
+            && !Boolean(sortedExpenses[index - 1].paid);
+          const divider = startsPaidGroup
+            ? '<tr class="sales-group-divider"><td colspan="6">באצאלט</td></tr>'
+            : '';
+          return `${divider}
           <tr class="expense-row" data-expense-row="${escapeHtml(expense.id)}" data-expense-open="${escapeHtml(expense.id)}" tabindex="0" title="Open expense">
             <td>${canReorder
               ? `<button type="button" class="expense-drag-handle" data-expense-drag="${escapeHtml(expense.id)}" aria-label="Move expense" title="Press and hold to move">⠿</button>`
               : ''}</td>
-            <td>${escapeHtml(formatTodoDate(expense.date))}</td>
             <td>
               <strong>${escapeHtml(expense.name)}</strong>
               ${expense.note ? `<div class="small-note note-cell" title="${escapeHtml(expense.note)}">${escapeHtml(expense.note)}</div>` : ''}
             </td>
+            <td>${escapeHtml(formatTodoDate(expense.date))}</td>
             <td>${escapeHtml(expense.category || '—')}</td>
             <td class="expense-amount">${money(expense.amount)}</td>
-          </tr>`).join('');
+            <td>${expense.paid ? '<span class="status-pill geschlagen">באצאלט</span>' : ''}</td>
+          </tr>`;
+        }).join('');
     }
 
     function renderAccounting() {
@@ -3283,7 +3344,7 @@
     }
 
     function setExpenseFieldMode(readOnly) {
-      [expenseName, expenseAmount, expenseDate, expenseCategory, expenseNote].forEach(field => {
+      [expensePaid, expenseName, expenseAmount, expenseDate, expenseCategory, expenseNote].forEach(field => {
         field.disabled = readOnly;
       });
       expenseForm.classList.toggle('expense-readonly', readOnly);
@@ -3296,6 +3357,7 @@
       expenseDate.value = expense?.date || getLocalDateValue();
       expenseCategory.value = expense?.category || '';
       expenseNote.value = expense?.note || '';
+      expensePaid.checked = Boolean(expense?.paid);
       setExpenseFieldMode(true);
       deleteExpenseBtn.hidden = false;
       cancelExpenseBtn.textContent = 'Close';
@@ -3310,6 +3372,7 @@
       expenseDate.value = expense?.date || getLocalDateValue();
       expenseCategory.value = expense?.category || '';
       expenseNote.value = expense?.note || '';
+      expensePaid.checked = Boolean(expense?.paid);
       setExpenseFieldMode(false);
       deleteExpenseBtn.hidden = !expense;
       cancelExpenseBtn.textContent = 'Cancel';
@@ -3469,12 +3532,13 @@
         excelRow(['Expenses', { value: accountingExpenseTotal, type: 'Number', style: 'Currency' }]),
         excelRow([accountingNetTotal >= 0 ? 'Profit' : 'Deficit', { value: Math.abs(accountingNetTotal), type: 'Number', style: 'Currency' }]),
         '<Row/>',
-        excelRow(['Date', 'Expense', 'Category', 'Amount', 'Note', 'Created', 'Updated'].map(value => ({ value, style: 'Header' }))),
+        excelRow(['Expense', 'Date', 'Category', 'Amount', 'Paid', 'Note', 'Created', 'Updated'].map(value => ({ value, style: 'Header' }))),
         ...accountingExpenses.map(expense => excelRow([
-          expense.date || '',
           expense.name || '',
+          expense.date || '',
           expense.category || '',
           { value: Number(expense.amount || 0), type: 'Number', style: 'Currency' },
+          expense.paid ? 'Yes' : 'No',
           expense.note || '',
           expense.createdAt ? new Date(expense.createdAt).toLocaleString('en-US') : '',
           expense.updatedAt ? new Date(expense.updatedAt).toLocaleString('en-US') : ''
@@ -3508,7 +3572,7 @@
             ${taskRows}
           </Table></Worksheet>
           <Worksheet ss:Name="Accounting"><Table>
-            <Column ss:Width="100"/><Column ss:Width="170"/><Column ss:Width="120"/><Column ss:Width="90"/><Column ss:Width="240"/><Column ss:Width="140"/><Column ss:Width="140"/>
+            <Column ss:Width="170"/><Column ss:Width="100"/><Column ss:Width="120"/><Column ss:Width="90"/><Column ss:Width="75"/><Column ss:Width="240"/><Column ss:Width="140"/><Column ss:Width="140"/>
             ${accountingRows}
           </Table></Worksheet>
         </Workbook>`;
@@ -3797,7 +3861,8 @@
         amount,
         date: expenseDate.value,
         category: expenseCategory.value.trim(),
-        note: expenseNote.value.trim()
+        note: expenseNote.value.trim(),
+        paid: expensePaid.checked
       };
       if (existingExpense) {
         Object.assign(existingExpense, values, { updatedAt: new Date().toISOString() });
@@ -3983,8 +4048,19 @@
     });
     reopenAllTasksBtn.addEventListener('click', () => {
       const completedTasks = (state.settings.todoTasks || []).filter(task => task.completed);
-      if (!completedTasks.length) return;
+      if (!completedTasks.length) {
+        showToast('All tasks are already active');
+        return;
+      }
       openSecurityDialog('reopen-tasks');
+    });
+    resetAllExpensesBtn.addEventListener('click', () => {
+      const paidExpenses = (state.settings.accountingExpenses || []).filter(expense => expense.paid);
+      if (!paidExpenses.length) {
+        showToast('All expenses are already unpaid');
+        return;
+      }
+      openSecurityDialog('unpay-expenses');
     });
     todoList.addEventListener('click', event => {
       if (event.target.closest('[data-todo-drag]')) {

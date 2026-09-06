@@ -1584,6 +1584,12 @@
             <h3>Sales Settings</h3>
             <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="sales">Edit</button>
           </div>
+          <div class="settings-cards">
+            <button type="button" class="settings-card" data-settings-open="print-ticket">
+              <span class="settings-card-title">Print Ticket Settings</span>
+              <span class="settings-card-note">Set up printed sale tickets.</span>
+            </button>
+          </div>
           <form id="salesSettingsForm">
             <div class="settings-grid">
               <div class="field">
@@ -1616,6 +1622,14 @@
             <p class="settings-message" id="salesSettingsMessage" role="alert"></p>
             <div class="settings-actions" data-settings-actions="sales" hidden><button type="button" class="secondary-btn" data-cancel-settings="sales">Cancel</button><button type="submit" class="primary-btn">Save Sales Settings</button></div>
           </form>
+        </div>
+
+        <div class="settings-view" data-settings-view="print-ticket" hidden>
+          <div class="settings-view-head">
+            <button type="button" class="back-settings-btn" data-settings-back data-settings-back-to="sales">← Back</button>
+            <h3>Print Ticket Settings</h3>
+          </div>
+          <div class="empty-state">Coming soon</div>
         </div>
 
         <div class="settings-view" data-settings-view="login" hidden>
@@ -2154,7 +2168,7 @@
     const LAST_SETTINGS_VIEW_KEY = 'kapparos_last_settings_view';
     const ACCOUNTING_ACCESS_KEY = 'kapparos_accounting_access';
     const VALID_PAGES = new Set(['sales', 'todo', 'reports', 'accounting', 'settings']);
-    const VALID_SETTINGS_VIEWS = new Set(['website', 'sales', 'reports', 'tasks', 'accounting', 'login', 'export']);
+    const VALID_SETTINGS_VIEWS = new Set(['website', 'sales', 'print-ticket', 'reports', 'tasks', 'accounting', 'login', 'export']);
 
     function setLoginPasswordVisible(visible) {
       loginPassword.type = visible ? 'text' : 'password';
@@ -3789,7 +3803,11 @@
       btn.addEventListener('click', () => openSettingsView(btn.dataset.settingsOpen));
     });
     document.querySelectorAll('[data-settings-back]').forEach(btn => {
-      btn.addEventListener('click', showSettingsHome);
+      btn.addEventListener('click', () => {
+        const targetView = btn.dataset.settingsBackTo;
+        if (targetView) openSettingsView(targetView);
+        else showSettingsHome();
+      });
     });
     openLoginSettingsBtn.addEventListener('click', () => {
       openSecurityDialog('login-settings');

@@ -3303,6 +3303,8 @@
         [settingCurrentPassword, settingPassword, settingConfirmPassword].forEach(input => { input.type = 'password'; });
       }
       if (section === 'sales') {
+        settingPhoneRequired.disabled = false;
+        settingEmailRequired.disabled = false;
         addPaymentMethodBtn.disabled = !editing;
         addPaymentPlanBtn.disabled = !editing;
         addCustomFieldBtn.disabled = !editing;
@@ -4927,6 +4929,32 @@
       showToast(nextValue ? 'Homepage total turned on' : 'Homepage total turned off');
     });
 
+    async function updateContactRequirement(input, settingName, label) {
+      const previousValue = settingName === 'phoneRequired'
+        ? state.settings.phoneRequired !== false
+        : Boolean(state.settings.emailRequired);
+      const nextValue = input.checked;
+      if (nextValue === previousValue) return;
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) {
+        input.checked = previousValue;
+        return;
+      }
+      state.settings[settingName] = nextValue;
+      saveSettings();
+      applySettingsToUi();
+      salesSettingsMessage.style.color = '#426447';
+      salesSettingsMessage.textContent = `${label} is now ${nextValue ? 'required' : 'optional'}.`;
+      showToast(`${label} is now ${nextValue ? 'required' : 'optional'}`);
+    }
+
+    settingPhoneRequired.addEventListener('change', () => {
+      updateContactRequirement(settingPhoneRequired, 'phoneRequired', 'Phone Number');
+    });
+
+    settingEmailRequired.addEventListener('change', () => {
+      updateContactRequirement(settingEmailRequired, 'emailRequired', 'Email Address');
+    });
+
     showSettingsPasswords.addEventListener('change', () => {
       const type = showSettingsPasswords.checked ? 'text' : 'password';
       [settingCurrentPassword, settingPassword, settingConfirmPassword].forEach(input => { input.type = type; });
@@ -5181,7 +5209,7 @@
       saveSales();
       renderSales();
       renderReports();
-      closeModal();
+      openModal(sale.id);
       showToast('Sale saved');
     });
 

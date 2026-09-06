@@ -3388,14 +3388,22 @@
         return;
       }
       continueSecurityBtn.disabled = true;
-      const isValid = await hashPassword(password) === state.settings.passwordHash;
-      continueSecurityBtn.disabled = false;
-      if (!isValid) {
-        securityError.textContent = 'The password is incorrect. Try again.';
+      try {
+        await cloudRequest('verify-password', { password });
+        await completeSecurityAction(password);
+      } catch (error) {
+        if (error.status === 401) {
+          closeSecurityDialog();
+          lockWebsite();
+          return;
+        }
+        securityError.textContent = error.status === 403
+          ? 'The password is incorrect. Try again.'
+          : error.message;
         securityPassword.select();
-        return;
+      } finally {
+        continueSecurityBtn.disabled = false;
       }
-      await completeSecurityAction(password);
     });
 
     confirmNoBtn.addEventListener('click', () => finishConfirmation(false));

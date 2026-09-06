@@ -553,6 +553,13 @@
       text-align: right;
     }
     .todo-due.overdue { color: #9d2f25; font-weight: 750; }
+    .todo-status-meta {
+      display: grid;
+      justify-items: end;
+      gap: 5px;
+      min-width: 118px;
+    }
+    .todo-status-meta .todo-due { min-width: 0; }
     .todo-section-divider {
       padding: 13px 20px;
       border-top: 8px solid var(--bg);
@@ -2517,19 +2524,20 @@
         const listDetail = almostComplete && task.remainingItem
           ? `<span class="todo-description todo-remaining">${escapeHtml(task.remainingItem)}</span>`
           : (task.description ? `<span class="todo-description">${escapeHtml(task.description)}</span>` : '');
+        const dueLabel = task.dueDate ? escapeHtml(formatTodoDate(task.dueDate)) : '';
+        const statusMeta = task.completed
+          ? `<span class="todo-status-meta"><span class="status-pill complete">מסדר</span>${dueLabel ? `<span class="todo-due">${dueLabel}</span>` : ''}</span>`
+          : almostComplete
+            ? `<span class="todo-status-meta"><span class="status-pill almost">כמעט מסדר</span>${dueLabel ? `<span class="todo-due${overdue ? ' overdue' : ''}">${dueLabel}</span>` : ''}</span>`
+            : `<span class="todo-due${overdue ? ' overdue' : ''}">${dueLabel}</span>`;
         return `${divider}
           <div class="${rowClasses}" data-todo-row="${escapeHtml(task.id)}">
             ${handle}
             <button type="button" class="todo-content" data-todo-open="${escapeHtml(task.id)}" title="Open task">
               <span class="todo-title">${escapeHtml(task.title)}</span>
               ${listDetail}
-              ${task.dueDate ? `<span class="todo-description">Due ${escapeHtml(formatTodoDate(task.dueDate))}</span>` : ''}
             </button>
-            ${task.completed
-              ? '<span class="status-pill complete">מסדר</span>'
-              : almostComplete
-                ? '<span class="status-pill almost">כמעט מסדר</span>'
-                : `<span class="todo-due${overdue ? ' overdue' : ''}">${escapeHtml(task.dueDate ? formatTodoDate(task.dueDate) : '')}</span>`}
+            ${statusMeta}
           </div>`;
       }).join('');
     }

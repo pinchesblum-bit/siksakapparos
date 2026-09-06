@@ -777,6 +777,70 @@
     .modal-backdrop.open { display: flex; }
     .modal-backdrop { z-index: 200; }
     #confirmModal { z-index: 220; }
+    #securityModal { z-index: 230; }
+    .security-modal {
+      width: min(440px, 100%);
+      padding: 30px;
+    }
+    .security-icon {
+      width: 52px;
+      height: 52px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 18px;
+      border-radius: 50%;
+      background: #f3e9db;
+      color: var(--accent);
+    }
+    .security-icon svg {
+      width: 27px;
+      height: 27px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .security-copy h2 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: -.02em;
+    }
+    .security-copy p {
+      margin: 8px 0 22px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .security-password-wrap { position: relative; }
+    .security-password-wrap input { padding-right: 68px; }
+    .security-show-btn {
+      position: absolute;
+      top: 50%;
+      right: 7px;
+      transform: translateY(-50%);
+      min-height: 34px;
+      padding: 5px 9px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--accent);
+      font-weight: 750;
+    }
+    .security-show-btn:hover { background: #f5eee5; }
+    .security-error {
+      min-height: 20px;
+      margin: 8px 0 4px;
+      color: #9d2f25;
+      font-size: 13px;
+    }
+    .security-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .security-actions button { min-width: 104px; }
     .modal {
       width: min(580px, 100%);
       max-height: calc(100vh - 40px);
@@ -1191,11 +1255,8 @@
           </div>
           <button type="button" class="secondary-btn" id="openLoginSettingsBtn">Change Username and Password</button>
           <form id="loginSettingsForm" hidden>
+            <input id="settingCurrentPassword" type="password" autocomplete="current-password" hidden />
             <div class="settings-grid">
-              <div class="field">
-                <label for="settingCurrentPassword">Current Password</label>
-                <input id="settingCurrentPassword" type="password" autocomplete="current-password" placeholder="Required to make changes" />
-              </div>
               <div class="field">
                 <label for="settingUsername">Username</label>
                 <input id="settingUsername" autocomplete="username" required />
@@ -1245,17 +1306,6 @@
                 <div class="settings-card-note">Move every completed task back to the active task list.</div>
               </div>
               <button type="button" class="secondary-btn" id="reopenAllTasksBtn">Mark All Not Complete</button>
-            </div>
-            <div id="taskPasswordPanel" hidden>
-              <div class="field">
-                <label for="taskActionPassword">Website Password</label>
-                <input id="taskActionPassword" type="password" autocomplete="current-password" placeholder="Enter password" />
-              </div>
-              <p class="settings-message" id="taskSettingsMessage" role="alert"></p>
-              <div class="settings-actions">
-                <button type="button" class="secondary-btn" id="cancelTaskPasswordBtn">Cancel</button>
-                <button type="button" class="primary-btn" id="confirmReopenAllTasksBtn">Continue</button>
-              </div>
             </div>
           </div>
         </div>
@@ -1392,6 +1442,37 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="securityModal" aria-hidden="true">
+    <div class="modal security-modal" role="dialog" aria-modal="true" aria-labelledby="securityModalTitle" aria-describedby="securityModalDescription">
+      <div class="security-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M7.5 10V7.5a4.5 4.5 0 0 1 9 0V10"></path>
+          <rect x="5" y="10" width="14" height="11" rx="2.5"></rect>
+          <circle cx="12" cy="15.3" r="1.2"></circle>
+          <path d="M12 16.5V18"></path>
+        </svg>
+      </div>
+      <div class="security-copy">
+        <h2 id="securityModalTitle">Verify Your Identity</h2>
+        <p id="securityModalDescription">Enter your website password to continue.</p>
+      </div>
+      <form id="securityForm">
+        <div class="field">
+          <label for="securityPassword">Website Password</label>
+          <div class="security-password-wrap">
+            <input id="securityPassword" type="password" autocomplete="current-password" placeholder="Enter your password" required />
+            <button type="button" class="security-show-btn" id="toggleSecurityPassword" aria-label="Show password">Show</button>
+          </div>
+        </div>
+        <p class="security-error" id="securityError" role="alert" aria-live="polite"></p>
+        <div class="security-actions">
+          <button type="button" class="secondary-btn" id="cancelSecurityBtn">Cancel</button>
+          <button type="submit" class="primary-btn" id="continueSecurityBtn">Continue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="confirmModal" aria-hidden="true">
     <div class="modal confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmMessage">
       <p class="confirm-message" id="confirmMessage"></p>
@@ -1496,11 +1577,15 @@
     const todoSort = document.getElementById('todoSort');
     const addTodoBtn = document.getElementById('addTodoBtn');
     const reopenAllTasksBtn = document.getElementById('reopenAllTasksBtn');
-    const taskPasswordPanel = document.getElementById('taskPasswordPanel');
-    const taskActionPassword = document.getElementById('taskActionPassword');
-    const taskSettingsMessage = document.getElementById('taskSettingsMessage');
-    const cancelTaskPasswordBtn = document.getElementById('cancelTaskPasswordBtn');
-    const confirmReopenAllTasksBtn = document.getElementById('confirmReopenAllTasksBtn');
+    const securityModal = document.getElementById('securityModal');
+    const securityForm = document.getElementById('securityForm');
+    const securityModalTitle = document.getElementById('securityModalTitle');
+    const securityModalDescription = document.getElementById('securityModalDescription');
+    const securityPassword = document.getElementById('securityPassword');
+    const toggleSecurityPassword = document.getElementById('toggleSecurityPassword');
+    const securityError = document.getElementById('securityError');
+    const cancelSecurityBtn = document.getElementById('cancelSecurityBtn');
+    const continueSecurityBtn = document.getElementById('continueSecurityBtn');
     const todoModal = document.getElementById('todoModal');
     const todoForm = document.getElementById('todoForm');
     const editTodoBtn = document.getElementById('editTodoBtn');
@@ -1608,6 +1693,65 @@
       const resolve = confirmationResolver;
       confirmationResolver = null;
       if (resolve) resolve(confirmed);
+    }
+
+    let pendingSecurityAction = null;
+
+    function openSecurityDialog(action) {
+      pendingSecurityAction = action;
+      const isLoginChange = action === 'login-settings';
+      securityModalTitle.textContent = isLoginChange ? 'Verify Your Identity' : 'Confirm This Action';
+      securityModalDescription.textContent = isLoginChange
+        ? 'Enter your current password before changing the username or password.'
+        : 'Enter your website password to mark all completed tasks as incomplete.';
+      securityForm.reset();
+      securityPassword.type = 'password';
+      toggleSecurityPassword.textContent = 'Show';
+      toggleSecurityPassword.setAttribute('aria-label', 'Show password');
+      securityError.textContent = '';
+      continueSecurityBtn.disabled = false;
+      securityModal.classList.add('open');
+      securityModal.setAttribute('aria-hidden', 'false');
+      setTimeout(() => securityPassword.focus(), 0);
+    }
+
+    function closeSecurityDialog() {
+      securityModal.classList.remove('open');
+      securityModal.setAttribute('aria-hidden', 'true');
+      securityForm.reset();
+      securityPassword.type = 'password';
+      toggleSecurityPassword.textContent = 'Show';
+      toggleSecurityPassword.setAttribute('aria-label', 'Show password');
+      securityError.textContent = '';
+      pendingSecurityAction = null;
+    }
+
+    async function completeSecurityAction(password) {
+      const action = pendingSecurityAction;
+      closeSecurityDialog();
+
+      if (action === 'login-settings') {
+        resetSettingsSection('login');
+        settingCurrentPassword.value = password;
+        loginSettingsForm.hidden = false;
+        openLoginSettingsBtn.hidden = true;
+        setSettingsEditMode('login', true);
+        settingUsername.focus();
+        return;
+      }
+
+      if (action === 'reopen-tasks') {
+        const completedTasks = (state.settings.todoTasks || []).filter(task => task.completed);
+        if (!completedTasks.length) return;
+        if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+        completedTasks.forEach(task => {
+          task.completed = false;
+          task.updatedAt = new Date().toISOString();
+        });
+        saveSettings();
+        renderTodo();
+        showToast('All tasks marked not complete');
+      }
     }
 
     function loadSales() {
@@ -2106,11 +2250,6 @@
       if (viewName === 'login') {
         loginSettingsForm.hidden = true;
         openLoginSettingsBtn.hidden = false;
-      }
-      if (viewName === 'tasks') {
-        taskPasswordPanel.hidden = true;
-        taskActionPassword.value = '';
-        taskSettingsMessage.textContent = '';
       }
     }
 
@@ -2689,11 +2828,7 @@
       btn.addEventListener('click', showSettingsHome);
     });
     openLoginSettingsBtn.addEventListener('click', () => {
-      resetSettingsSection('login');
-      loginSettingsForm.hidden = false;
-      openLoginSettingsBtn.hidden = true;
-      setSettingsEditMode('login', true);
-      settingCurrentPassword.focus();
+      openSecurityDialog('login-settings');
     });
 
     document.querySelectorAll('[data-edit-settings]').forEach(btn => {
@@ -2805,48 +2940,7 @@
     reopenAllTasksBtn.addEventListener('click', () => {
       const completedTasks = (state.settings.todoTasks || []).filter(task => task.completed);
       if (!completedTasks.length) return;
-      taskPasswordPanel.hidden = false;
-      taskSettingsMessage.style.color = '#9d2f25';
-      taskSettingsMessage.textContent = '';
-      taskActionPassword.value = '';
-      taskActionPassword.focus();
-    });
-
-    cancelTaskPasswordBtn.addEventListener('click', () => {
-      taskPasswordPanel.hidden = true;
-      taskActionPassword.value = '';
-      taskSettingsMessage.textContent = '';
-    });
-
-    confirmReopenAllTasksBtn.addEventListener('click', async () => {
-      const completedTasks = (state.settings.todoTasks || []).filter(task => task.completed);
-      if (!completedTasks.length) {
-        taskPasswordPanel.hidden = true;
-        return;
-      }
-      taskSettingsMessage.style.color = '#9d2f25';
-      taskSettingsMessage.textContent = '';
-      const password = taskActionPassword.value;
-      if (!password) {
-        taskSettingsMessage.textContent = 'Enter the website password.';
-        taskActionPassword.focus();
-        return;
-      }
-      if (await hashPassword(password) !== state.settings.passwordHash) {
-        taskSettingsMessage.textContent = 'Incorrect password.';
-        taskActionPassword.select();
-        return;
-      }
-      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
-      completedTasks.forEach(task => {
-        task.completed = false;
-        task.updatedAt = new Date().toISOString();
-      });
-      taskActionPassword.value = '';
-      taskPasswordPanel.hidden = true;
-      saveSettings();
-      renderTodo();
-      showToast('All tasks marked not complete');
+      openSecurityDialog('reopen-tasks');
     });
     todoList.addEventListener('click', event => {
       if (event.target.closest('[data-todo-drag]')) {
@@ -3043,6 +3137,38 @@
     showSettingsPasswords.addEventListener('change', () => {
       const type = showSettingsPasswords.checked ? 'text' : 'password';
       [settingCurrentPassword, settingPassword, settingConfirmPassword].forEach(input => { input.type = type; });
+    });
+
+    toggleSecurityPassword.addEventListener('click', () => {
+      const willShow = securityPassword.type === 'password';
+      securityPassword.type = willShow ? 'text' : 'password';
+      toggleSecurityPassword.textContent = willShow ? 'Hide' : 'Show';
+      toggleSecurityPassword.setAttribute('aria-label', willShow ? 'Hide password' : 'Show password');
+      securityPassword.focus();
+    });
+
+    cancelSecurityBtn.addEventListener('click', closeSecurityDialog);
+    securityModal.addEventListener('click', event => {
+      if (event.target === securityModal) closeSecurityDialog();
+    });
+    securityForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const password = securityPassword.value;
+      securityError.textContent = '';
+      if (!password) {
+        securityError.textContent = 'Enter your website password.';
+        securityPassword.focus();
+        return;
+      }
+      continueSecurityBtn.disabled = true;
+      const isValid = await hashPassword(password) === state.settings.passwordHash;
+      continueSecurityBtn.disabled = false;
+      if (!isValid) {
+        securityError.textContent = 'The password is incorrect. Try again.';
+        securityPassword.select();
+        return;
+      }
+      await completeSecurityAction(password);
     });
 
     confirmNoBtn.addEventListener('click', () => finishConfirmation(false));
@@ -3545,6 +3671,10 @@
         return;
       }
       if (e.key === 'Escape') {
+        if (securityModal.classList.contains('open')) {
+          closeSecurityDialog();
+          return;
+        }
         if (confirmModal.classList.contains('open')) {
           finishConfirmation(false);
           return;

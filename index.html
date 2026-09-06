@@ -3347,7 +3347,7 @@
           return `${divider}
             <tr class="sale-row" data-sale-id="${escapeHtml(sale.id)}" tabindex="0" title="Click to open this sale">
               <td class="sale-name">${escapeHtml(sale.fullName)}</td>
-              <td><span class="sale-phone-ticket"><span>${escapeHtml(sale.phone || '')}</span><span class="sale-ticket-inline">ID #${escapeHtml(getSaleTicketId(sale))}</span></span></td>
+              <td>${escapeHtml(sale.phone || '')}</td>
               <td><span class="status-pill ${escapeHtml(sale.status || 'paid')}">${getStatusLabel(sale.status || 'paid')}</span></td>
               <td><span class="kapparah-pill">${sale.quantity}</span></td>
               <td class="note-cell" title="${escapeHtml(notes)}"><span class="note-preview" dir="auto">${escapeHtml(previewText(notes, 110))}</span></td>
@@ -3358,7 +3358,7 @@
       wrap.innerHTML = `
         <table class="sales-table">
           <colgroup><col style="width:20%"><col style="width:15%"><col style="width:13%"><col style="width:10%"><col style="width:27%"><col style="width:15%"></colgroup>
-          <thead><tr><th>Full Name</th><th>Phone / Ticket ID</th><th>Status</th><th>כפרה</th><th>Notes</th><th>געשלאגן</th></tr></thead>
+          <thead><tr><th>Full Name</th><th>Phone</th><th>Status</th><th>כפרה</th><th>Notes</th><th>געשלאגן</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>`;
     }

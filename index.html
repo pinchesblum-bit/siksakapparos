@@ -683,7 +683,10 @@
     .accounting-head h2 { margin: 0; font-size: 28px; }
     .accounting-head p,
     .accounting-section-head p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+    .accounting-filters { display: flex; align-items: end; gap: 10px; }
     .accounting-period { width: 190px; display: grid; gap: 6px; }
+    .accounting-period[hidden],
+    #accountingCalendarSection[hidden] { display: none; }
     .accounting-tabs {
       display: flex;
       gap: 6px;
@@ -1151,6 +1154,7 @@
       .stats-grid { grid-template-columns: 1fr 1fr; }
       .report-summary-grid { grid-template-columns: 1fr; }
       .accounting-head { align-items: stretch; flex-direction: column; padding: 18px; }
+      .accounting-filters { width: 100%; display: grid; grid-template-columns: 1fr; }
       .accounting-period { width: 100%; }
       .accounting-tabs { padding-inline: 18px; }
       #accountingOverview, #accountingExpensesView { padding: 18px; }
@@ -1337,9 +1341,18 @@
             <h2>Accounting</h2>
             <p>Income from paid sales and recorded expenses</p>
           </div>
-          <div class="accounting-period">
-            <label for="accountingMonth">Month</label>
-            <input id="accountingMonth" type="month" />
+          <div class="accounting-filters">
+            <div class="accounting-period">
+              <label for="accountingRange">View</label>
+              <select id="accountingRange">
+                <option value="all">All Time</option>
+                <option value="month">By Month</option>
+              </select>
+            </div>
+            <div class="accounting-period" id="accountingMonthWrap" hidden>
+              <label for="accountingMonth">Month</label>
+              <input id="accountingMonth" type="month" />
+            </div>
           </div>
         </div>
 
@@ -1367,14 +1380,16 @@
             </div>
           </div>
 
-          <div class="accounting-section-head">
-            <div>
-              <h3>Monthly Calendar</h3>
-              <p>Daily income and expenses</p>
+          <div id="accountingCalendarSection" hidden>
+            <div class="accounting-section-head">
+              <div>
+                <h3>Monthly Calendar</h3>
+                <p>Daily income and expenses</p>
+              </div>
             </div>
-          </div>
-          <div class="accounting-calendar-wrap">
-            <div class="accounting-calendar" id="accountingCalendar"></div>
+            <div class="accounting-calendar-wrap">
+              <div class="accounting-calendar" id="accountingCalendar"></div>
+            </div>
           </div>
         </div>
 
@@ -1854,6 +1869,7 @@
       editingSaleId: null,
       editingTodoId: null,
       editingExpenseId: null,
+      accountingRange: 'all',
       accountingTab: sessionStorage.getItem('kapparos_accounting_tab') === 'expenses' ? 'expenses' : 'overview',
       todoSortMode: 'manual',
       searchQuery: ''
@@ -1931,7 +1947,10 @@
     const brandTitle = document.getElementById('brandTitle');
     const brandSubtitle = document.getElementById('brandSubtitle');
     const priceHelper = document.getElementById('priceHelper');
+    const accountingRange = document.getElementById('accountingRange');
+    const accountingMonthWrap = document.getElementById('accountingMonthWrap');
     const accountingMonth = document.getElementById('accountingMonth');
+    const accountingCalendarSection = document.getElementById('accountingCalendarSection');
     const accountingTabs = document.querySelectorAll('[data-accounting-tab]');
     const accountingOverview = document.getElementById('accountingOverview');
     const accountingExpensesView = document.getElementById('accountingExpensesView');
@@ -2111,6 +2130,8 @@
       closeSecurityDialog();
 
       if (action === 'accounting') {
+        state.accountingRange = 'all';
+        state.accountingTab = 'overview';
         sessionStorage.setItem(ACCOUNTING_ACCESS_KEY, 'true');
         showPage('accounting');
         return;
@@ -3063,8 +3084,10 @@
       accountingCalendar.innerHTML = cells.join('');
     }
 
-    function renderExpenseList(expenses, month) {
-      accountingExpensePeriodLabel.textContent = `Expenses for ${getAccountingMonthLabel(month)}`;
+    function renderExpenseList(expenses, month, isAllTime) {
+      accountingExpensePeriodLabel.textContent = isAllTime
+        ? 'All Expenses'
+        : `Expenses for ${getAccountingMonthLabel(month)}`;
       const listWrap = expenseList.closest('.expense-list-wrap');
       listWrap.hidden = expenses.length === 0;
       expenseEmpty.hidden = expenses.length !== 0;
@@ -3091,13 +3114,17 @@
 
     function renderAccounting() {
       const month = getAccountingMonth();
+      const isAllTime = state.accountingRange !== 'month';
+      accountingRange.value = isAllTime ? 'all' : 'month';
+      accountingMonthWrap.hidden = isAllTime;
+      accountingCalendarSection.hidden = isAllTime;
       const paidSales = state.sales.filter(sale =>
         (sale.status || 'paid') === 'paid'
         && !isBanshakPayment(sale.paymentType)
-        && getAccountingSaleDate(sale).startsWith(month)
+        && (isAllTime || getAccountingSaleDate(sale).startsWith(month))
       );
       const expenses = (state.settings.accountingExpenses || []).filter(expense =>
-        String(expense.date || '').startsWith(month)
+        isAllTime || String(expense.date || '').startsWith(month)
       );
       const incomeTotal = paidSales.reduce((sum, sale) => sum + Number(sale.price || 0), 0);
       const expensesTotal = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
@@ -3122,8 +3149,9 @@
         dailyTotals[expense.date].expenses += Number(expense.amount || 0);
       });
 
-      renderAccountingCalendar(month, dailyTotals);
-      renderExpenseList(expenses, month);
+      if (isAllTime) accountingCalendar.innerHTML = '';
+      else renderAccountingCalendar(month, dailyTotals);
+      renderExpenseList(expenses, month, isAllTime);
       setAccountingTab(state.accountingTab);
     }
 
@@ -3482,6 +3510,10 @@
 
     accountingTabs.forEach(button => {
       button.addEventListener('click', () => setAccountingTab(button.dataset.accountingTab));
+    });
+    accountingRange.addEventListener('change', () => {
+      state.accountingRange = accountingRange.value === 'month' ? 'month' : 'all';
+      renderAccounting();
     });
     accountingMonth.addEventListener('change', renderAccounting);
     addExpenseBtn.addEventListener('click', () => openExpenseModal());

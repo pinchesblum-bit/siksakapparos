@@ -2466,6 +2466,10 @@
         const bHasDate = Boolean(b.dueDate);
         if (aHasDate !== bHasDate) return aHasDate ? -1 : 1;
         if (aHasDate && a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+        if (!aHasDate && !bHasDate) {
+          const almostOrder = Number(Boolean(b.almostComplete)) - Number(Boolean(a.almostComplete));
+          if (almostOrder) return almostOrder;
+        }
       }
       return compareTodoNames(a, b);
     }

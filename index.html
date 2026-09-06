@@ -793,6 +793,15 @@
     .expense-row { cursor: pointer; }
     .expense-row:hover { background: #fbf7f0; }
     .expense-row:focus-visible { outline: 3px solid rgba(111,75,47,.24); outline-offset: -3px; }
+    .expense-row td { border-bottom-width: 2px; border-bottom-color: #dfd3c4; }
+    .expense-row.expense-due-soon-row { background: #fff0ee; }
+    .expense-row.expense-due-soon-row:hover { background: #ffe6e2; }
+    .expense-row.expense-due-soon-row strong,
+    .expense-row.expense-due-soon-row .expense-amount { color: #8f2f27; }
+    .expense-row.expense-paid-row { background: #f5f9f4; }
+    .expense-row.expense-paid-row:hover { background: #edf6ec; }
+    .expense-row.expense-paid-row strong,
+    .expense-row.expense-paid-row .expense-amount { color: #55735a; }
     .expense-row.expense-dragging { opacity: .28; background: #fff8ec; }
     .expense-drag-handle {
       width: 30px;
@@ -1470,7 +1479,7 @@
                 <tr>
                   <th aria-label="Move"></th>
                   <th>Expense</th>
-                  <th>Date</th>
+                  <th>Pay Date</th>
                   <th>Category</th>
                   <th>Amount</th>
                   <th>באצאלט</th>
@@ -1843,7 +1852,7 @@
             </div>
           </div>
           <div class="field">
-            <label for="expenseDate">Date <span class="required-mark">*</span></label>
+            <label for="expenseDate">Pay Date <span class="required-mark">*</span></label>
             <input id="expenseDate" type="date" required />
           </div>
           <div class="field full">
@@ -3230,6 +3239,19 @@
       accountingCalendar.innerHTML = cells.join('');
     }
 
+    function getExpenseDueDays(expense) {
+      if (!expense.date) return null;
+      const payDate = new Date(`${expense.date}T00:00:00`);
+      const today = new Date(`${getLocalDateValue()}T00:00:00`);
+      if (Number.isNaN(payDate.getTime())) return null;
+      return Math.round((payDate.getTime() - today.getTime()) / 86400000);
+    }
+
+    function isExpenseDueSoon(expense) {
+      const days = getExpenseDueDays(expense);
+      return !expense.paid && days !== null && days <= 3;
+    }
+
     function renderExpenseList(expenses, month, isAllTime) {
       const query = state.expenseSearchQuery.trim().toLocaleLowerCase();
       const visibleExpenses = query
@@ -3248,12 +3270,20 @@
         : isAllTime ? 'No expenses recorded.' : 'No expenses recorded for this month.';
       const sortedExpenses = visibleExpenses
         .slice()
-        .sort((a, b) =>
-          Number(Boolean(a.paid)) - Number(Boolean(b.paid))
-          || Number(a.order || 0) - Number(b.order || 0)
-        );
+        .sort((a, b) => {
+          const paidOrder = Number(Boolean(a.paid)) - Number(Boolean(b.paid));
+          if (paidOrder) return paidOrder;
+          const dueSoonOrder = Number(isExpenseDueSoon(b)) - Number(isExpenseDueSoon(a));
+          if (dueSoonOrder) return dueSoonOrder;
+          if (isExpenseDueSoon(a) && isExpenseDueSoon(b) && a.date !== b.date) {
+            return String(a.date || '').localeCompare(String(b.date || ''));
+          }
+          return Number(a.order || 0) - Number(b.order || 0);
+        });
       expenseList.innerHTML = sortedExpenses
         .map((expense, index) => {
+          const dueSoon = isExpenseDueSoon(expense);
+          const expenseGroup = expense.paid ? 'paid' : dueSoon ? 'due-soon' : 'unpaid';
           const startsPaidGroup = index > 0
             && Boolean(expense.paid)
             && !Boolean(sortedExpenses[index - 1].paid);
@@ -3261,8 +3291,8 @@
             ? '<tr class="sales-group-divider"><td colspan="6">באצאלט</td></tr>'
             : '';
           return `${divider}
-          <tr class="expense-row" data-expense-row="${escapeHtml(expense.id)}" data-expense-open="${escapeHtml(expense.id)}" data-expense-paid="${expense.paid ? 'true' : 'false'}" tabindex="0" title="Open expense">
-            <td>${canReorder
+          <tr class="expense-row${dueSoon ? ' expense-due-soon-row' : ''}${expense.paid ? ' expense-paid-row' : ''}" data-expense-row="${escapeHtml(expense.id)}" data-expense-open="${escapeHtml(expense.id)}" data-expense-group="${expenseGroup}" tabindex="0" title="Open expense">
+            <td>${canReorder && !dueSoon
               ? `<button type="button" class="expense-drag-handle" data-expense-drag="${escapeHtml(expense.id)}" aria-label="Move expense" title="Press and hold to move">⠿</button>`
               : ''}</td>
             <td>
@@ -3533,7 +3563,7 @@
         excelRow(['Expenses', { value: accountingExpenseTotal, type: 'Number', style: 'Currency' }]),
         excelRow([accountingNetTotal >= 0 ? 'Profit' : 'Deficit', { value: Math.abs(accountingNetTotal), type: 'Number', style: 'Currency' }]),
         '<Row/>',
-        excelRow(['Expense', 'Date', 'Category', 'Amount', 'Paid', 'Note', 'Created', 'Updated'].map(value => ({ value, style: 'Header' }))),
+        excelRow(['Expense', 'Pay Date', 'Category', 'Amount', 'Paid', 'Note', 'Created', 'Updated'].map(value => ({ value, style: 'Header' }))),
         ...accountingExpenses.map(expense => excelRow([
           expense.name || '',
           expense.date || '',
@@ -3944,7 +3974,7 @@
         pointerId: event.pointerId,
         handle,
         row,
-        paid: row.dataset.expensePaid,
+        group: row.dataset.expenseGroup,
         startX: event.clientX,
         startY: event.clientY,
         active: false,
@@ -3974,7 +4004,7 @@
       }
       event.preventDefault();
       const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-expense-row]');
-      if (!target || target === expenseDrag.row || target.dataset.expensePaid !== expenseDrag.paid) return;
+      if (!target || target === expenseDrag.row || target.dataset.expenseGroup !== expenseDrag.group) return;
       const rect = target.getBoundingClientRect();
       const placeBefore = event.clientY < rect.top + rect.height / 2;
       expenseList.insertBefore(expenseDrag.row, placeBefore ? target : target.nextSibling);

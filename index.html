@@ -564,11 +564,24 @@
       font-weight: 800;
       letter-spacing: .03em;
     }
+    .todo-almost-row { background: #fff8e8; }
+    .todo-almost-row:hover { background: #fff3d3; }
+    .todo-almost-row .todo-title { color: #72511c; }
+    .todo-almost-row .todo-description,
+    .todo-almost-row .todo-due { color: #8a6a35; }
+    .todo-due-soon-row { background: #fff0ee; }
+    .todo-due-soon-row:hover { background: #ffe6e2; }
+    .todo-due-soon-row .todo-title { color: #8f2f27; }
+    .todo-due-soon-row .todo-description,
+    .todo-due-soon-row .todo-due { color: #a33b2f; }
     .todo-completed-row { background: #f5f9f4; }
+    .todo-completed-row:hover { background: #edf6ec; }
     .todo-completed-row .todo-title { color: #55735a; }
     .todo-completed-row .todo-description,
     .todo-completed-row .todo-due { color: #78907c; }
     .status-pill.complete { color: #285c35; background: #dceddf; }
+    .status-pill.almost { color: #785417; background: #f5dfaa; }
+    .todo-remaining { font-weight: 700; }
     .todo-view-panel { display: grid; gap: 15px; }
     .todo-view-item {
       padding: 13px 14px;
@@ -1204,7 +1217,7 @@
             </button>
             <button type="button" class="settings-card" data-settings-open="tasks">
               <span class="settings-card-title">Tasks</span>
-              <span class="settings-card-note">Manage completed tasks.</span>
+              <span class="settings-card-note">Manage tasks marked מסדר.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="login">
               <span class="settings-card-title">Login Settings</span>
@@ -1347,10 +1360,10 @@
           <div class="settings-section">
             <div class="payment-method-row">
               <div>
-                <div class="settings-card-title">Completed Tasks</div>
-                <div class="settings-card-note">Move every completed task back to the active task list.</div>
+                <div class="settings-card-title">מסדר</div>
+                <div class="settings-card-note">Move every מסדר task back to the active task list.</div>
               </div>
-              <button type="button" class="secondary-btn" id="reopenAllTasksBtn">Mark All Not Complete</button>
+              <button type="button" class="secondary-btn" id="reopenAllTasksBtn">Mark All as Not מסדר</button>
             </div>
           </div>
         </div>
@@ -1471,9 +1484,19 @@
             <input id="todoDueDate" type="date" />
           </div>
           <div class="field full">
+            <label class="todo-complete-control" for="todoAlmost">
+              <input id="todoAlmost" type="checkbox" />
+              <span>כמעט מסדר</span>
+            </label>
+          </div>
+          <div class="field full" id="todoRemainingWrap" hidden>
+            <label for="todoRemaining">One Thing Left <span class="required-mark">*</span></label>
+            <input id="todoRemaining" maxlength="300" autocomplete="off" placeholder="What still needs to be completed?" />
+          </div>
+          <div class="field full">
             <label class="todo-complete-control" for="todoCompleted">
               <input id="todoCompleted" type="checkbox" />
-              <span>Complete Task</span>
+              <span>מסדר</span>
             </label>
           </div>
         </div>
@@ -1640,6 +1663,9 @@
     const todoTitle = document.getElementById('todoTitle');
     const todoDescription = document.getElementById('todoDescription');
     const todoDueDate = document.getElementById('todoDueDate');
+    const todoAlmost = document.getElementById('todoAlmost');
+    const todoRemainingWrap = document.getElementById('todoRemainingWrap');
+    const todoRemaining = document.getElementById('todoRemaining');
     const todoCompleted = document.getElementById('todoCompleted');
     const todoModalTitle = document.getElementById('todoModalTitle');
     const saveTodoBtn = document.getElementById('saveTodoBtn');
@@ -1761,7 +1787,7 @@
       securityModalTitle.textContent = isLoginChange ? 'Verify Your Identity' : 'Confirm This Action';
       securityModalDescription.textContent = isLoginChange
         ? 'Enter your current password before changing the username or password.'
-        : 'Enter your website password to mark all completed tasks as incomplete.';
+        : 'Enter your website password to mark all מסדר tasks as not מסדר.';
       securityForm.reset();
       securityPassword.type = 'password';
       toggleSecurityPassword.textContent = 'Show';
@@ -1804,11 +1830,13 @@
         if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
         completedTasks.forEach(task => {
           task.completed = false;
+          task.almostComplete = false;
+          task.remainingItem = '';
           task.updatedAt = new Date().toISOString();
         });
         saveSettings();
         renderTodo();
-        showToast('All tasks marked not complete');
+        showToast('All tasks marked as not מסדר');
       }
     }
 
@@ -1855,6 +1883,8 @@
             description: String(task.description || ''),
             dueDate: /^\d{4}-\d{2}-\d{2}$/.test(String(task.dueDate || '')) ? String(task.dueDate) : '',
             completed: Boolean(task.completed),
+            almostComplete: !task.completed && Boolean(task.almostComplete),
+            remainingItem: String(task.remainingItem || ''),
             pinned: Boolean(task.pinned),
             order: Number.isFinite(Number(task.order)) ? Number(task.order) : index,
             createdAt: String(task.createdAt || ''),
@@ -2464,31 +2494,54 @@
         return;
       }
 
-      const today = new Date().toISOString().slice(0, 10);
+      const today = new Date(`${getLocalDateValue()}T00:00:00`);
       todoList.innerHTML = tasks.map((task, index) => {
-        const overdue = task.dueDate && task.dueDate < today && !task.completed;
+        const due = task.dueDate ? new Date(`${task.dueDate}T00:00:00`) : null;
+        const daysUntilDue = due && !Number.isNaN(due.getTime())
+          ? Math.round((due.getTime() - today.getTime()) / 86400000)
+          : null;
+        const dueSoon = !task.completed && daysUntilDue !== null && daysUntilDue <= 3;
+        const overdue = !task.completed && daysUntilDue !== null && daysUntilDue < 0;
+        const almostComplete = !task.completed && Boolean(task.almostComplete);
         const startsCompleted = task.completed && (index === 0 || !tasks[index - 1].completed);
-        const divider = startsCompleted ? '<div class="todo-section-divider">Completed</div>' : '';
+        const divider = startsCompleted ? '<div class="todo-section-divider">מסדר</div>' : '';
         const handle = isManual && !task.completed
           ? `<button type="button" class="todo-drag-handle" data-todo-drag="${escapeHtml(task.id)}" aria-label="Move task" title="Press and hold to move">⠿</button>`
           : '<span class="todo-drag-spacer" aria-hidden="true"></span>';
+        const rowClasses = [
+          'todo-row',
+          almostComplete ? 'todo-almost-row' : '',
+          dueSoon ? 'todo-due-soon-row' : '',
+          task.completed ? 'todo-completed-row' : ''
+        ].filter(Boolean).join(' ');
+        const listDetail = almostComplete && task.remainingItem
+          ? `<span class="todo-description todo-remaining">${escapeHtml(task.remainingItem)}</span>`
+          : (task.description ? `<span class="todo-description">${escapeHtml(task.description)}</span>` : '');
         return `${divider}
-          <div class="todo-row${task.completed ? ' todo-completed-row' : ''}" data-todo-row="${escapeHtml(task.id)}">
+          <div class="${rowClasses}" data-todo-row="${escapeHtml(task.id)}">
             ${handle}
             <button type="button" class="todo-content" data-todo-open="${escapeHtml(task.id)}" title="Open task">
               <span class="todo-title">${escapeHtml(task.title)}</span>
-              ${task.description ? `<span class="todo-description">${escapeHtml(task.description)}</span>` : ''}
+              ${listDetail}
               ${task.dueDate ? `<span class="todo-description">Due ${escapeHtml(formatTodoDate(task.dueDate))}</span>` : ''}
             </button>
             ${task.completed
-              ? '<span class="status-pill complete">Complete</span>'
-              : `<span class="todo-due${overdue ? ' overdue' : ''}">${escapeHtml(task.dueDate ? formatTodoDate(task.dueDate) : '')}</span>`}
+              ? '<span class="status-pill complete">מסדר</span>'
+              : almostComplete
+                ? '<span class="status-pill almost">כמעט מסדר</span>'
+                : `<span class="todo-due${overdue ? ' overdue' : ''}">${escapeHtml(task.dueDate ? formatTodoDate(task.dueDate) : '')}</span>`}
           </div>`;
       }).join('');
     }
 
+    function updateTodoStatusFields() {
+      const showRemaining = todoAlmost.checked && !todoCompleted.checked;
+      todoRemainingWrap.hidden = !showRemaining;
+      todoRemaining.required = showRemaining;
+    }
+
     function setTodoFieldMode(readOnly) {
-      [todoTitle, todoDescription, todoDueDate].forEach(field => {
+      [todoTitle, todoDescription, todoDueDate, todoAlmost, todoRemaining].forEach(field => {
         field.disabled = readOnly;
       });
       todoForm.classList.toggle('todo-readonly', readOnly);
@@ -2499,7 +2552,10 @@
       todoTitle.value = task.title || '';
       todoDescription.value = task.description || '';
       todoDueDate.value = task.dueDate || '';
+      todoAlmost.checked = !task.completed && Boolean(task.almostComplete);
+      todoRemaining.value = task.remainingItem || '';
       todoCompleted.checked = Boolean(task.completed);
+      updateTodoStatusFields();
       setTodoFieldMode(true);
       todoCompleted.disabled = false;
       deleteTodoBtn.hidden = false;
@@ -2513,7 +2569,10 @@
       todoTitle.value = task?.title || '';
       todoDescription.value = task?.description || '';
       todoDueDate.value = task?.dueDate || '';
+      todoAlmost.checked = !task?.completed && Boolean(task?.almostComplete);
+      todoRemaining.value = task?.remainingItem || '';
       todoCompleted.checked = Boolean(task?.completed);
+      updateTodoStatusFields();
       setTodoFieldMode(false);
       todoCompleted.disabled = false;
       deleteTodoBtn.hidden = !task;
@@ -2548,6 +2607,10 @@
       if (Boolean(task.completed) === Boolean(completed)) return;
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return false;
       task.completed = Boolean(completed);
+      if (task.completed) {
+        task.almostComplete = false;
+        task.remainingItem = '';
+      }
       task.updatedAt = new Date().toISOString();
       saveSettings();
       renderTodo();
@@ -2943,8 +3006,21 @@
       const task = (state.settings.todoTasks || []).find(item => item.id === state.editingTodoId);
       if (task) showTodoEditor(task);
     });
+    todoAlmost.addEventListener('change', () => {
+      if (todoAlmost.checked) todoCompleted.checked = false;
+      updateTodoStatusFields();
+      if (!todoAlmost.checked) todoRemaining.value = '';
+    });
+
     todoCompleted.addEventListener('change', async () => {
-      if (!todoTitle.disabled) return;
+      if (!todoTitle.disabled) {
+        if (todoCompleted.checked) {
+          todoAlmost.checked = false;
+          todoRemaining.value = '';
+        }
+        updateTodoStatusFields();
+        return;
+      }
       const task = (state.settings.todoTasks || []).find(item => item.id === state.editingTodoId);
       if (!task) return;
       const changed = await setTodoCompleted(task, todoCompleted.checked);
@@ -2967,6 +3043,8 @@
         existingTask.description = todoDescription.value.trim();
         existingTask.dueDate = todoDueDate.value || '';
         existingTask.completed = todoCompleted.checked;
+        existingTask.almostComplete = !existingTask.completed && todoAlmost.checked;
+        existingTask.remainingItem = existingTask.almostComplete ? todoRemaining.value.trim() : '';
         existingTask.updatedAt = new Date().toISOString();
       } else {
         tasks.push({
@@ -2975,6 +3053,8 @@
           description: todoDescription.value.trim(),
           dueDate: todoDueDate.value || '',
           completed: todoCompleted.checked,
+          almostComplete: !todoCompleted.checked && todoAlmost.checked,
+          remainingItem: !todoCompleted.checked && todoAlmost.checked ? todoRemaining.value.trim() : '',
           order: getNextTodoOrder(),
           createdAt: new Date().toISOString(),
           updatedAt: ''

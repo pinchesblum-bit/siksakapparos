@@ -63,6 +63,38 @@
     .login-card h1 { margin: 0; text-align: center; font-size: 25px; }
     .login-card > p { margin: 8px 0 22px; text-align: center; color: var(--muted); }
     .login-form { display: grid; gap: 15px; }
+    .login-password-wrap { position: relative; }
+    .login-password-wrap input { padding-right: 50px; }
+    .login-password-toggle {
+      position: absolute;
+      top: 50%;
+      right: 7px;
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      transform: translateY(-50%);
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: #6b6259;
+    }
+    .login-password-toggle:hover { background: #f5eee5; }
+    .login-password-toggle:focus-visible {
+      outline: 2px solid #9d775a;
+      outline-offset: 1px;
+    }
+    .login-password-toggle svg {
+      width: 21px;
+      height: 21px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .login-password-toggle svg[hidden] { display: none; }
     .login-error {
       min-height: 20px;
       margin: 0;
@@ -1002,7 +1034,20 @@
         </div>
         <div class="field">
           <label for="loginPassword">Password</label>
-          <input id="loginPassword" name="password" type="password" autocomplete="current-password" required />
+          <div class="login-password-wrap">
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" required />
+            <button type="button" class="login-password-toggle" id="toggleLoginPassword" aria-label="Show password" aria-pressed="false">
+              <svg class="login-eye-open" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M2.5 12s3.5-5 9.5-5 9.5 5 9.5 5-3.5 5-9.5 5-9.5-5-9.5-5Z"></path>
+                <circle cx="12" cy="12" r="2.5"></circle>
+              </svg>
+              <svg class="login-eye-closed" viewBox="0 0 24 24" aria-hidden="true" focusable="false" hidden>
+                <path d="M3 3l18 18"></path>
+                <path d="M10.6 7.2A10.7 10.7 0 0 1 12 7c6 0 9.5 5 9.5 5a16.4 16.4 0 0 1-2.4 2.8"></path>
+                <path d="M6.1 6.1A16.5 16.5 0 0 0 2.5 12s3.5 5 9.5 5a10.4 10.4 0 0 0 3.1-.5"></path>
+              </svg>
+            </button>
+          </div>
         </div>
         <p class="login-error" id="loginError" role="alert"></p>
         <button type="submit" class="primary-btn login-submit">Open Website</button>
@@ -1542,6 +1587,9 @@
     const loginForm = document.getElementById('loginForm');
     const loginUsername = document.getElementById('loginUsername');
     const loginPassword = document.getElementById('loginPassword');
+    const toggleLoginPassword = document.getElementById('toggleLoginPassword');
+    const loginEyeOpen = toggleLoginPassword.querySelector('.login-eye-open');
+    const loginEyeClosed = toggleLoginPassword.querySelector('.login-eye-closed');
     const loginError = document.getElementById('loginError');
     const appShell = document.getElementById('appShell');
     const logoutBtn = document.getElementById('logoutBtn');
@@ -1649,6 +1697,14 @@
     const VALID_PAGES = new Set(['sales', 'todo', 'reports', 'settings']);
     const VALID_SETTINGS_VIEWS = new Set(['website', 'sales', 'reports', 'tasks', 'login', 'export']);
 
+    function setLoginPasswordVisible(visible) {
+      loginPassword.type = visible ? 'text' : 'password';
+      toggleLoginPassword.setAttribute('aria-pressed', String(visible));
+      toggleLoginPassword.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
+      loginEyeOpen.hidden = visible;
+      loginEyeClosed.hidden = !visible;
+    }
+
     function unlockWebsite(token = cloudSessionToken) {
       cloudSessionToken = token || cloudSessionToken;
       if (cloudSessionToken) sessionStorage.setItem(LOGIN_SESSION_KEY, cloudSessionToken);
@@ -1657,6 +1713,7 @@
       appShell.setAttribute('aria-hidden', 'false');
       loginError.textContent = '';
       loginForm.reset();
+      setLoginPasswordVisible(false);
       const savedPage = sessionStorage.getItem(LAST_PAGE_KEY);
       showPage(VALID_PAGES.has(savedPage) ? savedPage : 'sales');
     }
@@ -1671,6 +1728,7 @@
       appShell.setAttribute('aria-hidden', 'true');
       loginError.textContent = '';
       loginForm.reset();
+      setLoginPasswordVisible(false);
       setMenuOpen(false);
       setTimeout(() => loginUsername.focus(), 0);
     }
@@ -3685,6 +3743,12 @@
       }
     });
 
+    toggleLoginPassword.addEventListener('click', () => {
+      const visible = loginPassword.type === 'password';
+      setLoginPasswordVisible(visible);
+      loginPassword.focus();
+    });
+
     loginForm.addEventListener('submit', async e => {
       e.preventDefault();
       loginError.textContent = 'Connecting…';
@@ -3703,6 +3767,7 @@
       } catch (error) {
         loginError.textContent = error.message;
         loginPassword.value = '';
+        setLoginPasswordVisible(false);
         loginPassword.focus();
       }
     });

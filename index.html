@@ -785,11 +785,31 @@
     .expense-list-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 15px; }
     .expense-tools { display: flex; align-items: end; gap: 10px; }
     .expense-search { width: min(320px, 44vw); }
-    .expense-table { min-width: 820px; }
-    .expense-table th:nth-child(5),
-    .expense-table td:nth-child(5) { text-align: right; }
-    .expense-table th:nth-child(6),
-    .expense-table td:nth-child(6) { text-align: center; }
+    .expense-table { min-width: 0; }
+    .expense-table th:last-child,
+    .expense-table td:last-child { text-align: right; }
+    .expense-detail-cell { min-width: 0; padding-block: 13px; }
+    .expense-detail-name {
+      display: block;
+      margin-bottom: 5px;
+      overflow: hidden;
+      color: var(--ink);
+      font-size: 15px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .expense-detail-line {
+      display: block;
+      margin-top: 3px;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .expense-detail-line .expense-amount { margin-left: 8px; }
+    .expense-status-cell { width: 105px; white-space: nowrap; }
     .expense-row { cursor: pointer; }
     .expense-row:hover { background: #fbf7f0; }
     .expense-row:focus-visible { outline: 3px solid rgba(111,75,47,.24); outline-offset: -3px; }
@@ -1475,13 +1495,11 @@
           </div>
           <div class="expense-list-wrap">
             <table class="expense-table">
+              <colgroup><col style="width:46px"><col><col style="width:112px"></colgroup>
               <thead>
                 <tr>
                   <th aria-label="Move"></th>
-                  <th>Expense</th>
-                  <th>Pay Date</th>
-                  <th>Category</th>
-                  <th>Amount</th>
+                  <th>Expense Details</th>
                   <th>באצאלט</th>
                 </tr>
               </thead>
@@ -3288,21 +3306,20 @@
             && Boolean(expense.paid)
             && !Boolean(sortedExpenses[index - 1].paid);
           const divider = startsPaidGroup
-            ? '<tr class="sales-group-divider"><td colspan="6">באצאלט</td></tr>'
+            ? '<tr class="sales-group-divider"><td colspan="3">באצאלט</td></tr>'
             : '';
           return `${divider}
           <tr class="expense-row${dueSoon ? ' expense-due-soon-row' : ''}${expense.paid ? ' expense-paid-row' : ''}" data-expense-row="${escapeHtml(expense.id)}" data-expense-open="${escapeHtml(expense.id)}" data-expense-group="${expenseGroup}" tabindex="0" title="Open expense">
             <td>${canReorder && !dueSoon
               ? `<button type="button" class="expense-drag-handle" data-expense-drag="${escapeHtml(expense.id)}" aria-label="Move expense" title="Press and hold to move">⠿</button>`
               : ''}</td>
-            <td>
-              <strong>${escapeHtml(expense.name)}</strong>
-              ${expense.note ? `<div class="small-note note-cell" title="${escapeHtml(expense.note)}">${escapeHtml(expense.note)}</div>` : ''}
+            <td class="expense-detail-cell">
+              <strong class="expense-detail-name">${escapeHtml(expense.name)}</strong>
+              ${expense.category ? `<span class="expense-detail-line">Category: ${escapeHtml(expense.category)}</span>` : ''}
+              ${expense.note ? `<span class="expense-detail-line" title="${escapeHtml(expense.note)}">Note: ${escapeHtml(expense.note)}</span>` : ''}
+              <span class="expense-detail-line">Pay Date: ${escapeHtml(formatTodoDate(expense.date))}<span class="expense-amount">Amount: ${money(expense.amount)}</span></span>
             </td>
-            <td>${escapeHtml(formatTodoDate(expense.date))}</td>
-            <td>${escapeHtml(expense.category || '—')}</td>
-            <td class="expense-amount">${money(expense.amount)}</td>
-            <td>${expense.paid ? '<span class="status-pill geschlagen">באצאלט</span>' : ''}</td>
+            <td class="expense-status-cell">${expense.paid ? '<span class="status-pill geschlagen">באצאלט</span>' : ''}</td>
           </tr>`;
         }).join('');
     }

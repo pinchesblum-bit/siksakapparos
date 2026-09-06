@@ -1104,7 +1104,7 @@
 
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
     .custom-sale-fields { grid-column: 1 / -1; display: grid; gap: 15px; }
-    .field { display: grid; gap: 7px; }
+    .field { display: grid; align-content: start; gap: 7px; }
     .field[hidden] { display: none !important; }
     .field.full { grid-column: 1 / -1; }
     label { font-size: 13px; font-weight: 750; color: #4e463f; }
@@ -1512,19 +1512,19 @@
           </div>
           <div class="settings-cards">
             <button type="button" class="settings-card" data-settings-open="website">
-              <span class="settings-card-title">Home Screen Settings</span>
+              <span class="settings-card-title">Home Screen</span>
               <span class="settings-card-note">Edit the website title, subtitle, and Sales homepage summary.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="sales">
-              <span class="settings-card-title">Sales Settings</span>
+              <span class="settings-card-title">Sales</span>
               <span class="settings-card-note">Edit pricing, inventory, payment methods, and sale fields.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="ticket">
-              <span class="settings-card-title">Ticket Settings</span>
+              <span class="settings-card-title">Ticket</span>
               <span class="settings-card-note">Set up printed sale tickets.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="reports">
-              <span class="settings-card-title">Report Settings</span>
+              <span class="settings-card-title">Reports</span>
               <span class="settings-card-note">Edit the names of the report summary boxes.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="tasks">
@@ -1532,11 +1532,11 @@
               <span class="settings-card-note">Manage tasks marked מסדר.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="accounting">
-              <span class="settings-card-title">Accounting Settings</span>
+              <span class="settings-card-title">Accounting</span>
               <span class="settings-card-note">Manage expense payment statuses.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="login">
-              <span class="settings-card-title">Login Settings</span>
+              <span class="settings-card-title">Login</span>
               <span class="settings-card-note">Change the username and password.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="export">
@@ -1549,7 +1549,7 @@
         <div class="settings-view" data-settings-view="website" hidden>
           <div class="settings-view-head">
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
-            <h3>Home Screen Settings</h3>
+            <h3>Home Screen</h3>
             <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="website">Edit</button>
           </div>
           <form id="websiteSettingsForm">
@@ -1585,7 +1585,7 @@
         <div class="settings-view" data-settings-view="sales" hidden>
           <div class="settings-view-head">
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
-            <h3>Sales Settings</h3>
+            <h3>Sales</h3>
             <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="sales">Edit</button>
           </div>
           <form id="salesSettingsForm">
@@ -1625,7 +1625,7 @@
         <div class="settings-view" data-settings-view="ticket" hidden>
           <div class="settings-view-head">
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
-            <h3>Ticket Settings</h3>
+            <h3>Ticket</h3>
           </div>
           <div class="empty-state">Coming soon</div>
         </div>
@@ -1633,7 +1633,7 @@
         <div class="settings-view" data-settings-view="login" hidden>
           <div class="settings-view-head">
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
-            <h3>Login Settings</h3>
+            <h3>Login</h3>
           </div>
           <button type="button" class="secondary-btn" id="openLoginSettingsBtn">Change Username and Password</button>
           <form id="loginSettingsForm" hidden>
@@ -1661,7 +1661,7 @@
         <div class="settings-view" data-settings-view="reports" hidden>
           <div class="settings-view-head">
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
-            <h3>Report Settings</h3>
+            <h3>Reports</h3>
             <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="reports">Edit</button>
           </div>
           <form id="reportSettingsForm">
@@ -1695,7 +1695,7 @@
         <div class="settings-view" data-settings-view="accounting" hidden>
           <div class="settings-view-head">
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
-            <h3>Accounting Settings</h3>
+            <h3>Accounting</h3>
           </div>
           <div class="settings-section">
             <div class="payment-method-row">

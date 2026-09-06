@@ -3261,7 +3261,7 @@
             ? '<tr class="sales-group-divider"><td colspan="6">באצאלט</td></tr>'
             : '';
           return `${divider}
-          <tr class="expense-row" data-expense-row="${escapeHtml(expense.id)}" data-expense-open="${escapeHtml(expense.id)}" tabindex="0" title="Open expense">
+          <tr class="expense-row" data-expense-row="${escapeHtml(expense.id)}" data-expense-open="${escapeHtml(expense.id)}" data-expense-paid="${expense.paid ? 'true' : 'false'}" tabindex="0" title="Open expense">
             <td>${canReorder
               ? `<button type="button" class="expense-drag-handle" data-expense-drag="${escapeHtml(expense.id)}" aria-label="Move expense" title="Press and hold to move">⠿</button>`
               : ''}</td>
@@ -3344,9 +3344,10 @@
     }
 
     function setExpenseFieldMode(readOnly) {
-      [expensePaid, expenseName, expenseAmount, expenseDate, expenseCategory, expenseNote].forEach(field => {
+      [expenseName, expenseAmount, expenseDate, expenseCategory, expenseNote].forEach(field => {
         field.disabled = readOnly;
       });
+      expensePaid.disabled = false;
       expenseForm.classList.toggle('expense-readonly', readOnly);
     }
 
@@ -3826,6 +3827,24 @@
       const expense = (state.settings.accountingExpenses || []).find(item => item.id === state.editingExpenseId);
       if (expense) showExpenseEditor(expense);
     });
+    expensePaid.addEventListener('change', async () => {
+      if (!expenseForm.classList.contains('expense-readonly') || !state.editingExpenseId) return;
+      const expense = (state.settings.accountingExpenses || []).find(item => item.id === state.editingExpenseId);
+      if (!expense) return;
+      const previousValue = Boolean(expense.paid);
+      const nextValue = expensePaid.checked;
+      if (previousValue === nextValue) return;
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) {
+        expensePaid.checked = previousValue;
+        return;
+      }
+      expense.paid = nextValue;
+      expense.updatedAt = new Date().toISOString();
+      saveSettings();
+      renderAccounting();
+      showExpenseView(expense);
+      showToast(nextValue ? 'Expense marked באצאלט' : 'באצאלט removed');
+    });
     accountingCalendar.addEventListener('click', event => {
       const day = event.target.closest('[data-calendar-date]');
       if (day) openCalendarExpenseDetails(day.dataset.calendarDate);
@@ -3925,6 +3944,7 @@
         pointerId: event.pointerId,
         handle,
         row,
+        paid: row.dataset.expensePaid,
         startX: event.clientX,
         startY: event.clientY,
         active: false,
@@ -3954,7 +3974,7 @@
       }
       event.preventDefault();
       const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-expense-row]');
-      if (!target || target === expenseDrag.row) return;
+      if (!target || target === expenseDrag.row || target.dataset.expensePaid !== expenseDrag.paid) return;
       const rect = target.getBoundingClientRect();
       const placeBefore = event.clientY < rect.top + rect.height / 2;
       expenseList.insertBefore(expenseDrag.row, placeBefore ? target : target.nextSibling);
@@ -4048,10 +4068,7 @@
     });
     reopenAllTasksBtn.addEventListener('click', () => {
       const completedTasks = (state.settings.todoTasks || []).filter(task => task.completed);
-      if (!completedTasks.length) {
-        showToast('All tasks are already active');
-        return;
-      }
+      if (!completedTasks.length) return;
       openSecurityDialog('reopen-tasks');
     });
     resetAllExpensesBtn.addEventListener('click', () => {

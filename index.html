@@ -852,6 +852,88 @@
       cursor: default;
     }
 
+    .sale-id-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin: 0 0 16px;
+      padding: 12px 15px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fbf8f2;
+    }
+    .sale-id-banner[hidden] { display: none; }
+    .sale-id-label { color: var(--muted); font-size: 13px; font-weight: 750; }
+    .sale-id-value { color: var(--accent); font-size: 18px; font-weight: 900; letter-spacing: .06em; }
+    .sale-phone-ticket { display: grid; gap: 3px; }
+    .sale-ticket-inline { color: var(--muted); font-size: 11px; font-weight: 750; letter-spacing: .04em; }
+
+    .ticket-preview-shell { width: min(820px, 100%); margin: 0 auto; }
+    .ticket-preview-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .ticket-preview-head h2 { margin: 0; font-size: 28px; }
+    .ticket-preview-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+    .ticket-card {
+      width: min(720px, 100%);
+      margin: 0 auto;
+      padding: 34px;
+      border: 1px solid #dacbb9;
+      border-radius: 20px;
+      background: #fff;
+      color: #241f1a;
+      box-shadow: 0 18px 42px rgba(63,44,28,.13);
+    }
+    .ticket-card-head {
+      padding-bottom: 20px;
+      border-bottom: 2px solid #6f4b2f;
+      text-align: center;
+    }
+    .ticket-chicken { font-size: 42px; line-height: 1; }
+    .ticket-business-name { margin: 9px 0 2px; font-size: 25px; font-weight: 900; direction: rtl; }
+    .ticket-business-subtitle { color: #6f4b2f; font-size: 20px; font-weight: 850; direction: rtl; }
+    .ticket-number { margin-top: 16px; color: #6f4b2f; font-size: 19px; font-weight: 900; letter-spacing: .08em; }
+    .ticket-barcode { display: grid; justify-items: center; gap: 5px; margin: 24px auto; }
+    .ticket-barcode svg { width: min(430px, 100%); height: 82px; display: block; }
+    .ticket-barcode-number { font: 750 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .22em; }
+    .ticket-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .ticket-detail {
+      min-width: 0;
+      padding: 13px 14px;
+      border: 1px solid #e7ddd0;
+      border-radius: 11px;
+      background: #fcfaf6;
+    }
+    .ticket-detail.full { grid-column: 1 / -1; }
+    .ticket-detail-label { display: block; margin-bottom: 4px; color: #756c63; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .ticket-detail-value { display: block; overflow-wrap: anywhere; white-space: pre-wrap; font-size: 15px; font-weight: 700; line-height: 1.4; }
+    .ticket-footer { margin-top: 22px; color: #756c63; font-size: 12px; text-align: center; }
+
+    @media print {
+      body * { visibility: hidden !important; }
+      #ticketCard, #ticketCard * { visibility: visible !important; }
+      #ticketCard {
+        position: absolute;
+        inset: 0 auto auto 0;
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 26px;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+
     .settings-panel { padding: 24px; }
     .settings-panel h2 { margin: 0 0 5px; font-size: 28px; }
     .settings-home[hidden], .settings-view[hidden] { display: none; }
@@ -1236,6 +1318,12 @@
       .accounting-section-head .primary-btn { width: 100%; }
       .expense-tools { align-items: stretch; flex-direction: column; }
       .expense-search { width: 100%; }
+      .ticket-preview-head { align-items: stretch; flex-direction: column; }
+      .ticket-preview-actions { justify-content: stretch; }
+      .ticket-preview-actions button { flex: 1; }
+      .ticket-card { padding: 22px 16px; border-radius: 15px; }
+      .ticket-details { grid-template-columns: 1fr; }
+      .ticket-detail.full { grid-column: auto; }
       .settings-grid { grid-template-columns: 1fr; }
       .settings-cards { grid-template-columns: 1fr; }
       .custom-field-row, .payment-plan-row { grid-template-columns: 1fr; align-items: stretch; }
@@ -1327,7 +1415,7 @@
           <div class="sales-tools">
             <div class="sales-search">
               <label for="salesSearch" class="small-note">Search Sales</label>
-              <input id="salesSearch" type="search" placeholder="Name, phone, or notes" autocomplete="off" />
+              <input id="salesSearch" type="search" placeholder="Name, phone, ticket ID, or notes" autocomplete="off" />
             </div>
             <div class="sales-sort">
               <label for="salesSort" class="small-note">Order</label>
@@ -1504,6 +1592,20 @@
       </div>
     </section>
 
+    <section class="page" id="ticketPage">
+      <div class="ticket-preview-shell">
+        <div class="ticket-preview-head">
+          <h2>Ticket Preview</h2>
+          <div class="ticket-preview-actions">
+            <button type="button" class="secondary-btn" id="backToSaleBtn">← Back to Sale</button>
+            <button type="button" class="secondary-btn" id="downloadTicketPdfBtn">Download PDF</button>
+            <button type="button" class="primary-btn" id="printTicketPageBtn">Print</button>
+          </div>
+        </div>
+        <article class="ticket-card" id="ticketCard" aria-label="Sale ticket"></article>
+      </div>
+    </section>
+
     <section class="page" id="settingsPage">
       <div class="panel settings-panel">
         <div class="settings-home" id="settingsHome">
@@ -1578,7 +1680,7 @@
               </div>
             </div>
             <p class="settings-message" id="websiteSettingsMessage" role="alert"></p>
-            <div class="settings-actions" data-settings-actions="website" hidden><button type="button" class="secondary-btn" data-cancel-settings="website">Cancel</button><button type="submit" class="primary-btn">Save Home Screen Settings</button></div>
+            <div class="settings-actions" data-settings-actions="website" hidden><button type="button" class="secondary-btn" data-cancel-settings="website">Cancel</button><button type="submit" class="primary-btn">Save</button></div>
           </form>
         </div>
 
@@ -1618,7 +1720,7 @@
               <button type="button" class="secondary-btn" id="addCustomFieldBtn">+ Add Sale Field</button>
             </div>
             <p class="settings-message" id="salesSettingsMessage" role="alert"></p>
-            <div class="settings-actions" data-settings-actions="sales" hidden><button type="button" class="secondary-btn" data-cancel-settings="sales">Cancel</button><button type="submit" class="primary-btn">Save Sales Settings</button></div>
+            <div class="settings-actions" data-settings-actions="sales" hidden><button type="button" class="secondary-btn" data-cancel-settings="sales">Cancel</button><button type="submit" class="primary-btn">Save</button></div>
           </form>
         </div>
 
@@ -1626,8 +1728,19 @@
           <div class="settings-view-head">
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
             <h3>Tickets</h3>
+            <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="ticket">Edit</button>
           </div>
-          <div class="empty-state">Coming soon</div>
+          <form id="ticketSettingsForm">
+            <label class="settings-switch-row field full">
+              <span>Show Print Ticket on Sales</span>
+              <span class="toggle-switch">
+                <input type="checkbox" id="settingPrintTicketsEnabled" />
+                <span class="toggle-slider" aria-hidden="true"></span>
+              </span>
+            </label>
+            <p class="settings-message" id="ticketSettingsMessage" role="alert"></p>
+            <div class="settings-actions" data-settings-actions="ticket" hidden><button type="button" class="secondary-btn" data-cancel-settings="ticket">Cancel</button><button type="submit" class="primary-btn">Save</button></div>
+          </form>
         </div>
 
         <div class="settings-view" data-settings-view="login" hidden>
@@ -1654,7 +1767,7 @@
             </div>
             <label class="password-toggle"><input type="checkbox" id="showSettingsPasswords" /> Show Passwords</label>
             <p class="settings-message" id="loginSettingsMessage" role="alert"></p>
-            <div class="settings-actions" data-settings-actions="login" hidden><button type="button" class="secondary-btn" data-cancel-settings="login">Cancel</button><button type="submit" class="primary-btn">Save Login Settings</button></div>
+            <div class="settings-actions" data-settings-actions="login" hidden><button type="button" class="secondary-btn" data-cancel-settings="login">Cancel</button><button type="submit" class="primary-btn">Save</button></div>
           </form>
         </div>
 
@@ -1672,7 +1785,7 @@
               <div class="field"><label for="settingReportNeedsSavedLabel">Needs Saved Box</label><input id="settingReportNeedsSavedLabel" required /></div>
             </div>
             <p class="settings-message" id="reportSettingsMessage" role="alert"></p>
-            <div class="settings-actions" data-settings-actions="reports" hidden><button type="button" class="secondary-btn" data-cancel-settings="reports">Cancel</button><button type="submit" class="primary-btn">Save Report Settings</button></div>
+            <div class="settings-actions" data-settings-actions="reports" hidden><button type="button" class="secondary-btn" data-cancel-settings="reports">Cancel</button><button type="submit" class="primary-btn">Save</button></div>
           </form>
         </div>
 
@@ -1728,6 +1841,10 @@
       </div>
 
       <form id="saleForm">
+        <div class="sale-id-banner" id="saleIdBanner" hidden>
+          <span class="sale-id-label">Ticket ID</span>
+          <strong class="sale-id-value" id="saleTicketId"></strong>
+        </div>
         <label class="geschlagen-check" for="geschlagen">
           <span>געשלאגן</span>
           <input id="geschlagen" name="geschlagen" type="checkbox" />
@@ -1795,6 +1912,7 @@
 
         <div class="modal-actions">
           <button type="button" class="danger-btn" id="deleteSaleBtn" hidden>Delete</button>
+          <button type="button" class="secondary-btn" id="printSaleTicketBtn" hidden>Print Ticket</button>
           <button type="button" class="secondary-btn" id="cancelBtn">Cancel</button>
           <button type="button" class="primary-btn" id="editSaleBtn" hidden>Edit</button>
           <button type="submit" class="primary-btn" id="saveSaleBtn">Save Sale</button>
@@ -1970,6 +2088,7 @@
       homeSummaryLabel: 'Needs to Be Saved',
       homeSummaryScope: 'paid',
       salesSortMode: 'name',
+      printTicketsEnabled: true,
       todoSortMode: 'manual',
       todoTasks: [],
       accountingExpenses: [],
@@ -2008,6 +2127,7 @@
       accountingTab: sessionStorage.getItem('kapparos_accounting_tab') === 'expenses' ? 'expenses' : 'overview',
       todoSortMode: 'manual',
       expenseSearchQuery: '',
+      ticketSaleId: sessionStorage.getItem('kapparos_ticket_sale_id') || '',
       searchQuery: ''
     };
 
@@ -2047,6 +2167,9 @@
     const saveSaleBtn = document.getElementById('saveSaleBtn');
     const editSaleBtn = document.getElementById('editSaleBtn');
     const deleteSaleBtn = document.getElementById('deleteSaleBtn');
+    const printSaleTicketBtn = document.getElementById('printSaleTicketBtn');
+    const saleIdBanner = document.getElementById('saleIdBanner');
+    const saleTicketId = document.getElementById('saleTicketId');
     const salesSearch = document.getElementById('salesSearch');
     const salesSort = document.getElementById('salesSort');
     const homeBtn = document.getElementById('homeBtn');
@@ -2129,6 +2252,9 @@
     const loginSettingsForm = document.getElementById('loginSettingsForm');
     const openLoginSettingsBtn = document.getElementById('openLoginSettingsBtn');
     const reportSettingsForm = document.getElementById('reportSettingsForm');
+    const ticketSettingsForm = document.getElementById('ticketSettingsForm');
+    const settingPrintTicketsEnabled = document.getElementById('settingPrintTicketsEnabled');
+    const ticketSettingsMessage = document.getElementById('ticketSettingsMessage');
     const settingTitle = document.getElementById('settingTitle');
     const settingSubtitle = document.getElementById('settingSubtitle');
     const settingShowNeedsSaved = document.getElementById('settingShowNeedsSaved');
@@ -2157,6 +2283,11 @@
     const salesSettingsMessage = document.getElementById('salesSettingsMessage');
     const loginSettingsMessage = document.getElementById('loginSettingsMessage');
     const reportSettingsMessage = document.getElementById('reportSettingsMessage');
+    const ticketPage = document.getElementById('ticketPage');
+    const ticketCard = document.getElementById('ticketCard');
+    const backToSaleBtn = document.getElementById('backToSaleBtn');
+    const downloadTicketPdfBtn = document.getElementById('downloadTicketPdfBtn');
+    const printTicketPageBtn = document.getElementById('printTicketPageBtn');
     const confirmModal = document.getElementById('confirmModal');
     const confirmMessage = document.getElementById('confirmMessage');
     const confirmNoBtn = document.getElementById('confirmNoBtn');
@@ -2164,8 +2295,9 @@
 
     const LAST_PAGE_KEY = 'kapparos_last_page';
     const LAST_SETTINGS_VIEW_KEY = 'kapparos_last_settings_view';
+    const TICKET_SALE_KEY = 'kapparos_ticket_sale_id';
     const ACCOUNTING_ACCESS_KEY = 'kapparos_accounting_access';
-    const VALID_PAGES = new Set(['sales', 'todo', 'reports', 'accounting', 'settings']);
+    const VALID_PAGES = new Set(['sales', 'todo', 'reports', 'accounting', 'ticket', 'settings']);
     const VALID_SETTINGS_VIEWS = new Set(['website', 'sales', 'ticket', 'reports', 'tasks', 'accounting', 'login', 'export']);
 
     function setLoginPasswordVisible(visible) {
@@ -2189,6 +2321,10 @@
       const canRestoreAccounting = savedPage !== 'accounting'
         || sessionStorage.getItem(ACCOUNTING_ACCESS_KEY) === 'true';
       showPage(VALID_PAGES.has(savedPage) && canRestoreAccounting ? savedPage : 'sales');
+      if (pendingTicketIdSave) {
+        pendingTicketIdSave = false;
+        queueCloudSave();
+      }
     }
 
     function lockWebsite() {
@@ -2197,6 +2333,7 @@
       sessionStorage.removeItem(LAST_PAGE_KEY);
       sessionStorage.removeItem(LAST_SETTINGS_VIEW_KEY);
       sessionStorage.removeItem(ACCOUNTING_ACCESS_KEY);
+      sessionStorage.removeItem(TICKET_SALE_KEY);
       loginGate.hidden = false;
       appShell.classList.add('locked');
       appShell.setAttribute('aria-hidden', 'true');
@@ -2367,6 +2504,7 @@
           showNeedsSavedOnHome: Boolean(saved.showNeedsSavedOnHome),
           homeSummaryLabel: typeof saved.homeSummaryLabel === 'string' && saved.homeSummaryLabel.trim() ? saved.homeSummaryLabel.trim() : DEFAULT_SETTINGS.homeSummaryLabel,
           homeSummaryScope: saved.homeSummaryScope === 'paid_reserved' ? 'paid_reserved' : 'paid',
+          printTicketsEnabled: saved.printTicketsEnabled !== false,
           todoSortMode: ['manual', 'name', 'due'].includes(saved.todoSortMode) ? saved.todoSortMode : DEFAULT_SETTINGS.todoSortMode,
           accountingExpenses: savedExpenses.map((expense, index) => ({
             id: String(expense.id),
@@ -2431,6 +2569,262 @@
       }
     }
 
+    let pendingTicketIdSave = false;
+
+    function createTicketId(seed, usedIds = new Set()) {
+      let hash = 2166136261;
+      for (const character of String(seed || `${Date.now()}-${Math.random()}`)) {
+        hash ^= character.charCodeAt(0);
+        hash = Math.imul(hash, 16777619);
+      }
+      let number = hash >>> 0;
+      if (!number) number = 1;
+      let ticketId = String(number).padStart(10, '0');
+      while (usedIds.has(ticketId)) {
+        number = (number + 1) >>> 0;
+        if (!number) number = 1;
+        ticketId = String(number).padStart(10, '0');
+      }
+      return ticketId;
+    }
+
+    function ensureSaleTicketIds() {
+      const usedIds = new Set();
+      let changed = false;
+      state.sales.forEach(sale => {
+        const digits = String(sale.ticketId || '').replace(/\D/g, '');
+        const normalized = digits ? digits.padStart(10, '0').slice(-10) : '';
+        if (normalized && !usedIds.has(normalized)) {
+          if (sale.ticketId !== normalized) {
+            sale.ticketId = normalized;
+            changed = true;
+          }
+          usedIds.add(normalized);
+          return;
+        }
+        sale.ticketId = createTicketId(sale.id, usedIds);
+        usedIds.add(sale.ticketId);
+        changed = true;
+      });
+      return changed;
+    }
+
+    function getSaleTicketId(sale) {
+      if (!sale) return '';
+      if (!/^\d{10}$/.test(String(sale.ticketId || ''))) {
+        if (ensureSaleTicketIds()) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sales));
+          pendingTicketIdSave = true;
+        }
+      }
+      return String(sale.ticketId || '');
+    }
+
+    function buildTicketBarcodeSvg(ticketId) {
+      const patterns = {
+        0: 'nnwwn', 1: 'wnnnw', 2: 'nwnnw', 3: 'wwnnn', 4: 'nnwnw',
+        5: 'wnwnn', 6: 'nwwnn', 7: 'nnnww', 8: 'wnnwn', 9: 'nwnwn'
+      };
+      let digits = String(ticketId || '').replace(/\D/g, '');
+      if (digits.length % 2) digits = `0${digits}`;
+      const narrow = 2;
+      const wide = 5;
+      const quiet = 14;
+      const elements = [];
+      let x = quiet;
+      const addElement = (isBar, width) => {
+        if (isBar) elements.push(`<rect x="${x}" y="0" width="${width}" height="64" rx=".3"/>`);
+        x += width;
+      };
+      [narrow, narrow, narrow, narrow].forEach((width, index) => addElement(index % 2 === 0, width));
+      for (let index = 0; index < digits.length; index += 2) {
+        const barPattern = patterns[digits[index]];
+        const spacePattern = patterns[digits[index + 1]];
+        for (let part = 0; part < 5; part += 1) {
+          addElement(true, barPattern[part] === 'w' ? wide : narrow);
+          addElement(false, spacePattern[part] === 'w' ? wide : narrow);
+        }
+      }
+      addElement(true, wide);
+      addElement(false, narrow);
+      addElement(true, narrow);
+      x += quiet;
+      return `<svg viewBox="0 0 ${x} 64" role="img" aria-label="Barcode for ticket ${escapeHtml(digits)}" preserveAspectRatio="none"><g fill="#17130f">${elements.join('')}</g></svg>`;
+    }
+
+    function getTicketPaymentText(sale) {
+      const usesPlan = ['reserved', 'expired'].includes(sale.status || 'paid');
+      if (usesPlan) {
+        const plan = getPaymentPlan(sale.plannedPaymentType)?.label || sale.plannedPaymentType || 'Not selected';
+        return sale.plannedPaymentDate ? `${plan} - ${formatTodoDate(sale.plannedPaymentDate)}` : plan;
+      }
+      const method = getPaymentMethod(sale.paymentType)?.label || sale.paymentType || 'Not selected';
+      return sale.otherDetails ? `${method} - ${sale.otherDetails}` : method;
+    }
+
+    function ticketDetail(label, value, full = false) {
+      return `<div class="ticket-detail${full ? ' full' : ''}"><span class="ticket-detail-label">${escapeHtml(label)}</span><span class="ticket-detail-value" dir="auto">${escapeHtml(value || '—')}</span></div>`;
+    }
+
+    function renderTicketPage() {
+      const sale = state.sales.find(item => item.id === state.ticketSaleId);
+      if (!sale || state.settings.printTicketsEnabled === false) {
+        sessionStorage.removeItem(TICKET_SALE_KEY);
+        state.ticketSaleId = '';
+        if (state.page === 'ticket') showPage('sales');
+        return false;
+      }
+      const ticketId = getSaleTicketId(sale);
+      const customDetails = state.settings.customFields
+        .map(field => ({ label: field.label, value: String(sale.customFields?.[field.id] || '').trim() }))
+        .filter(field => field.value)
+        .map(field => ticketDetail(field.label, field.value, true))
+        .join('');
+      ticketCard.innerHTML = `
+        <div class="ticket-card-head">
+          <div class="ticket-chicken" aria-hidden="true">🐓</div>
+          <div class="ticket-business-name">${escapeHtml(state.settings.title)}</div>
+          <div class="ticket-business-subtitle">${escapeHtml(state.settings.subtitle)}</div>
+          <div class="ticket-number">TICKET #${escapeHtml(ticketId)}</div>
+        </div>
+        <div class="ticket-barcode">
+          ${buildTicketBarcodeSvg(ticketId)}
+          <div class="ticket-barcode-number">${escapeHtml(ticketId)}</div>
+        </div>
+        <div class="ticket-details">
+          ${ticketDetail('Full Name', sale.fullName)}
+          ${ticketDetail('Phone Number', sale.phone)}
+          ${ticketDetail('Status', getStatusLabel(sale.status || 'paid'))}
+          ${ticketDetail('כפרות', String(sale.quantity || 0))}
+          ${ticketDetail('Total Price', money(sale.price))}
+          ${ticketDetail('Payment', getTicketPaymentText(sale))}
+          ${ticketDetail('געשלאגן', sale.geschlagen ? 'געשלאגן' : 'Not yet')}
+          ${ticketDetail('Sale Date', sale.createdAt ? new Date(sale.createdAt).toLocaleString('en-US') : '—')}
+          ${customDetails}
+        </div>
+        <div class="ticket-footer">Please keep this ticket. Ticket ID #${escapeHtml(ticketId)}</div>`;
+      return true;
+    }
+
+    function openTicketForSale(saleId) {
+      const sale = state.sales.find(item => item.id === saleId);
+      if (!sale || state.settings.printTicketsEnabled === false) return;
+      state.ticketSaleId = sale.id;
+      sessionStorage.setItem(TICKET_SALE_KEY, sale.id);
+      closeModal();
+      showPage('ticket');
+    }
+
+    async function renderTicketToJpeg() {
+      if (!ticketCard.firstElementChild) throw new Error('Ticket is not ready.');
+      const clone = ticketCard.cloneNode(true);
+      clone.removeAttribute('id');
+      clone.style.width = '720px';
+      clone.style.maxWidth = 'none';
+      clone.style.margin = '0';
+      clone.style.boxShadow = 'none';
+      const staging = document.createElement('div');
+      staging.style.cssText = 'position:fixed;left:-10000px;top:0;width:720px;background:#fff;z-index:-1;';
+      staging.appendChild(clone);
+      document.body.appendChild(staging);
+      const width = 720;
+      const height = Math.ceil(clone.getBoundingClientRect().height);
+      const css = document.querySelector('style')?.textContent || '';
+      const safeCss = css.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
+      const serializedTicket = new XMLSerializer().serializeToString(clone);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml"><style>${safeCss}</style>${serializedTicket}</div></foreignObject></svg>`;
+      staging.remove();
+      const svgUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+      try {
+        const image = new Image();
+        await new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = () => reject(new Error('The ticket could not be prepared for PDF.'));
+          image.src = svgUrl;
+        });
+        const scale = 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.scale(scale, scale);
+        context.drawImage(image, 0, 0, width, height);
+        const jpegBlob = await new Promise((resolve, reject) => {
+          canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('The PDF image could not be created.')), 'image/jpeg', .94);
+        });
+        return { bytes: new Uint8Array(await jpegBlob.arrayBuffer()), width: canvas.width, height: canvas.height };
+      } finally {
+        URL.revokeObjectURL(svgUrl);
+      }
+    }
+
+    function createPdfFromJpeg(jpegBytes, imageWidth, imageHeight) {
+      const encoder = new TextEncoder();
+      const chunks = [];
+      const offsets = [0];
+      let length = 0;
+      const add = value => {
+        const bytes = typeof value === 'string' ? encoder.encode(value) : value;
+        chunks.push(bytes);
+        length += bytes.length;
+      };
+      const addObject = (number, value) => {
+        offsets[number] = length;
+        add(`${number} 0 obj\n${value}\nendobj\n`);
+      };
+      const pageWidth = 612;
+      const pageHeight = 792;
+      const margin = 32;
+      const scale = Math.min((pageWidth - margin * 2) / imageWidth, (pageHeight - margin * 2) / imageHeight);
+      const drawWidth = imageWidth * scale;
+      const drawHeight = imageHeight * scale;
+      const drawX = (pageWidth - drawWidth) / 2;
+      const drawY = (pageHeight - drawHeight) / 2;
+      const drawing = `q\n${drawWidth.toFixed(2)} 0 0 ${drawHeight.toFixed(2)} ${drawX.toFixed(2)} ${drawY.toFixed(2)} cm\n/Im0 Do\nQ`;
+
+      add('%PDF-1.4\n%âãÏÓ\n');
+      addObject(1, '<< /Type /Catalog /Pages 2 0 R >>');
+      addObject(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+      addObject(3, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
+      offsets[4] = length;
+      add(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${imageWidth} /Height ${imageHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`);
+      add(jpegBytes);
+      add('\nendstream\nendobj\n');
+      addObject(5, `<< /Length ${encoder.encode(drawing).length} >>\nstream\n${drawing}\nendstream`);
+      const xrefOffset = length;
+      add('xref\n0 6\n0000000000 65535 f \n');
+      for (let index = 1; index <= 5; index += 1) add(`${String(offsets[index]).padStart(10, '0')} 00000 n \n`);
+      add(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
+      return new Blob(chunks, { type: 'application/pdf' });
+    }
+
+    async function downloadTicketPdf() {
+      const sale = state.sales.find(item => item.id === state.ticketSaleId);
+      if (!sale || !renderTicketPage()) return;
+      downloadTicketPdfBtn.disabled = true;
+      downloadTicketPdfBtn.textContent = 'Preparing PDF…';
+      try {
+        const image = await renderTicketToJpeg();
+        const pdf = createPdfFromJpeg(image.bytes, image.width, image.height);
+        const url = URL.createObjectURL(pdf);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `kapparos-ticket-${getSaleTicketId(sale)}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast('Ticket PDF downloaded');
+      } catch (error) {
+        showToast(error.message || 'The ticket PDF could not be downloaded.');
+      } finally {
+        downloadTicketPdfBtn.disabled = false;
+        downloadTicketPdfBtn.textContent = 'Download PDF';
+      }
+    }
+
     async function cloudRequest(action, payload = {}, token = cloudSessionToken) {
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers.Authorization = `Bearer ${token}`;
@@ -2450,6 +2844,7 @@
 
     function applyCloudState(data) {
       state.sales = Array.isArray(data.sales) ? data.sales : [];
+      if (ensureSaleTicketIds()) pendingTicketIdSave = true;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sales));
       if (data.settings && typeof data.settings === 'object') {
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(data.settings));
@@ -2685,7 +3080,7 @@
     let settingsDraftMethods = [];
     let settingsDraftPlans = [];
     let settingsDraftFields = [];
-    const settingsEditMode = { website: false, sales: false, login: false, reports: false };
+    const settingsEditMode = { website: false, sales: false, ticket: false, login: false, reports: false };
 
     function renderPaymentMethodsEditor() {
       paymentMethodsList.innerHTML = settingsDraftMethods.map((method, index) => {
@@ -2748,6 +3143,7 @@
       settingHomeSummaryScope.value = state.settings.homeSummaryScope;
       settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
       settingInventory.value = state.settings.inventory;
+      settingPrintTicketsEnabled.checked = state.settings.printTicketsEnabled !== false;
       settingUsername.value = state.settings.username;
       settingCurrentPassword.value = '';
       settingPassword.value = '';
@@ -2761,6 +3157,7 @@
       salesSettingsMessage.textContent = '';
       loginSettingsMessage.textContent = '';
       reportSettingsMessage.textContent = '';
+      ticketSettingsMessage.textContent = '';
       settingsDraftMethods = state.settings.paymentMethods.map(method => ({ ...method }));
       settingsDraftPlans = state.settings.paymentPlans.map(plan => ({ ...plan }));
       settingsDraftFields = state.settings.customFields.map(field => ({ ...field }));
@@ -2778,6 +3175,7 @@
       const form = {
         website: websiteSettingsForm,
         sales: salesSettingsForm,
+        ticket: ticketSettingsForm,
         login: loginSettingsForm,
         reports: reportSettingsForm
       }[section];
@@ -2819,6 +3217,10 @@
         settingsDraftPlans = state.settings.paymentPlans.map(plan => ({ ...plan }));
         settingsDraftFields = state.settings.customFields.map(field => ({ ...field }));
         salesSettingsMessage.textContent = '';
+      }
+      if (section === 'ticket') {
+        settingPrintTicketsEnabled.checked = state.settings.printTicketsEnabled !== false;
+        ticketSettingsMessage.textContent = '';
       }
       if (section === 'login') {
         settingUsername.value = state.settings.username;
@@ -2901,7 +3303,7 @@
       // Search only information visible as the person's main sale details.
       if (includesQuery(sale.fullName)) return 0;
       if (includesQuery(getNotesValue(sale))) return 1;
-      if (includesQuery(sale.phone)) return 2;
+      if (includesQuery(sale.phone) || includesQuery(getSaleTicketId(sale))) return 2;
       return Number.POSITIVE_INFINITY;
     }
 
@@ -2945,7 +3347,7 @@
           return `${divider}
             <tr class="sale-row" data-sale-id="${escapeHtml(sale.id)}" tabindex="0" title="Click to open this sale">
               <td class="sale-name">${escapeHtml(sale.fullName)}</td>
-              <td>${escapeHtml(sale.phone || '')}</td>
+              <td><span class="sale-phone-ticket"><span>${escapeHtml(sale.phone || '')}</span><span class="sale-ticket-inline">ID #${escapeHtml(getSaleTicketId(sale))}</span></span></td>
               <td><span class="status-pill ${escapeHtml(sale.status || 'paid')}">${getStatusLabel(sale.status || 'paid')}</span></td>
               <td><span class="kapparah-pill">${sale.quantity}</span></td>
               <td class="note-cell" title="${escapeHtml(notes)}"><span class="note-preview" dir="auto">${escapeHtml(previewText(notes, 110))}</span></td>
@@ -2956,7 +3358,7 @@
       wrap.innerHTML = `
         <table class="sales-table">
           <colgroup><col style="width:20%"><col style="width:15%"><col style="width:13%"><col style="width:10%"><col style="width:27%"><col style="width:15%"></colgroup>
-          <thead><tr><th>Full Name</th><th>Phone</th><th>Status</th><th>כפרה</th><th>Notes</th><th>געשלאגן</th></tr></thead>
+          <thead><tr><th>Full Name</th><th>Phone / Ticket ID</th><th>Status</th><th>כפרה</th><th>Notes</th><th>געשלאגן</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>`;
     }
@@ -3518,8 +3920,9 @@
       const banshakUnpaid = state.sales.reduce((sum, sale) => (sale.status || 'paid') === 'paid' && isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
       const totalMoney = state.sales.reduce((sum, sale) => (sale.status || 'paid') === 'paid' && !isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
       const salesRows = [
-        excelRow(['Created', 'Full Name', 'Phone Number', 'Status', 'כפרות', 'Price', 'Payment method', 'Payment details', 'Planned payment', 'Planned date', ...state.settings.customFields.map(field => field.label), 'געשלאגן'].map(value => ({ value, style: 'Header' }))),
+        excelRow(['Ticket ID', 'Created', 'Full Name', 'Phone Number', 'Status', 'כפרות', 'Price', 'Payment method', 'Payment details', 'Planned payment', 'Planned date', ...state.settings.customFields.map(field => field.label), 'געשלאגן'].map(value => ({ value, style: 'Header' }))),
         ...state.sales.map(sale => excelRow([
+          getSaleTicketId(sale),
           sale.createdAt ? new Date(sale.createdAt).toLocaleString('en-US') : '',
           sale.fullName,
           sale.phone,
@@ -3619,7 +4022,7 @@
             <Style ss:ID="Integer"><NumberFormat ss:Format="#,##0"/></Style>
           </Styles>
           <Worksheet ss:Name="Sales"><Table>
-            <Column ss:Width="125"/><Column ss:Width="150"/><Column ss:Width="110"/><Column ss:Width="85"/><Column ss:Width="65"/><Column ss:Width="80"/><Column ss:Width="115"/><Column ss:Width="180"/>
+            <Column ss:Width="90"/><Column ss:Width="125"/><Column ss:Width="150"/><Column ss:Width="110"/><Column ss:Width="85"/><Column ss:Width="65"/><Column ss:Width="80"/><Column ss:Width="115"/><Column ss:Width="180"/>
             ${state.settings.customFields.map(() => '<Column ss:Width="140"/>').join('')}
             ${salesRows}
           </Table></Worksheet>
@@ -3666,6 +4069,7 @@
       document.getElementById('todoPage').classList.toggle('active', page === 'todo');
       document.getElementById('reportsPage').classList.toggle('active', page === 'reports');
       document.getElementById('accountingPage').classList.toggle('active', page === 'accounting');
+      ticketPage.classList.toggle('active', page === 'ticket');
       document.getElementById('settingsPage').classList.toggle('active', page === 'settings');
       homeBtn.hidden = false;
       setMenuOpen(false);
@@ -3675,6 +4079,7 @@
       }
       if (page === 'reports') renderReports();
       if (page === 'accounting') renderAccounting();
+      if (page === 'ticket') renderTicketPage();
       if (page === 'settings') renderSettings();
     }
 
@@ -3690,6 +4095,7 @@
       saleModalTitle.textContent = 'Sale';
       setSaleFormMode(true);
       deleteSaleBtn.hidden = true;
+      printSaleTicketBtn.hidden = state.settings.printTicketsEnabled === false;
       cancelBtn.textContent = 'Close';
       editSaleBtn.hidden = false;
       saveSaleBtn.hidden = true;
@@ -3700,6 +4106,7 @@
       setSaleFormMode(false);
       updatePaymentFieldsForStatus();
       deleteSaleBtn.hidden = !existingSale;
+      printSaleTicketBtn.hidden = true;
       cancelBtn.textContent = 'Cancel';
       editSaleBtn.hidden = true;
       saveSaleBtn.hidden = false;
@@ -3721,11 +4128,15 @@
       otherDetails.required = false;
       renderPlannedPaymentSelect('');
       plannedPaymentDate.value = '';
+      saleIdBanner.hidden = true;
+      saleTicketId.textContent = '';
 
       if (saleId) {
         const sale = state.sales.find(item => item.id === saleId);
         if (!sale) return;
         saleModalTitle.textContent = 'Edit Sale';
+        saleTicketId.textContent = `#${getSaleTicketId(sale)}`;
+        saleIdBanner.hidden = false;
         saveSaleBtn.textContent = 'Save';
         deleteSaleBtn.hidden = false;
         fullNameInput.value = sale.fullName || '';
@@ -3748,6 +4159,7 @@
         saleModalTitle.textContent = 'Add Sale';
         saveSaleBtn.textContent = 'Save Sale';
         deleteSaleBtn.hidden = true;
+        saleIdBanner.hidden = true;
         geschlagenInput.checked = false;
         saleStatus.value = 'paid';
         quantityInput.value = 1;
@@ -3771,6 +4183,8 @@
       quantityInput.setAttribute('aria-invalid', 'false');
       quantityInventoryError.hidden = true;
       state.editingSaleId = null;
+      saleIdBanner.hidden = true;
+      printSaleTicketBtn.hidden = true;
     }
 
     function showToast(message) {
@@ -4426,6 +4840,14 @@
       const sale = state.sales.find(item => item.id === state.editingSaleId);
       if (sale) showSaleEditor(sale);
     });
+    printSaleTicketBtn.addEventListener('click', () => openTicketForSale(state.editingSaleId));
+    backToSaleBtn.addEventListener('click', () => {
+      const saleId = state.ticketSaleId;
+      showPage('sales');
+      if (saleId && state.sales.some(sale => sale.id === saleId)) openModal(saleId);
+    });
+    downloadTicketPdfBtn.addEventListener('click', downloadTicketPdf);
+    printTicketPageBtn.addEventListener('click', () => window.print());
     saleModal.addEventListener('click', e => { if (e.target === saleModal) closeModal(); });
 
     quantityInput.addEventListener('input', () => {
@@ -4566,8 +4988,11 @@
         return;
       }
 
+      const newSaleId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+      const usedTicketIds = new Set(state.sales.map(item => getSaleTicketId(item)));
       const sale = {
-        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        id: newSaleId,
+        ticketId: createTicketId(newSaleId, usedTicketIds),
         createdAt: new Date().toISOString(),
         fullName,
         phone,
@@ -4810,6 +5235,26 @@
       salesSettingsMessage.textContent = 'Sales settings saved.';
       setSettingsEditMode('sales', false);
       showToast('Sales settings saved');
+    });
+
+    ticketSettingsForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const nextValue = settingPrintTicketsEnabled.checked;
+      if (nextValue === (state.settings.printTicketsEnabled !== false)) {
+        ticketSettingsMessage.style.color = '#7a7269';
+        ticketSettingsMessage.textContent = 'No changes to save.';
+        setSettingsEditMode('ticket', false);
+        return;
+      }
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+      state.settings.printTicketsEnabled = nextValue;
+      saveSettings();
+      ticketSettingsMessage.style.color = '#426447';
+      ticketSettingsMessage.textContent = nextValue
+        ? 'Print Ticket is now available on sales.'
+        : 'Print Ticket is now hidden from sales.';
+      setSettingsEditMode('ticket', false);
+      showToast(nextValue ? 'Print Ticket turned on' : 'Print Ticket turned off');
     });
 
     loginSettingsForm.addEventListener('submit', async e => {

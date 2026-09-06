@@ -3920,7 +3920,6 @@
       const existingExpense = state.editingExpenseId
         ? expenses.find(item => item.id === state.editingExpenseId)
         : null;
-      if (existingExpense && !(await askConfirmation(CHANGE_CONFIRMATION))) return;
 
       const values = {
         name: expenseName.value.trim(),
@@ -3931,6 +3930,18 @@
         paid: expensePaid.checked
       };
       if (existingExpense) {
+        const expenseUnchanged = String(existingExpense.name || '').trim() === values.name
+          && Number(existingExpense.amount || 0) === values.amount
+          && String(existingExpense.date || '') === values.date
+          && String(existingExpense.category || '').trim() === values.category
+          && String(existingExpense.note || '').trim() === values.note
+          && Boolean(existingExpense.paid) === values.paid;
+        if (expenseUnchanged) {
+          closeExpenseModal();
+          showToast('No changes to save');
+          return;
+        }
+        if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
         Object.assign(existingExpense, values, { updatedAt: new Date().toISOString() });
       } else {
         expenses.push({
@@ -4076,13 +4087,27 @@
         : null;
 
       if (existingTask) {
+        const completed = todoCompleted.checked;
+        const almostComplete = !completed && todoAlmost.checked;
+        const remainingItem = almostComplete ? todoRemaining.value.trim() : '';
+        const taskUnchanged = String(existingTask.title || '').trim() === title
+          && String(existingTask.description || '').trim() === todoDescription.value.trim()
+          && String(existingTask.dueDate || '') === (todoDueDate.value || '')
+          && Boolean(existingTask.completed) === completed
+          && Boolean(existingTask.almostComplete) === almostComplete
+          && String(existingTask.remainingItem || '').trim() === remainingItem;
+        if (taskUnchanged) {
+          closeTodoModal();
+          showToast('No changes to save');
+          return;
+        }
         if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
         existingTask.title = title;
         existingTask.description = todoDescription.value.trim();
         existingTask.dueDate = todoDueDate.value || '';
-        existingTask.completed = todoCompleted.checked;
-        existingTask.almostComplete = !existingTask.completed && todoAlmost.checked;
-        existingTask.remainingItem = existingTask.almostComplete ? todoRemaining.value.trim() : '';
+        existingTask.completed = completed;
+        existingTask.almostComplete = almostComplete;
+        existingTask.remainingItem = remainingItem;
         existingTask.updatedAt = new Date().toISOString();
       } else {
         tasks.push({

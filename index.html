@@ -375,6 +375,14 @@
       white-space: nowrap;
       color: var(--muted);
     }
+    .note-preview {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      unicode-bidi: plaintext;
+      text-align: start;
+    }
     .required-mark { color: #a33b2f; }
     .danger-btn {
       border: 1px solid #c95b4f;
@@ -546,6 +554,7 @@
       -webkit-box-orient: vertical;
       -webkit-line-clamp: 2;
     }
+    .todo-description bdi { unicode-bidi: plaintext; }
     .todo-due {
       min-width: 118px;
       color: var(--muted);
@@ -785,31 +794,11 @@
     .expense-list-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 15px; }
     .expense-tools { display: flex; align-items: end; gap: 10px; }
     .expense-search { width: min(320px, 44vw); }
-    .expense-table { min-width: 0; }
-    .expense-table th:last-child,
-    .expense-table td:last-child { text-align: right; }
-    .expense-detail-cell { min-width: 0; padding-block: 13px; }
-    .expense-detail-name {
-      display: block;
-      margin-bottom: 5px;
-      overflow: hidden;
-      color: var(--ink);
-      font-size: 15px;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .expense-detail-line {
-      display: block;
-      margin-top: 3px;
-      overflow: hidden;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.35;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .expense-detail-line .expense-amount { margin-left: 8px; }
-    .expense-status-cell { width: 105px; white-space: nowrap; }
+    .expense-table { min-width: 900px; }
+    .expense-table th:nth-child(6),
+    .expense-table td:nth-child(6) { text-align: right; }
+    .expense-table th:nth-child(7),
+    .expense-table td:nth-child(7) { text-align: center; }
     .expense-row { cursor: pointer; }
     .expense-row:hover { background: #fbf7f0; }
     .expense-row:focus-visible { outline: 3px solid rgba(111,75,47,.24); outline-offset: -3px; }
@@ -1495,11 +1484,15 @@
           </div>
           <div class="expense-list-wrap">
             <table class="expense-table">
-              <colgroup><col style="width:46px"><col><col style="width:112px"></colgroup>
+              <colgroup><col style="width:5%"><col style="width:18%"><col style="width:14%"><col style="width:25%"><col style="width:14%"><col style="width:11%"><col style="width:13%"></colgroup>
               <thead>
                 <tr>
                   <th aria-label="Move"></th>
-                  <th>Expense Details</th>
+                  <th>Expense Name</th>
+                  <th>Category</th>
+                  <th>Note</th>
+                  <th>Pay Date</th>
+                  <th>Amount</th>
                   <th>באצאלט</th>
                 </tr>
               </thead>
@@ -2611,6 +2604,14 @@
         .replaceAll("'", '&#039;');
     }
 
+    function previewText(value, maximumLength = 140) {
+      const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+      const characters = Array.from(text);
+      return characters.length > maximumLength
+        ? `${characters.slice(0, maximumLength).join('')}…`
+        : text;
+    }
+
     function applySettingsToUi() {
       brandTitle.textContent = state.settings.title;
       brandSubtitle.textContent = state.settings.subtitle;
@@ -2935,7 +2936,7 @@
               <td>${escapeHtml(sale.phone || '')}</td>
               <td><span class="status-pill ${escapeHtml(sale.status || 'paid')}">${getStatusLabel(sale.status || 'paid')}</span></td>
               <td><span class="kapparah-pill">${sale.quantity}</span></td>
-              <td class="note-cell" title="${escapeHtml(notes)}">${escapeHtml(notes)}</td>
+              <td class="note-cell" title="${escapeHtml(notes)}"><span class="note-preview" dir="auto">${escapeHtml(previewText(notes, 110))}</span></td>
               <td>${sale.geschlagen ? '<span class="status-pill geschlagen">געשלאגן</span>' : ''}</td>
             </tr>`;
         }).join('');
@@ -3029,8 +3030,8 @@
           task.completed ? 'todo-completed-row' : ''
         ].filter(Boolean).join(' ');
         const listDetail = almostComplete && task.remainingItem
-          ? `<span class="todo-description todo-remaining">${escapeHtml(task.remainingItem)}</span>`
-          : (task.description ? `<span class="todo-description">${escapeHtml(task.description)}</span>` : '');
+          ? `<span class="todo-description todo-remaining"><bdi dir="auto">${escapeHtml(previewText(task.remainingItem, 160))}</bdi></span>`
+          : (task.description ? `<span class="todo-description"><bdi dir="auto">${escapeHtml(previewText(task.description, 160))}</bdi></span>` : '');
         const dueLabel = task.dueDate ? escapeHtml(formatTodoDate(task.dueDate)) : '';
         const statusMeta = task.completed
           ? `<span class="todo-status-meta"><span class="status-pill complete">מסדר</span>${dueLabel ? `<span class="todo-due">${dueLabel}</span>` : ''}</span>`
@@ -3306,20 +3307,19 @@
             && Boolean(expense.paid)
             && !Boolean(sortedExpenses[index - 1].paid);
           const divider = startsPaidGroup
-            ? '<tr class="sales-group-divider"><td colspan="3">באצאלט</td></tr>'
+            ? '<tr class="sales-group-divider"><td colspan="7">באצאלט</td></tr>'
             : '';
           return `${divider}
           <tr class="expense-row${dueSoon ? ' expense-due-soon-row' : ''}${expense.paid ? ' expense-paid-row' : ''}" data-expense-row="${escapeHtml(expense.id)}" data-expense-open="${escapeHtml(expense.id)}" data-expense-group="${expenseGroup}" tabindex="0" title="Open expense">
             <td>${canReorder && !dueSoon
               ? `<button type="button" class="expense-drag-handle" data-expense-drag="${escapeHtml(expense.id)}" aria-label="Move expense" title="Press and hold to move">⠿</button>`
               : ''}</td>
-            <td class="expense-detail-cell">
-              <strong class="expense-detail-name">${escapeHtml(expense.name)}</strong>
-              ${expense.category ? `<span class="expense-detail-line">Category: ${escapeHtml(expense.category)}</span>` : ''}
-              ${expense.note ? `<span class="expense-detail-line" title="${escapeHtml(expense.note)}">Note: ${escapeHtml(expense.note)}</span>` : ''}
-              <span class="expense-detail-line">Pay Date: ${escapeHtml(formatTodoDate(expense.date))}<span class="expense-amount">Amount: ${money(expense.amount)}</span></span>
-            </td>
-            <td class="expense-status-cell">${expense.paid ? '<span class="status-pill geschlagen">באצאלט</span>' : ''}</td>
+            <td><strong>${escapeHtml(expense.name)}</strong></td>
+            <td>${escapeHtml(expense.category || '—')}</td>
+            <td class="note-cell" title="${escapeHtml(expense.note)}"><span class="note-preview" dir="auto">${escapeHtml(previewText(expense.note, 120))}</span></td>
+            <td>${escapeHtml(formatTodoDate(expense.date))}</td>
+            <td class="expense-amount">${money(expense.amount)}</td>
+            <td>${expense.paid ? '<span class="status-pill geschlagen">באצאלט</span>' : ''}</td>
           </tr>`;
         }).join('');
     }
@@ -3377,7 +3377,7 @@
             <button type="button" class="calendar-expense-item" data-calendar-expense-open="${escapeHtml(expense.id)}">
               <strong>${escapeHtml(expense.name)}</strong>
               <span class="expense-amount">${money(expense.amount)}</span>
-              <span class="small-note">${escapeHtml([expense.category, expense.note].filter(Boolean).join(' — ') || 'No additional details')}</span>
+              <span class="small-note"><bdi dir="auto">${escapeHtml(previewText([expense.category, expense.note].filter(Boolean).join(' — ') || 'No additional details', 140))}</bdi></span>
             </button>`).join('')
         : '<div class="empty-state">No expenses recorded for this date.</div>';
       calendarExpenseModal.classList.add('open');

@@ -2881,6 +2881,7 @@
         ghost: null,
         offsetX: 0,
         offsetY: 0,
+        lockedLeft: 0,
         originalOrder: [...todoList.querySelectorAll('[data-todo-row]:not(.todo-completed-row)')]
           .map(item => item.dataset.todoRow)
       };
@@ -2890,6 +2891,7 @@
         const rect = drag.row.getBoundingClientRect();
         drag.offsetX = drag.startX - rect.left;
         drag.offsetY = drag.startY - rect.top;
+        drag.lockedLeft = rect.left;
         drag.ghost = drag.row.cloneNode(true);
         drag.ghost.classList.remove('dragging', 'drag-over');
         drag.ghost.classList.add('todo-drag-ghost');
@@ -2962,8 +2964,17 @@
 
       event.preventDefault();
       if (todoDrag.ghost) {
-        todoDrag.ghost.style.left = `${event.clientX - todoDrag.offsetX}px`;
-        todoDrag.ghost.style.top = `${event.clientY - todoDrag.offsetY}px`;
+        const activeRows = getActiveTodoRows();
+        const firstRect = activeRows[0]?.getBoundingClientRect();
+        const lastRect = activeRows[activeRows.length - 1]?.getBoundingClientRect();
+        if (firstRect && lastRect) {
+          const minimumTop = firstRect.top;
+          const maximumTop = Math.max(minimumTop, lastRect.bottom - todoDrag.ghost.offsetHeight);
+          const requestedTop = event.clientY - todoDrag.offsetY;
+          const constrainedTop = Math.min(maximumTop, Math.max(minimumTop, requestedTop));
+          todoDrag.ghost.style.left = `${todoDrag.lockedLeft}px`;
+          todoDrag.ghost.style.top = `${constrainedTop}px`;
+        }
       }
 
       const edgeDistance = 72;

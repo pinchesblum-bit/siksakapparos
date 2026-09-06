@@ -780,18 +780,18 @@
     .expense-table { min-width: 720px; }
     .expense-table th:last-child,
     .expense-table td:last-child { text-align: right; }
+    .expense-row { cursor: pointer; }
+    .expense-row:hover { background: #fbf7f0; }
+    .expense-row:focus-visible { outline: 3px solid rgba(111,75,47,.24); outline-offset: -3px; }
     .expense-amount { color: #9d2f25; font-weight: 850; }
-    .expense-actions { display: inline-flex; gap: 7px; }
-    .expense-action-btn {
-      padding: 7px 10px;
-      border: 1px solid var(--line);
-      border-radius: 9px;
-      background: #fff;
+    .expense-readonly input:disabled,
+    .expense-readonly textarea:disabled {
+      opacity: 1;
       color: var(--ink);
-      font-size: 12px;
-      font-weight: 750;
+      -webkit-text-fill-color: var(--ink);
+      background: #faf7f1;
+      cursor: default;
     }
-    .expense-action-btn.delete { color: #9d2f25; border-color: #e4b7b1; }
 
     .settings-panel { padding: 24px; }
     .settings-panel h2 { margin: 0 0 5px; font-size: 28px; }
@@ -1409,7 +1409,6 @@
                   <th>Expense</th>
                   <th>Category</th>
                   <th>Amount</th>
-                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="expenseList"></tbody>
@@ -1769,6 +1768,7 @@
         <div class="modal-actions">
           <button type="button" class="danger-btn" id="deleteExpenseBtn" hidden>Delete</button>
           <button type="button" class="secondary-btn" id="cancelExpenseBtn">Cancel</button>
+          <button type="button" class="primary-btn" id="editExpenseBtn" hidden>Edit</button>
           <button type="submit" class="primary-btn" id="saveExpenseBtn">Save</button>
         </div>
       </form>
@@ -1973,6 +1973,8 @@
     const expenseCategory = document.getElementById('expenseCategory');
     const expenseNote = document.getElementById('expenseNote');
     const deleteExpenseBtn = document.getElementById('deleteExpenseBtn');
+    const editExpenseBtn = document.getElementById('editExpenseBtn');
+    const saveExpenseBtn = document.getElementById('saveExpenseBtn');
     const closeExpenseModalBtn = document.getElementById('closeExpenseModalBtn');
     const cancelExpenseBtn = document.getElementById('cancelExpenseBtn');
     const settingsHome = document.getElementById('settingsHome');
@@ -3095,7 +3097,7 @@
         .slice()
         .sort((a, b) => b.date.localeCompare(a.date) || String(a.name).localeCompare(String(b.name)))
         .map(expense => `
-          <tr>
+          <tr class="expense-row" data-expense-open="${escapeHtml(expense.id)}" tabindex="0" title="Open expense">
             <td>${escapeHtml(formatTodoDate(expense.date))}</td>
             <td>
               <strong>${escapeHtml(expense.name)}</strong>
@@ -3103,12 +3105,6 @@
             </td>
             <td>${escapeHtml(expense.category || '—')}</td>
             <td class="expense-amount">${money(expense.amount)}</td>
-            <td>
-              <span class="expense-actions">
-                <button type="button" class="expense-action-btn" data-expense-edit="${escapeHtml(expense.id)}">Edit</button>
-                <button type="button" class="expense-action-btn delete" data-expense-delete="${escapeHtml(expense.id)}">Delete</button>
-              </span>
-            </td>
           </tr>`).join('');
     }
 
@@ -3155,6 +3151,42 @@
       setAccountingTab(state.accountingTab);
     }
 
+    function setExpenseFieldMode(readOnly) {
+      [expenseName, expenseAmount, expenseDate, expenseCategory, expenseNote].forEach(field => {
+        field.disabled = readOnly;
+      });
+      expenseForm.classList.toggle('expense-readonly', readOnly);
+    }
+
+    function showExpenseView(expense) {
+      expenseModalTitle.textContent = 'Expense';
+      expenseName.value = expense?.name || '';
+      expenseAmount.value = expense ? Number(expense.amount || 0).toFixed(2) : '';
+      expenseDate.value = expense?.date || getLocalDateValue();
+      expenseCategory.value = expense?.category || '';
+      expenseNote.value = expense?.note || '';
+      setExpenseFieldMode(true);
+      deleteExpenseBtn.hidden = false;
+      cancelExpenseBtn.textContent = 'Close';
+      editExpenseBtn.hidden = false;
+      saveExpenseBtn.hidden = true;
+    }
+
+    function showExpenseEditor(expense = null) {
+      expenseModalTitle.textContent = expense ? 'Edit Expense' : 'Add Expense';
+      expenseName.value = expense?.name || '';
+      expenseAmount.value = expense ? Number(expense.amount || 0).toFixed(2) : '';
+      expenseDate.value = expense?.date || getLocalDateValue();
+      expenseCategory.value = expense?.category || '';
+      expenseNote.value = expense?.note || '';
+      setExpenseFieldMode(false);
+      deleteExpenseBtn.hidden = !expense;
+      cancelExpenseBtn.textContent = 'Cancel';
+      editExpenseBtn.hidden = true;
+      saveExpenseBtn.hidden = false;
+      setTimeout(() => expenseName.focus(), 0);
+    }
+
     function openExpenseModal(expenseId = null) {
       expenseForm.reset();
       state.editingExpenseId = expenseId;
@@ -3163,16 +3195,10 @@
         : null;
       if (expenseId && !expense) return;
 
-      expenseModalTitle.textContent = expense ? 'Edit Expense' : 'Add Expense';
-      expenseName.value = expense?.name || '';
-      expenseAmount.value = expense ? Number(expense.amount || 0).toFixed(2) : '';
-      expenseDate.value = expense?.date || getLocalDateValue();
-      expenseCategory.value = expense?.category || '';
-      expenseNote.value = expense?.note || '';
-      deleteExpenseBtn.hidden = !expense;
       expenseModal.classList.add('open');
       expenseModal.setAttribute('aria-hidden', 'false');
-      setTimeout(() => expenseName.focus(), 0);
+      if (expense) showExpenseView(expense);
+      else showExpenseEditor();
     }
 
     function closeExpenseModal() {
@@ -3523,13 +3549,19 @@
       if (event.target === expenseModal) closeExpenseModal();
     });
     expenseList.addEventListener('click', event => {
-      const editButton = event.target.closest('[data-expense-edit]');
-      if (editButton) {
-        openExpenseModal(editButton.dataset.expenseEdit);
-        return;
-      }
-      const deleteButton = event.target.closest('[data-expense-delete]');
-      if (deleteButton) deleteExpense(deleteButton.dataset.expenseDelete);
+      const row = event.target.closest('[data-expense-open]');
+      if (row) openExpenseModal(row.dataset.expenseOpen);
+    });
+    expenseList.addEventListener('keydown', event => {
+      if (!['Enter', ' '].includes(event.key)) return;
+      const row = event.target.closest('[data-expense-open]');
+      if (!row) return;
+      event.preventDefault();
+      openExpenseModal(row.dataset.expenseOpen);
+    });
+    editExpenseBtn.addEventListener('click', () => {
+      const expense = (state.settings.accountingExpenses || []).find(item => item.id === state.editingExpenseId);
+      if (expense) showExpenseEditor(expense);
     });
     deleteExpenseBtn.addEventListener('click', () => {
       if (state.editingExpenseId) deleteExpense(state.editingExpenseId);

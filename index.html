@@ -1448,7 +1448,7 @@
             </button>
             <button type="button" class="settings-card" data-settings-open="export">
               <span class="settings-card-title">Export Data</span>
-              <span class="settings-card-note">Download sales and reports for Excel.</span>
+            <span class="settings-card-note">Download sales, reports, tasks, and accounting for Excel.</span>
             </button>
           </div>
         </div>
@@ -1597,7 +1597,7 @@
             <h3>Export Data</h3>
           </div>
           <p class="small-note">Download only the sales and report information for Excel.</p>
-          <button type="button" class="secondary-btn" id="exportExcelBtn">Export Sales and Reports to Excel</button>
+          <button type="button" class="secondary-btn" id="exportExcelBtn">Export All Data to Excel</button>
         </div>
       </div>
     </section>
@@ -3241,7 +3241,7 @@
       }).join('')}</Row>`;
     }
 
-    function exportSalesAndReports() {
+    function exportAllData() {
       expirePastReservations();
       const groups = {};
       state.settings.paymentMethods.forEach(method => {
@@ -3305,6 +3305,51 @@
         ]))
       ].join('');
 
+      const taskRows = [
+        excelRow(['Order', 'Task', 'Note', 'Due Date', 'Status', 'One Thing Left', 'Created', 'Updated'].map(value => ({ value, style: 'Header' }))),
+        ...(state.settings.todoTasks || [])
+          .slice()
+          .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+          .map(task => excelRow([
+            { value: Number(task.order || 0) + 1, type: 'Number', style: 'Integer' },
+            task.title || '',
+            task.description || '',
+            task.dueDate || '',
+            task.completed ? 'מסדר' : task.almostComplete ? 'כמעט מסדר' : 'Not Complete',
+            task.remainingItem || '',
+            task.createdAt ? new Date(task.createdAt).toLocaleString('en-US') : '',
+            task.updatedAt ? new Date(task.updatedAt).toLocaleString('en-US') : ''
+          ]))
+      ].join('');
+
+      const accountingExpenses = (state.settings.accountingExpenses || [])
+        .slice()
+        .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+      const accountingIncomeTotal = state.sales.reduce((sum, sale) =>
+        (sale.status || 'paid') === 'paid' && !isBanshakPayment(sale.paymentType)
+          ? sum + Number(sale.price || 0)
+          : sum, 0);
+      const accountingExpenseTotal = accountingExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+      const accountingNetTotal = accountingIncomeTotal - accountingExpenseTotal;
+      const accountingRows = [
+        excelRow([{ value: 'All Time Accounting', style: 'Title' }]),
+        excelRow([{ value: 'Metric', style: 'Header' }, { value: 'Value', style: 'Header' }]),
+        excelRow(['Income', { value: accountingIncomeTotal, type: 'Number', style: 'Currency' }]),
+        excelRow(['Expenses', { value: accountingExpenseTotal, type: 'Number', style: 'Currency' }]),
+        excelRow([accountingNetTotal >= 0 ? 'Profit' : 'Deficit', { value: Math.abs(accountingNetTotal), type: 'Number', style: 'Currency' }]),
+        '<Row/>',
+        excelRow(['Date', 'Expense', 'Category', 'Amount', 'Note', 'Created', 'Updated'].map(value => ({ value, style: 'Header' }))),
+        ...accountingExpenses.map(expense => excelRow([
+          expense.date || '',
+          expense.name || '',
+          expense.category || '',
+          { value: Number(expense.amount || 0), type: 'Number', style: 'Currency' },
+          expense.note || '',
+          expense.createdAt ? new Date(expense.createdAt).toLocaleString('en-US') : '',
+          expense.updatedAt ? new Date(expense.updatedAt).toLocaleString('en-US') : ''
+        ]))
+      ].join('');
+
       const workbook = `<?xml version="1.0" encoding="UTF-8"?>
         <?mso-application progid="Excel.Sheet"?>
         <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
@@ -3327,13 +3372,21 @@
             <Column ss:Width="190"/><Column ss:Width="110"/><Column ss:Width="110"/>
             ${reportRows}
           </Table></Worksheet>
+          <Worksheet ss:Name="Tasks"><Table>
+            <Column ss:Width="65"/><Column ss:Width="180"/><Column ss:Width="240"/><Column ss:Width="95"/><Column ss:Width="110"/><Column ss:Width="200"/><Column ss:Width="140"/><Column ss:Width="140"/>
+            ${taskRows}
+          </Table></Worksheet>
+          <Worksheet ss:Name="Accounting"><Table>
+            <Column ss:Width="100"/><Column ss:Width="170"/><Column ss:Width="120"/><Column ss:Width="90"/><Column ss:Width="240"/><Column ss:Width="140"/><Column ss:Width="140"/>
+            ${accountingRows}
+          </Table></Worksheet>
         </Workbook>`;
 
       const blob = new Blob(['\ufeff', workbook], { type: 'application/vnd.ms-excel;charset=utf-8' });
       const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = `kapparos-sales-report-${new Date().toISOString().slice(0, 10)}.xls`;
+      link.download = `kapparos-all-data-${new Date().toISOString().slice(0, 10)}.xls`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -4413,7 +4466,7 @@
       showToast('Report settings saved');
     });
 
-    exportExcelBtn.addEventListener('click', exportSalesAndReports);
+    exportExcelBtn.addEventListener('click', exportAllData);
 
     document.addEventListener('click', e => {
       if (!menuPopover.contains(e.target) && !menuBtn.contains(e.target)) {

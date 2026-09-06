@@ -1098,6 +1098,34 @@
     .modal-backdrop { z-index: 200; }
     #confirmModal { z-index: 220; }
     #securityModal { z-index: 230; }
+    #sendTicketModal { z-index: 225; }
+    .send-ticket-modal { width: min(470px, 100%); }
+    .send-ticket-methods {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .send-ticket-method {
+      min-height: 54px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 800;
+    }
+    .send-ticket-method.selected {
+      border-color: var(--accent);
+      background: #f3e9db;
+      color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(111,75,47,.1);
+    }
+    .send-ticket-method:disabled {
+      cursor: not-allowed;
+      opacity: .58;
+      background: #f7f3ed;
+    }
+    .send-ticket-recipient[hidden] { display: none !important; }
     .security-modal {
       width: min(440px, 100%);
       padding: 30px;
@@ -1609,7 +1637,7 @@
           <div class="ticket-preview-actions">
             <button type="button" class="secondary-btn" id="backToSaleBtn">← Back to Sale</button>
             <button type="button" class="secondary-btn" id="downloadTicketPdfBtn">Download PDF</button>
-            <button type="button" class="secondary-btn" id="emailTicketPageBtn">Send Email</button>
+            <button type="button" class="secondary-btn" id="emailTicketPageBtn">Send Ticket</button>
             <button type="button" class="primary-btn" id="printTicketPageBtn">Print</button>
           </div>
         </div>
@@ -1940,7 +1968,7 @@
         <div class="modal-actions">
           <button type="button" class="danger-btn" id="deleteSaleBtn" hidden>Delete</button>
           <button type="button" class="secondary-btn" id="printSaleTicketBtn" hidden>Print Ticket</button>
-          <button type="button" class="secondary-btn" id="emailSaleTicketBtn" hidden>Send Email</button>
+          <button type="button" class="secondary-btn" id="emailSaleTicketBtn" hidden>Send Ticket</button>
           <button type="button" class="secondary-btn" id="cancelBtn">Cancel</button>
           <button type="button" class="primary-btn" id="editSaleBtn" hidden>Edit</button>
           <button type="submit" class="primary-btn" id="saveSaleBtn">Save Sale</button>
@@ -2094,6 +2122,32 @@
         <button type="button" class="secondary-btn" id="confirmNoBtn">No</button>
         <button type="button" class="primary-btn" id="confirmYesBtn">Yes</button>
       </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="sendTicketModal" aria-hidden="true">
+    <div class="modal send-ticket-modal" role="dialog" aria-modal="true" aria-labelledby="sendTicketModalTitle">
+      <div class="modal-head">
+        <h2 id="sendTicketModalTitle">Send Ticket</h2>
+        <button type="button" class="close-btn" id="closeSendTicketModalBtn" aria-label="Close">×</button>
+      </div>
+      <p class="small-note">Choose how you want to send this ticket.</p>
+      <div class="send-ticket-methods" role="group" aria-label="Send ticket method">
+        <button type="button" class="send-ticket-method" data-send-ticket-method="text" disabled title="Google Voice setup will be added later">Text — Set Up Later</button>
+        <button type="button" class="send-ticket-method" data-send-ticket-method="email">Email</button>
+      </div>
+      <form id="sendTicketForm">
+        <div class="field send-ticket-recipient" id="sendTicketRecipientWrap" hidden>
+          <label for="sendTicketRecipient" id="sendTicketRecipientLabel">Send To</label>
+          <input id="sendTicketRecipient" autocomplete="off" required />
+          <div class="helper" id="sendTicketHelper"></div>
+        </div>
+        <p class="settings-message" id="sendTicketError" role="alert"></p>
+        <div class="modal-actions">
+          <button type="button" class="secondary-btn" id="cancelSendTicketBtn">Cancel</button>
+          <button type="submit" class="primary-btn" id="sendTicketSubmitBtn" hidden>Send</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -2324,6 +2378,17 @@
     const downloadTicketPdfBtn = document.getElementById('downloadTicketPdfBtn');
     const emailTicketPageBtn = document.getElementById('emailTicketPageBtn');
     const printTicketPageBtn = document.getElementById('printTicketPageBtn');
+    const sendTicketModal = document.getElementById('sendTicketModal');
+    const closeSendTicketModalBtn = document.getElementById('closeSendTicketModalBtn');
+    const cancelSendTicketBtn = document.getElementById('cancelSendTicketBtn');
+    const sendTicketForm = document.getElementById('sendTicketForm');
+    const sendTicketRecipientWrap = document.getElementById('sendTicketRecipientWrap');
+    const sendTicketRecipientLabel = document.getElementById('sendTicketRecipientLabel');
+    const sendTicketRecipient = document.getElementById('sendTicketRecipient');
+    const sendTicketHelper = document.getElementById('sendTicketHelper');
+    const sendTicketError = document.getElementById('sendTicketError');
+    const sendTicketSubmitBtn = document.getElementById('sendTicketSubmitBtn');
+    const sendTicketMethodBtns = document.querySelectorAll('[data-send-ticket-method]');
     const confirmModal = document.getElementById('confirmModal');
     const confirmMessage = document.getElementById('confirmMessage');
     const confirmNoBtn = document.getElementById('confirmNoBtn');
@@ -2898,12 +2963,13 @@
       });
     }
 
-    async function sendTicketEmail(button, saleId) {
+    async function sendTicketEmail(button, saleId, recipientOverride = '') {
       const sale = state.sales.find(item => item.id === saleId);
-      if (!sale) return;
-      if (!String(sale.email || '').trim()) {
+      if (!sale) return false;
+      const recipient = String(recipientOverride || sale.email || '').trim();
+      if (!recipient) {
         showToast('Add an email address to this sale first');
-        return;
+        return false;
       }
       const originalText = button.textContent;
       button.disabled = true;
@@ -2912,10 +2978,121 @@
         const image = await renderTicketToJpeg(sale);
         const pdf = createPdfFromJpeg(image.bytes, image.width, image.height);
         const pdfBase64 = await blobToBase64(pdf);
-        await cloudRequest('send-ticket', { saleId: sale.id, pdfBase64 });
-        showToast(`Ticket sent to ${sale.email}`);
+        await cloudRequest('send-ticket', { saleId: sale.id, recipient, pdfBase64 });
+        showToast(`Ticket sent to ${recipient}`);
+        return true;
       } catch (error) {
         showToast(error.message || 'The ticket email could not be sent.');
+        return false;
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+
+    let sendTicketSaleId = '';
+    let sendTicketMethod = '';
+
+    function closeSendTicketModal() {
+      sendTicketModal.classList.remove('open');
+      sendTicketModal.setAttribute('aria-hidden', 'true');
+      sendTicketSaleId = '';
+      sendTicketMethod = '';
+      sendTicketForm.reset();
+      sendTicketRecipientWrap.hidden = true;
+      sendTicketSubmitBtn.hidden = true;
+      sendTicketError.textContent = '';
+      sendTicketMethodBtns.forEach(button => button.classList.remove('selected'));
+    }
+
+    function chooseSendTicketMethod(method) {
+      const sale = state.sales.find(item => item.id === sendTicketSaleId);
+      if (!sale || !['text', 'email'].includes(method)) return;
+      sendTicketMethod = method;
+      sendTicketMethodBtns.forEach(button => {
+        button.classList.toggle('selected', button.dataset.sendTicketMethod === method);
+      });
+      sendTicketRecipientWrap.hidden = false;
+      sendTicketSubmitBtn.hidden = false;
+      sendTicketError.textContent = '';
+      if (method === 'email') {
+        sendTicketRecipientLabel.textContent = 'Email Address';
+        sendTicketRecipient.type = 'email';
+        sendTicketRecipient.inputMode = 'email';
+        sendTicketRecipient.removeAttribute('pattern');
+        sendTicketRecipient.removeAttribute('maxlength');
+        sendTicketRecipient.value = sale.email || '';
+        sendTicketHelper.textContent = 'You can use the saved email or enter a different email for this ticket.';
+      } else {
+        sendTicketRecipientLabel.textContent = 'Phone Number';
+        sendTicketRecipient.type = 'tel';
+        sendTicketRecipient.inputMode = 'numeric';
+        sendTicketRecipient.pattern = '[0-9]{10}';
+        sendTicketRecipient.maxLength = 10;
+        sendTicketRecipient.value = String(sale.phone || '').replace(/\D/g, '').slice(0, 10);
+        sendTicketHelper.textContent = 'Choose Messages in the share screen. The phone number will be copied if your device cannot fill it automatically.';
+      }
+      setTimeout(() => sendTicketRecipient.focus(), 0);
+    }
+
+    function openSendTicketModal(saleId) {
+      const sale = state.sales.find(item => item.id === saleId);
+      if (!sale || state.settings.printTicketsEnabled === false) return;
+      sendTicketSaleId = sale.id;
+      sendTicketMethod = '';
+      sendTicketForm.reset();
+      sendTicketRecipientWrap.hidden = true;
+      sendTicketSubmitBtn.hidden = true;
+      sendTicketError.textContent = '';
+      sendTicketMethodBtns.forEach(button => button.classList.remove('selected'));
+      sendTicketModal.classList.add('open');
+      sendTicketModal.setAttribute('aria-hidden', 'false');
+    }
+
+    async function shareTicketPicture(button, saleId, phone) {
+      const sale = state.sales.find(item => item.id === saleId);
+      if (!sale) return false;
+      const digits = String(phone || '').replace(/\D/g, '');
+      if (digits.length !== 10) {
+        sendTicketError.textContent = 'Enter exactly 10 digits.';
+        sendTicketRecipient.focus();
+        return false;
+      }
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = 'Preparing…';
+      try {
+        const image = await renderTicketToJpeg(sale);
+        const ticketId = getSaleTicketId(sale);
+        const file = new File([image.bytes], `kapparos-ticket-${ticketId}.jpg`, { type: 'image/jpeg' });
+        const shareData = { title: `Kapparos Ticket #${ticketId}`, text: `Kapparos Ticket #${ticketId}`, files: [file] };
+        const canSharePicture = typeof navigator.share === 'function'
+          && (typeof navigator.canShare !== 'function' || navigator.canShare(shareData));
+        if (canSharePicture) {
+          try {
+            if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(digits);
+          } catch (_) {}
+          await navigator.share(shareData);
+          showToast('Ticket picture shared');
+          return true;
+        }
+
+        const blob = new Blob([image.bytes], { type: 'image/jpeg' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+        showToast('Ticket picture downloaded. Attach it in Messages.');
+        setTimeout(() => { window.location.href = `sms:+1${digits}`; }, 350);
+        return true;
+      } catch (error) {
+        if (error?.name === 'AbortError') return false;
+        showToast(error.message || 'The ticket picture could not be shared.');
+        return false;
       } finally {
         button.disabled = false;
         button.textContent = originalText;
@@ -5033,15 +5210,38 @@
       if (sale) showSaleEditor(sale);
     });
     printSaleTicketBtn.addEventListener('click', () => openTicketForSale(state.editingSaleId));
-    emailSaleTicketBtn.addEventListener('click', () => sendTicketEmail(emailSaleTicketBtn, state.editingSaleId));
+    emailSaleTicketBtn.addEventListener('click', () => openSendTicketModal(state.editingSaleId));
     backToSaleBtn.addEventListener('click', () => {
       const saleId = state.ticketSaleId;
       showPage('sales');
       if (saleId && state.sales.some(sale => sale.id === saleId)) openModal(saleId);
     });
     downloadTicketPdfBtn.addEventListener('click', downloadTicketPdf);
-    emailTicketPageBtn.addEventListener('click', () => sendTicketEmail(emailTicketPageBtn, state.ticketSaleId));
+    emailTicketPageBtn.addEventListener('click', () => openSendTicketModal(state.ticketSaleId));
     printTicketPageBtn.addEventListener('click', () => window.print());
+    closeSendTicketModalBtn.addEventListener('click', closeSendTicketModal);
+    cancelSendTicketBtn.addEventListener('click', closeSendTicketModal);
+    sendTicketModal.addEventListener('click', event => {
+      if (event.target === sendTicketModal) closeSendTicketModal();
+    });
+    sendTicketMethodBtns.forEach(button => {
+      button.addEventListener('click', () => chooseSendTicketMethod(button.dataset.sendTicketMethod));
+    });
+    sendTicketRecipient.addEventListener('input', () => {
+      if (sendTicketMethod === 'text') {
+        sendTicketRecipient.value = sendTicketRecipient.value.replace(/\D/g, '').slice(0, 10);
+      }
+      sendTicketError.textContent = '';
+    });
+    sendTicketForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!sendTicketMethod || !sendTicketForm.reportValidity()) return;
+      const recipient = sendTicketRecipient.value.trim();
+      const sent = sendTicketMethod === 'email'
+        ? await sendTicketEmail(sendTicketSubmitBtn, sendTicketSaleId, recipient)
+        : await shareTicketPicture(sendTicketSubmitBtn, sendTicketSaleId, recipient);
+      if (sent) closeSendTicketModal();
+    });
     saleModal.addEventListener('click', e => { if (e.target === saleModal) closeModal(); });
 
     quantityInput.addEventListener('input', () => {

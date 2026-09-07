@@ -1080,6 +1080,7 @@
 
     .confirm-modal { width: min(460px, 100%); text-align: center; }
     .confirm-message { margin: 4px 0 24px; font-size: 21px; line-height: 1.55; font-weight: 750; direction: rtl; }
+    .confirm-customer-name { color: var(--accent); font-weight: 900; }
     .confirm-actions { display: flex; justify-content: center; gap: 12px; }
     .confirm-actions button { min-width: 105px; }
 
@@ -2467,8 +2468,17 @@
 
     let confirmationResolver = null;
 
-    function askConfirmation(message) {
-      confirmMessage.textContent = message;
+    function askConfirmation(message, customerName = '') {
+      confirmMessage.textContent = '';
+      if (customerName) {
+        confirmMessage.append(document.createTextNode('פארצייכן '));
+        const name = document.createElement('strong');
+        name.className = 'confirm-customer-name';
+        name.textContent = customerName;
+        confirmMessage.append(name, document.createTextNode(' אלץ געשלאגן?'));
+      } else {
+        confirmMessage.textContent = message;
+      }
       confirmModal.classList.add('open');
       confirmModal.setAttribute('aria-hidden', 'false');
       setTimeout(() => confirmYesBtn.focus(), 0);
@@ -4557,7 +4567,7 @@
       try {
         const customerName = String(sale.fullName || '').trim();
         const confirmationName = customerName || 'דעם פארקויף';
-        if (!(await askConfirmation(`פארצייכן ${confirmationName} אלץ געשלאגן?`))) return;
+        if (!(await askConfirmation('', confirmationName))) return;
         sale.geschlagen = true;
         sale.updatedAt = new Date().toISOString();
         saveSales();

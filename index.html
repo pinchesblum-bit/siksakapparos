@@ -1231,6 +1231,66 @@
     .toggle-switch input:checked + .toggle-slider::after { transform: translateX(21px); }
     .toggle-switch input:focus-visible + .toggle-slider { box-shadow: 0 0 0 3px rgba(66,100,71,.22); }
 
+    /* Consistent professional Settings layout */
+    .settings-view { max-width: 980px; margin: 0 auto; }
+    .settings-view-head { padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+    .settings-view form:not(#ticketDeliverySettingsForm) { display: grid; gap: 16px; }
+    .settings-view form:not(#ticketDeliverySettingsForm) > .settings-grid,
+    .settings-section,
+    .settings-view[data-settings-view="login"] > .settings-switch-row {
+      margin-top: 0;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fffdf9;
+      box-shadow: 0 7px 18px rgba(63,44,28,.045);
+    }
+    .settings-section { margin-top: 16px; padding-top: 18px; }
+    .settings-view form > .settings-section { margin-top: 0; }
+    .settings-home .settings-card { position: relative; padding-right: 54px; }
+    .settings-home .settings-card::after {
+      content: '›';
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      color: var(--accent);
+      font-size: 30px;
+      font-weight: 400;
+      line-height: 1;
+      transform: translateY(-50%);
+    }
+    .settings-section h3 {
+      margin: 0 0 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #eee5d9;
+      font-size: 17px;
+    }
+    .settings-section .settings-switch-row + .settings-switch-row { margin-top: 10px; }
+    .settings-actions {
+      align-items: center;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+    .sales-basics-grid { align-items: stretch; }
+    .sales-basics-grid > .field {
+      display: grid;
+      grid-template-rows: minmax(42px, auto) 44px minmax(38px, auto);
+      align-content: start;
+      gap: 7px;
+      min-width: 0;
+    }
+    .sales-basics-grid > .field > label { display: flex; align-items: end; margin: 0; line-height: 1.35; }
+    .sales-basics-grid > .field > input,
+    .sales-basics-grid > .field > .price-wrap { height: 44px; min-height: 44px; }
+    .sales-basics-grid .helper { margin: 0; line-height: 1.4; }
+    .reservation-setting-copy { display: grid; gap: 4px; }
+    .reservation-setting-copy .settings-card-note { margin: 0; font-weight: 500; }
+    @media (max-width: 700px) {
+      .settings-panel { padding: 18px 14px; }
+      .settings-grid { grid-template-columns: minmax(0, 1fr); }
+      .sales-basics-grid > .field { grid-template-rows: auto 44px auto; }
+    }
+
     .confirm-modal { width: min(460px, 100%); text-align: center; }
     .confirm-message { margin: 4px 0 24px; font-size: 21px; line-height: 1.55; font-weight: 750; direction: rtl; }
     .confirm-customer-name { color: var(--accent); font-weight: 900; }
@@ -1892,16 +1952,27 @@
             <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="sales">Edit</button>
           </div>
           <form id="salesSettingsForm">
-            <div class="settings-grid">
+            <div class="settings-grid sales-basics-grid">
               <div class="field">
                 <label for="settingDefaultPrice">Default Price per כפרה</label>
                 <div class="price-wrap"><span>$</span><input id="settingDefaultPrice" type="number" min="0" step="0.01" required /></div>
+                <div class="helper">Used automatically when adding a new sale.</div>
               </div>
               <div class="field">
                 <label for="settingInventory">Total כפרות Available for Sale</label>
                 <input id="settingInventory" type="number" min="0" step="1" required />
                 <div class="helper">This cannot be lower than the number already sold.</div>
               </div>
+            </div>
+            <div class="settings-section">
+              <h3>Sale Options</h3>
+              <label class="settings-switch-row field full">
+                <span class="reservation-setting-copy"><span>Allow Reservations</span><span class="settings-card-note">When turned off, new sales can only be marked Paid.</span></span>
+                <span class="toggle-switch">
+                  <input type="checkbox" id="settingReservationsEnabled" />
+                  <span class="toggle-slider" aria-hidden="true"></span>
+                </span>
+              </label>
             </div>
             <div class="settings-section">
               <h3>Contact Fields</h3>
@@ -1925,7 +1996,7 @@
               <div class="payment-methods-list" id="paymentMethodsList"></div>
               <button type="button" class="secondary-btn" id="addPaymentMethodBtn">+ Add Payment Method</button>
             </div>
-            <div class="settings-section">
+            <div class="settings-section" id="reservedPaymentPlansSection">
               <h3>Reserved Payment Plans</h3>
               <p class="small-note">These choices appear under פלאנט צו באצהלן when a sale is Reserved.</p>
               <div class="payment-plans-list" id="paymentPlansList"></div>
@@ -2485,12 +2556,12 @@
     const CHANGE_CONFIRMATION = 'ביסטו זיכער אז דו ווילסט מאכן דעם טויש?';
     const DELETE_CONFIRMATION = 'דו ביסט באקאנט אז די נאמען גייט יעצט ווערן אינגאנצן אויסגעמעקט?';
     const DEFAULT_TICKET_DELIVERY = {
-      emailSubject: '{brand} — Ticket #{ticket_id}',
+      emailSubject: 'Your Kapparos Ticket — #{ticket_id}',
       emailSender: '{brand}',
       heading: '{title}',
       subheading: '{subtitle}',
       ticketNumberLabel: 'Ticket',
-      emailMessage: 'Scan the barcode above, or use the attached printable PDF.',
+      emailMessage: 'Hello {name},\n\nThank you for choosing {brand}. Please present the barcode above or the attached PDF when picking up your kapparos.\n\nגמר חתימה טובה',
       footer: 'Please keep this ticket.',
       nameLabel: 'Name',
       phoneLabel: 'Phone',
@@ -2520,7 +2591,7 @@
       pdfMutedColor: '#756c63',
       pdfHeadingSize: 64,
       pdfValueSize: 43,
-      smsMessage: '{title}\n{subtitle}\n\nTicket ID: {ticket_id}\nName: {name}\nPhone: {phone}\nAmount of כפרות: {quantity}\nPayment Method: {payment_method}'
+      smsMessage: '{title}\n{subtitle}\n\nHello {name},\n\nThank you for choosing {brand} for your kapparos.\n\nOrder details:\nName: {name}\nPhone: {phone}\nNumber of kapparos: {quantity}\nPayment method: {payment_method}\n\nPlease present this ticket number when picking up your kapparos:\n#{ticket_id}\n\nגמר חתימה טובה'
     };
     const DEFAULT_SETTINGS = {
       title: 'פנים מאירות סיקסא',
@@ -2530,6 +2601,7 @@
       homeSummaryScope: 'paid',
       salesSortMode: 'name',
       printTicketsEnabled: true,
+      reservationsEnabled: true,
       phoneRequired: true,
       emailRequired: false,
       todoSortMode: 'manual',
@@ -2730,6 +2802,8 @@
     const settingShowNeedsSaved = document.getElementById('settingShowNeedsSaved');
     const settingDefaultPrice = document.getElementById('settingDefaultPrice');
     const settingInventory = document.getElementById('settingInventory');
+    const settingReservationsEnabled = document.getElementById('settingReservationsEnabled');
+    const reservedPaymentPlansSection = document.getElementById('reservedPaymentPlansSection');
     const settingPhoneRequired = document.getElementById('settingPhoneRequired');
     const settingEmailRequired = document.getElementById('settingEmailRequired');
     const settingUsername = document.getElementById('settingUsername');
@@ -3038,6 +3112,7 @@
           homeSummaryLabel: typeof saved.homeSummaryLabel === 'string' && saved.homeSummaryLabel.trim() ? saved.homeSummaryLabel.trim() : DEFAULT_SETTINGS.homeSummaryLabel,
           homeSummaryScope: saved.homeSummaryScope === 'paid_reserved' ? 'paid_reserved' : 'paid',
           printTicketsEnabled: saved.printTicketsEnabled !== false,
+          reservationsEnabled: saved.reservationsEnabled !== false,
           phoneRequired: saved.phoneRequired !== false,
           emailRequired: Boolean(saved.emailRequired),
           todoSortMode: ['manual', 'name', 'due'].includes(saved.todoSortMode) ? saved.todoSortMode : DEFAULT_SETTINGS.todoSortMode,
@@ -3842,6 +3917,19 @@
         : text;
     }
 
+    function applyReservationAvailability() {
+      const reservationsEnabled = state.settings.reservationsEnabled !== false;
+      const reservedOption = saleStatus.querySelector('option[value="reserved"]');
+      if (reservedOption) {
+        reservedOption.hidden = !reservationsEnabled;
+        reservedOption.disabled = !reservationsEnabled;
+      }
+      if (!reservationsEnabled && !state.editingSaleId && saleStatus.value === 'reserved') {
+        saleStatus.value = 'paid';
+      }
+      reservedPaymentPlansSection.hidden = !reservationsEnabled;
+    }
+
     function applySettingsToUi() {
       brandTitle.textContent = state.settings.title;
       brandSubtitle.textContent = state.settings.subtitle;
@@ -3856,6 +3944,7 @@
       saleEmailInput.required = emailRequired;
       phoneRequiredMark.hidden = !phoneRequired;
       emailRequiredMark.hidden = !emailRequired;
+      applyReservationAvailability();
       ticketScanner.hidden = state.settings.printTicketsEnabled === false;
       todoSort.value = ['due', 'name', 'manual'].includes(state.settings.todoSortMode)
         ? state.settings.todoSortMode
@@ -4180,6 +4269,8 @@
       settingShowNeedsSaved.checked = Boolean(state.settings.showNeedsSavedOnHome);
       settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
       settingInventory.value = state.settings.inventory;
+      settingReservationsEnabled.checked = state.settings.reservationsEnabled !== false;
+      reservedPaymentPlansSection.hidden = state.settings.reservationsEnabled === false;
       settingPhoneRequired.checked = state.settings.phoneRequired !== false;
       settingEmailRequired.checked = Boolean(state.settings.emailRequired);
       settingPrintTicketsEnabled.checked = state.settings.printTicketsEnabled !== false;
@@ -4236,8 +4327,9 @@
         [settingCurrentPassword, settingPassword, settingConfirmPassword].forEach(input => { input.type = 'password'; });
       }
       if (section === 'sales') {
-        settingPhoneRequired.disabled = false;
-        settingEmailRequired.disabled = false;
+        settingReservationsEnabled.disabled = !editing;
+        settingPhoneRequired.disabled = !editing;
+        settingEmailRequired.disabled = !editing;
         addPaymentMethodBtn.disabled = !editing;
         addPaymentPlanBtn.disabled = !editing;
         addCustomFieldBtn.disabled = !editing;
@@ -4257,6 +4349,8 @@
       if (section === 'sales') {
         settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
         settingInventory.value = state.settings.inventory;
+        settingReservationsEnabled.checked = state.settings.reservationsEnabled !== false;
+        reservedPaymentPlansSection.hidden = state.settings.reservationsEnabled === false;
         settingPhoneRequired.checked = state.settings.phoneRequired !== false;
         settingEmailRequired.checked = Boolean(state.settings.emailRequired);
         settingsDraftMethods = state.settings.paymentMethods.map(method => ({ ...method }));
@@ -6365,11 +6459,16 @@
       showToast('Home Screen settings saved');
     });
 
+    settingReservationsEnabled.addEventListener('change', () => {
+      reservedPaymentPlansSection.hidden = !settingReservationsEnabled.checked;
+    });
+
     salesSettingsForm.addEventListener('submit', async e => {
       e.preventDefault();
       if (!salesSettingsForm.reportValidity()) return;
       const defaultPrice = Number(settingDefaultPrice.value);
       const inventory = Math.floor(Number(settingInventory.value));
+      const reservationsEnabled = settingReservationsEnabled.checked;
       const phoneRequired = settingPhoneRequired.checked;
       const emailRequired = settingEmailRequired.checked;
       const sold = getKapparosSold();
@@ -6397,11 +6496,11 @@
         salesSettingsMessage.textContent = 'Payment Method Names must be different.';
         return;
       }
-      if (!planNames.length || planNames.some(name => !name)) {
+      if (reservationsEnabled && (!planNames.length || planNames.some(name => !name))) {
         salesSettingsMessage.textContent = 'Every reserved payment plan needs a name.';
         return;
       }
-      if (new Set(normalizedPlanNames).size !== normalizedPlanNames.length) {
+      if (reservationsEnabled && new Set(normalizedPlanNames).size !== normalizedPlanNames.length) {
         salesSettingsMessage.textContent = 'Reserved payment plan names must be different.';
         return;
       }
@@ -6418,6 +6517,7 @@
       const nextFields = settingsDraftFields.map((field, index) => ({ ...field, label: fieldNames[index] }));
       const salesChanged = defaultPrice !== Number(state.settings.defaultPrice)
         || inventory !== Number(state.settings.inventory)
+        || reservationsEnabled !== (state.settings.reservationsEnabled !== false)
         || phoneRequired !== (state.settings.phoneRequired !== false)
         || emailRequired !== Boolean(state.settings.emailRequired)
         || JSON.stringify(nextMethods) !== JSON.stringify(state.settings.paymentMethods)
@@ -6432,6 +6532,7 @@
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
       state.settings.defaultPrice = defaultPrice;
       state.settings.inventory = inventory;
+      state.settings.reservationsEnabled = reservationsEnabled;
       state.settings.phoneRequired = phoneRequired;
       state.settings.emailRequired = emailRequired;
       state.settings.paymentMethods = nextMethods;

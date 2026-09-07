@@ -6190,7 +6190,7 @@
         if (!e.repeat) closeModal();
         return;
       }
-      if (e.key === 'Enter' && confirmModal.classList.contains('open')) {
+      if (e.key === 'Enter' && !e.defaultPrevented && confirmModal.classList.contains('open')) {
         e.preventDefault();
         finishConfirmation(true);
         return;

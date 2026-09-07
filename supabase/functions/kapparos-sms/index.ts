@@ -84,17 +84,25 @@ Deno.serve(async (req: Request) => {
     if (!username || !password) return json(req, { error: 'Text messaging is not configured yet.' }, 503);
     const methods = Array.isArray(settings.paymentMethods) ? settings.paymentMethods : [];
     const payment = methods.find((item: any) => String(item?.id) === String(sale.paymentType))?.label || sale.paymentType || 'Not selected';
-    const defaultMessage = [
-      settings.title || 'פנים מאירות סיקסא', settings.subtitle || 'כפרות', '',
-      `Ticket ID: ${ticketId}`, `Name: ${sale.fullName || '—'}`,
-      `Phone: ${displayPhone}`, `Amount of כפרות: ${sale.quantity || 0}`,
-      `Payment Method: ${payment}`
-    ].join('\n');
-    const template = settings.ticketDelivery?.smsMessage;
     const title = settings.title || 'פנים מאירות סיקסא';
     const subtitle = settings.subtitle || 'כפרות';
+    const brand = [title, subtitle].filter(Boolean).join(' ');
+    const defaultMessage = [
+      title, subtitle, '',
+      `Hello ${sale.fullName || '—'},`, '',
+      `Thank you for choosing ${brand} for your kapparos.`, '',
+      'Order details:',
+      `Name: ${sale.fullName || '—'}`,
+      `Phone: ${displayPhone}`,
+      `Number of kapparos: ${sale.quantity || 0}`,
+      `Payment method: ${payment}`, '',
+      'Please present this ticket number when picking up your kapparos:',
+      `#${ticketId}`, '',
+      'גמר חתימה טובה'
+    ].join('\n');
+    const template = settings.ticketDelivery?.smsMessage;
     const message = typeof template === 'string' && template.trim()
-      ? fillTicketTemplate(template.slice(0, 1000), { title, subtitle, brand: [title, subtitle].filter(Boolean).join(' '),
+      ? fillTicketTemplate(template.slice(0, 1000), { title, subtitle, brand,
           ticket_id: ticketId, name: sale.fullName || '—', phone: displayPhone,
           quantity: sale.quantity || 0, payment_method: payment })
       : defaultMessage;

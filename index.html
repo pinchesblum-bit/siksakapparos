@@ -447,6 +447,7 @@
       color: #9d2f25;
       box-shadow: 0 0 0 3px rgba(182,59,49,.14);
     }
+    .completion-payment-error { margin: -12px 0 18px; }
     .kapparah-pill {
       display: inline-flex;
       min-width: 44px;
@@ -1910,7 +1911,7 @@
           <span>געשלאגן</span>
           <input id="geschlagen" name="geschlagen" type="checkbox" />
         </label>
-        <div class="inventory-error" id="geschlagenPaymentError" role="alert" hidden>This sale is not paid.</div>
+        <div class="inventory-error completion-payment-error" id="geschlagenPaymentError" role="alert" hidden>אנטשולדיגט מען ברויכט קודם באצאלן</div>
         <div class="form-grid">
           <div class="field full">
             <label for="fullName">Full Name <span class="required-mark">*</span></label>
@@ -3427,7 +3428,7 @@
 
     function validateSaleCompletionStatus() {
       const invalid = geschlagenInput.checked && saleStatus.value !== 'paid';
-      geschlagenInput.setCustomValidity(invalid ? 'This sale is not paid.' : '');
+      geschlagenInput.setCustomValidity(invalid ? 'אנטשולדיגט מען ברויכט קודם באצאלן' : '');
       geschlagenControl?.classList.toggle('completion-invalid', invalid);
       geschlagenPaymentError.hidden = !invalid;
       return !invalid;
@@ -4469,7 +4470,7 @@
       setSaleFormMode(true);
       deleteSaleBtn.hidden = true;
       const sale = state.sales.find(item => item.id === state.editingSaleId);
-      if (geschlagenControl) geschlagenControl.hidden = sale?.status !== 'paid';
+      if (geschlagenControl) geschlagenControl.hidden = false;
       geschlagenPaymentError.hidden = true;
       geschlagenControl?.classList.remove('completion-invalid');
       const ticketAvailable = canUseSaleTicket(sale);
@@ -5394,7 +5395,7 @@
       const sale = state.sales.find(item => item.id === state.editingSaleId);
       if (!sale) return;
       if (sale.status !== 'paid') {
-        geschlagenInput.checked = false;
+        validateSaleCompletionStatus();
         return;
       }
       const previousValue = Boolean(sale.geschlagen);

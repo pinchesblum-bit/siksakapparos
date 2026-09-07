@@ -358,21 +358,35 @@
     .sales-summary-totals {
       display: flex;
       align-items: center;
-      gap: 9px;
+      gap: 10px;
       width: max-content;
       max-width: 100%;
+      height: 48px;
       min-height: 48px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-sizing: border-box;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(36, 29, 23, .07);
       color: var(--ink);
       direction: rtl;
       white-space: nowrap;
     }
     .sales-summary-totals[hidden] { display: none; }
-    .sales-summary-total-label { font-size: 16px; font-weight: 850; color: var(--ink); }
-    .sales-summary-row { display: inline-flex; align-items: baseline; gap: 6px; padding: 0; color: var(--accent); }
-    .sales-summary-row span { font-size: 14px; font-weight: 650; }
-    .sales-summary-row strong { font-size: 19px; line-height: 1; font-variant-numeric: tabular-nums; }
+    .sales-summary-total-label {
+      padding-left: 10px;
+      border-left: 1px solid var(--line);
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .sales-summary-row { display: inline-flex; align-items: center; gap: 5px; padding: 0; color: var(--accent); }
+    .sales-summary-row span { font-size: 15px; font-weight: 650; line-height: 1; }
+    .sales-summary-row strong { font-size: 15px; font-weight: 850; line-height: 1; font-variant-numeric: tabular-nums; }
     .sales-summary-row.completed { color: var(--success); }
-    .sales-summary-divider { width: 1px; height: 19px; background: var(--line); }
+    .sales-summary-divider { width: 1px; height: 20px; background: var(--line); }
     .sales-search input,
     .ticket-scanner,
     .table-add-sale {

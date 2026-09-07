@@ -1126,6 +1126,10 @@
       background: #f7f3ed;
     }
     .send-ticket-recipient[hidden] { display: none !important; }
+    .send-ticket-text-tools[hidden] { display: none !important; }
+    .send-ticket-text-tools { display: grid; gap: 12px; margin-top: 14px; }
+    .send-ticket-text-tools textarea { min-height: 190px; resize: vertical; line-height: 1.55; }
+    .send-ticket-copy-actions { display: flex; flex-wrap: wrap; gap: 9px; }
     .security-modal {
       width: min(440px, 100%);
       padding: 30px;
@@ -2133,7 +2137,7 @@
       </div>
       <p class="small-note">Choose how you want to send this ticket.</p>
       <div class="send-ticket-methods" role="group" aria-label="Send ticket method">
-        <button type="button" class="send-ticket-method" data-send-ticket-method="text" disabled title="Google Voice setup will be added later">Text — Set Up Later</button>
+        <button type="button" class="send-ticket-method" data-send-ticket-method="text">Text</button>
         <button type="button" class="send-ticket-method" data-send-ticket-method="email">Email</button>
       </div>
       <form id="sendTicketForm">
@@ -2141,6 +2145,17 @@
           <label for="sendTicketRecipient" id="sendTicketRecipientLabel">Send To</label>
           <input id="sendTicketRecipient" autocomplete="off" required />
           <div class="helper" id="sendTicketHelper"></div>
+        </div>
+        <div class="send-ticket-text-tools" id="sendTicketTextTools" hidden>
+          <div class="field">
+            <label for="sendTicketTextPreview">Message</label>
+            <textarea id="sendTicketTextPreview" readonly></textarea>
+          </div>
+          <div class="send-ticket-copy-actions">
+            <button type="button" class="secondary-btn" id="copySendTicketPhoneBtn">Copy Phone</button>
+            <button type="button" class="primary-btn" id="copySendTicketMessageBtn">Copy Message</button>
+            <button type="button" class="secondary-btn" id="openGoogleVoiceBtn">Open Google Voice</button>
+          </div>
         </div>
         <p class="settings-message" id="sendTicketError" role="alert"></p>
         <div class="modal-actions">
@@ -2388,6 +2403,11 @@
     const sendTicketHelper = document.getElementById('sendTicketHelper');
     const sendTicketError = document.getElementById('sendTicketError');
     const sendTicketSubmitBtn = document.getElementById('sendTicketSubmitBtn');
+    const sendTicketTextTools = document.getElementById('sendTicketTextTools');
+    const sendTicketTextPreview = document.getElementById('sendTicketTextPreview');
+    const copySendTicketPhoneBtn = document.getElementById('copySendTicketPhoneBtn');
+    const copySendTicketMessageBtn = document.getElementById('copySendTicketMessageBtn');
+    const openGoogleVoiceBtn = document.getElementById('openGoogleVoiceBtn');
     const sendTicketMethodBtns = document.querySelectorAll('[data-send-ticket-method]');
     const confirmModal = document.getElementById('confirmModal');
     const confirmMessage = document.getElementById('confirmMessage');
@@ -2993,6 +3013,19 @@
     let sendTicketSaleId = '';
     let sendTicketMethod = '';
 
+    function buildTicketText(sale) {
+      return [
+        state.settings.title,
+        state.settings.subtitle,
+        '',
+        `Ticket ID: ${getSaleTicketId(sale)}`,
+        `Name: ${sale.fullName || '—'}`,
+        `Phone: ${String(sendTicketRecipient.value || sale.phone || '').trim() || '—'}`,
+        `Amount of כפרות: ${sale.quantity || 0}`,
+        `Payment Method: ${getTicketPaymentText(sale)}`
+      ].join('\n');
+    }
+
     function closeSendTicketModal() {
       sendTicketModal.classList.remove('open');
       sendTicketModal.setAttribute('aria-hidden', 'true');
@@ -3000,6 +3033,8 @@
       sendTicketMethod = '';
       sendTicketForm.reset();
       sendTicketRecipientWrap.hidden = true;
+      sendTicketTextTools.hidden = true;
+      sendTicketTextPreview.value = '';
       sendTicketSubmitBtn.hidden = true;
       sendTicketError.textContent = '';
       sendTicketMethodBtns.forEach(button => button.classList.remove('selected'));
@@ -3023,6 +3058,9 @@
         sendTicketRecipient.removeAttribute('maxlength');
         sendTicketRecipient.value = sale.email || '';
         sendTicketHelper.textContent = 'You can use the saved email or enter a different email for this ticket.';
+        sendTicketTextTools.hidden = true;
+        sendTicketSubmitBtn.hidden = false;
+        sendTicketSubmitBtn.textContent = 'Send';
       } else {
         sendTicketRecipientLabel.textContent = 'Phone Number';
         sendTicketRecipient.type = 'tel';
@@ -3030,7 +3068,10 @@
         sendTicketRecipient.pattern = '[0-9]{10}';
         sendTicketRecipient.maxLength = 10;
         sendTicketRecipient.value = String(sale.phone || '').replace(/\D/g, '').slice(0, 10);
-        sendTicketHelper.textContent = 'Choose Messages in the share screen. The phone number will be copied if your device cannot fill it automatically.';
+        sendTicketHelper.textContent = 'Copy the phone and message, then open Google Voice and paste them.';
+        sendTicketTextPreview.value = buildTicketText(sale);
+        sendTicketTextTools.hidden = false;
+        sendTicketSubmitBtn.hidden = true;
       }
       setTimeout(() => sendTicketRecipient.focus(), 0);
     }
@@ -3042,6 +3083,8 @@
       sendTicketMethod = '';
       sendTicketForm.reset();
       sendTicketRecipientWrap.hidden = true;
+      sendTicketTextTools.hidden = true;
+      sendTicketTextPreview.value = '';
       sendTicketSubmitBtn.hidden = true;
       sendTicketError.textContent = '';
       sendTicketMethodBtns.forEach(button => button.classList.remove('selected'));
@@ -5230,16 +5273,49 @@
     sendTicketRecipient.addEventListener('input', () => {
       if (sendTicketMethod === 'text') {
         sendTicketRecipient.value = sendTicketRecipient.value.replace(/\D/g, '').slice(0, 10);
+        const sale = state.sales.find(item => item.id === sendTicketSaleId);
+        if (sale) sendTicketTextPreview.value = buildTicketText(sale);
       }
       sendTicketError.textContent = '';
     });
+    async function copySendTicketValue(value, successMessage) {
+      try {
+        await navigator.clipboard.writeText(value);
+      } catch (_) {
+        const temporary = document.createElement('textarea');
+        temporary.value = value;
+        temporary.style.position = 'fixed';
+        temporary.style.opacity = '0';
+        document.body.appendChild(temporary);
+        temporary.select();
+        document.execCommand('copy');
+        temporary.remove();
+      }
+      showToast(successMessage);
+    }
+    copySendTicketPhoneBtn.addEventListener('click', () => {
+      const phone = sendTicketRecipient.value.replace(/\D/g, '');
+      if (phone.length !== 10) {
+        sendTicketError.textContent = 'Enter exactly 10 digits.';
+        sendTicketRecipient.focus();
+        return;
+      }
+      copySendTicketValue(phone, 'Phone number copied');
+    });
+    copySendTicketMessageBtn.addEventListener('click', () => {
+      const sale = state.sales.find(item => item.id === sendTicketSaleId);
+      if (!sale) return;
+      sendTicketTextPreview.value = buildTicketText(sale);
+      copySendTicketValue(sendTicketTextPreview.value, 'Ticket message copied');
+    });
+    openGoogleVoiceBtn.addEventListener('click', () => {
+      window.open('https://voice.google.com/u/0/messages', '_blank', 'noopener,noreferrer');
+    });
     sendTicketForm.addEventListener('submit', async event => {
       event.preventDefault();
-      if (!sendTicketMethod || !sendTicketForm.reportValidity()) return;
+      if (sendTicketMethod !== 'email' || !sendTicketForm.reportValidity()) return;
       const recipient = sendTicketRecipient.value.trim();
-      const sent = sendTicketMethod === 'email'
-        ? await sendTicketEmail(sendTicketSubmitBtn, sendTicketSaleId, recipient)
-        : await shareTicketPicture(sendTicketSubmitBtn, sendTicketSaleId, recipient);
+      const sent = await sendTicketEmail(sendTicketSubmitBtn, sendTicketSaleId, recipient);
       if (sent) closeSendTicketModal();
     });
     saleModal.addEventListener('click', e => { if (e.target === saleModal) closeModal(); });

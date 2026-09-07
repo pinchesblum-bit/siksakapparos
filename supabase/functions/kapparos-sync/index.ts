@@ -130,6 +130,24 @@ function validEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254;
 }
 
+function ticketText(delivery: any, key: string, fallback: string, max = 4000) {
+  return typeof delivery?.[key] === 'string' ? delivery[key].slice(0, max) : fallback;
+}
+
+function ticketBoolean(delivery: any, key: string, fallback: boolean) {
+  return typeof delivery?.[key] === 'boolean' ? delivery[key] : fallback;
+}
+
+function ticketColor(delivery: any, key: string, fallback: string) {
+  const value = String(delivery?.[key] || '');
+  return /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+}
+
+function ticketSize(delivery: any, key: string, fallback: number, min: number, max: number) {
+  const value = Number(delivery?.[key]);
+  return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+}
+
 async function getResendSender() {
   try {
     const response = await fetch('https://api.resend.com/domains?limit=100', {
@@ -199,31 +217,63 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
   const subtitle = String(settings?.subtitle || '').trim();
   const brandName = [title, subtitle].filter(Boolean).join(' ');
   const delivery = settings?.ticketDelivery || {};
-  const values = { name: sale.fullName || '—', ticket_id: ticketId, quantity: sale.quantity || 0,
-    phone: sale.phone || '—', payment_method: payment, title, subtitle, brand: brandName };
-  const subjectTemplate = typeof delivery.emailSubject === 'string' && delivery.emailSubject.trim()
-    ? delivery.emailSubject.slice(0, 200) : '{brand} — Ticket #{ticket_id}';
-  const messageTemplate = typeof delivery.emailMessage === 'string'
-    ? delivery.emailMessage.slice(0, 4000) : 'Scan the barcode above, or use the attached printable PDF.';
+  const values = {
+    name: sale.fullName || '—',
+    ticket_id: ticketId,
+    quantity: sale.quantity || 0,
+    phone: sale.phone || '—',
+    payment_method: payment,
+    price_paid: pricePaid,
+    title,
+    subtitle,
+    brand: brandName,
+  };
+  const subjectTemplate = ticketText(delivery, 'emailSubject', '{brand} — Ticket #{ticket_id}', 200);
   const subject = fillTicketTemplate(subjectTemplate, values).replace(/[\r\n]+/g, ' ').trim();
-  const emailMessage = fillTicketTemplate(messageTemplate, values);
-  const html = `<!doctype html><html><body style="margin:0;background:#f7f2e7;font-family:Arial,sans-serif;color:#241f1a">
-    <div style="max-width:620px;margin:32px auto;padding:30px;background:#fff;border:2px solid #6f4b2f;border-radius:18px">
-      <h1 style="margin:0 0 6px;text-align:center;color:#6f4b2f">${escapeEmailHtml(title)}</h1>
-      ${subtitle ? `<div style="margin:0 0 10px;text-align:center;font-size:22px;font-weight:800;color:#6f4b2f">${escapeEmailHtml(subtitle)}</div>` : ''}
-      <p style="margin:0 0 26px;text-align:center;font-weight:700">Ticket #${escapeEmailHtml(ticketId)}</p>
-      <table style="width:100%;border-collapse:collapse">
-        <tr><td style="padding:11px;border-bottom:1px solid #e5ddd1;color:#756c63">Name</td><td style="padding:11px;border-bottom:1px solid #e5ddd1;font-weight:700" dir="auto">${escapeEmailHtml(sale.fullName)}</td></tr>
-        <tr><td style="padding:11px;border-bottom:1px solid #e5ddd1;color:#756c63">Phone</td><td style="padding:11px;border-bottom:1px solid #e5ddd1;font-weight:700">${escapeEmailHtml(sale.phone)}</td></tr>
-        <tr><td style="padding:11px;border-bottom:1px solid #e5ddd1;color:#756c63">Amount of כפרות</td><td style="padding:11px;border-bottom:1px solid #e5ddd1;font-weight:700">${escapeEmailHtml(sale.quantity)}</td></tr>
-        <tr><td style="padding:11px;border-bottom:1px solid #e5ddd1;color:#756c63">Price Paid</td><td style="padding:11px;border-bottom:1px solid #e5ddd1;font-weight:700">${escapeEmailHtml(pricePaid)}</td></tr>
-        <tr><td style="padding:11px;color:#756c63">Payment Method</td><td style="padding:11px;font-weight:700" dir="auto">${escapeEmailHtml(payment)}</td></tr>
-      </table>
-      <div style="margin:28px auto 10px;text-align:center">
+  const senderName = fillTicketTemplate(ticketText(delivery, 'emailSender', '{brand}', 120), values).replace(/[\r\n]+/g, ' ').trim() || brandName || 'Kapparos Tickets';
+  const heading = fillTicketTemplate(ticketText(delivery, 'heading', '{title}', 160), values);
+  const subheading = fillTicketTemplate(ticketText(delivery, 'subheading', '{subtitle}', 160), values);
+  const ticketLabel = fillTicketTemplate(ticketText(delivery, 'ticketNumberLabel', 'Ticket', 80), values);
+  const emailMessage = fillTicketTemplate(ticketText(delivery, 'emailMessage', 'Scan the barcode above, or use the attached printable PDF.'), values);
+  const background = ticketColor(delivery, 'emailBackgroundColor', '#f7f2e7');
+  const card = ticketColor(delivery, 'emailCardColor', '#ffffff');
+  const accent = ticketColor(delivery, 'emailAccentColor', '#6f4b2f');
+  const textColor = ticketColor(delivery, 'emailTextColor', '#241f1a');
+  const muted = ticketColor(delivery, 'emailMutedColor', '#756c63');
+  const fontSize = ticketSize(delivery, 'emailFontSize', 16, 12, 24);
+  const headingSize = ticketSize(delivery, 'emailHeadingSize', 30, 20, 48);
+  const showSubtitle = ticketBoolean(delivery, 'emailShowSubtitle', true);
+  const showDetails = ticketBoolean(delivery, 'emailShowDetails', true);
+  const showPrice = ticketBoolean(delivery, 'emailShowPrice', true);
+  const showBarcode = ticketBoolean(delivery, 'emailShowBarcode', true);
+  const showMessage = ticketBoolean(delivery, 'emailShowMessage', true);
+  const nameLabel = fillTicketTemplate(ticketText(delivery, 'nameLabel', 'Name', 80), values);
+  const phoneLabel = fillTicketTemplate(ticketText(delivery, 'phoneLabel', 'Phone', 80), values);
+  const quantityLabel = fillTicketTemplate(ticketText(delivery, 'quantityLabel', 'Amount of כפרות', 80), values);
+  const priceLabel = fillTicketTemplate(ticketText(delivery, 'priceLabel', 'Price Paid', 80), values);
+  const paymentLabel = fillTicketTemplate(ticketText(delivery, 'paymentLabel', 'Payment Method', 80), values);
+  const rows: Array<[string, unknown]> = [
+    [nameLabel, sale.fullName || '—'],
+    [phoneLabel, sale.phone || '—'],
+    [quantityLabel, sale.quantity || 0],
+    ...(showPrice ? [[priceLabel, pricePaid] as [string, unknown]] : []),
+    [paymentLabel, payment],
+  ];
+  const detailsHtml = rows.map(([label, value], index) => {
+    const border = index === rows.length - 1 ? '' : 'border-bottom:1px solid #e5ddd1;';
+    return `<tr><td style="padding:11px;${border}color:${muted}">${escapeEmailHtml(label)}</td><td style="padding:11px;${border}font-weight:700" dir="auto">${escapeEmailHtml(value)}</td></tr>`;
+  }).join('');
+  const html = `<!doctype html><html><body style="margin:0;background:${background};font-family:Arial,sans-serif;color:${textColor};font-size:${fontSize}px">
+    <div style="max-width:620px;margin:32px auto;padding:30px;background:${card};border:2px solid ${accent};border-radius:18px">
+      <h1 dir="auto" style="margin:0 0 6px;text-align:center;color:${accent};font-size:${headingSize}px">${escapeEmailHtml(heading)}</h1>
+      ${showSubtitle && subheading ? `<div dir="auto" style="margin:0 0 10px;text-align:center;font-size:${Math.max(16, Math.round(headingSize * .72))}px;font-weight:800;color:${accent}">${escapeEmailHtml(subheading)}</div>` : ''}
+      <p dir="auto" style="margin:0 0 26px;text-align:center;font-weight:700">${escapeEmailHtml(ticketLabel)} #${escapeEmailHtml(ticketId)}</p>
+      ${showDetails ? `<table style="width:100%;border-collapse:collapse">${detailsHtml}</table>` : ''}
+      ${showBarcode ? `<div style="margin:28px auto 10px;text-align:center">
         ${buildEmailBarcode(ticketId)}
-        <div style="margin-top:8px;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:.2em;color:#241f1a">${escapeEmailHtml(ticketId)}</div>
-      </div>
-      <p dir="auto" style="margin:18px 0 0;text-align:center;color:#756c63;white-space:pre-wrap">${escapeEmailHtml(emailMessage)}</p>
+        <div style="margin-top:8px;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:.2em;color:${textColor}">${escapeEmailHtml(ticketId)}</div>
+      </div>` : ''}
+      ${showMessage && emailMessage ? `<p dir="auto" style="margin:18px 0 0;text-align:center;color:${muted};white-space:pre-wrap">${escapeEmailHtml(emailMessage)}</p>` : ''}
     </div>
   </body></html>`;
 
@@ -236,7 +286,7 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
         auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
       });
       const info = await transporter.sendMail({
-        from: { name: brandName || 'Kapparos Tickets', address: GMAIL_USER },
+        from: { name: senderName, address: GMAIL_USER },
         to: recipient,
         subject,
         html,

@@ -1143,7 +1143,12 @@
     }
     .modal-backdrop.open { display: flex; }
     .modal-backdrop { z-index: 200; }
-    #confirmModal { z-index: 220; }
+    #confirmModal {
+      z-index: 220;
+      background: rgba(36, 29, 23, .34);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
     #securityModal { z-index: 230; }
     #sendTicketModal { z-index: 225; }
     .send-ticket-modal { width: min(470px, 100%); }

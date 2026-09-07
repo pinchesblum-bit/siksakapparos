@@ -2793,13 +2793,17 @@
       return getPaymentMethod(sale.paymentType)?.label || sale.paymentType || 'Not selected';
     }
 
+    function canUseSaleTicket(sale) {
+      return Boolean(sale && sale.status === 'paid' && state.settings.printTicketsEnabled !== false);
+    }
+
     function ticketDetail(label, value, full = false) {
       return `<div class="ticket-detail${full ? ' full' : ''}"><span class="ticket-detail-label">${escapeHtml(label)}</span><span class="ticket-detail-value" dir="auto">${escapeHtml(value || '—')}</span></div>`;
     }
 
     function renderTicketPage() {
       const sale = state.sales.find(item => item.id === state.ticketSaleId);
-      if (!sale || state.settings.printTicketsEnabled === false) {
+      if (!canUseSaleTicket(sale)) {
         sessionStorage.removeItem(TICKET_SALE_KEY);
         state.ticketSaleId = '';
         if (state.page === 'ticket') showPage('sales');
@@ -2829,7 +2833,7 @@
 
     function openTicketForSale(saleId) {
       const sale = state.sales.find(item => item.id === saleId);
-      if (!sale || state.settings.printTicketsEnabled === false) return;
+      if (!canUseSaleTicket(sale)) return;
       state.ticketSaleId = sale.id;
       sessionStorage.setItem(TICKET_SALE_KEY, sale.id);
       closeModal();
@@ -3088,7 +3092,7 @@
 
     function openSendTicketModal(saleId) {
       const sale = state.sales.find(item => item.id === saleId);
-      if (!sale || state.settings.printTicketsEnabled === false) return;
+      if (!canUseSaleTicket(sale)) return;
       sendTicketSaleId = sale.id;
       sendTicketMethod = '';
       sendTicketForm.reset();
@@ -4446,8 +4450,10 @@
       saleModalTitle.textContent = 'Sale';
       setSaleFormMode(true);
       deleteSaleBtn.hidden = true;
-      printSaleTicketBtn.hidden = state.settings.printTicketsEnabled === false;
-      emailSaleTicketBtn.hidden = state.settings.printTicketsEnabled === false;
+      const sale = state.sales.find(item => item.id === state.editingSaleId);
+      const ticketAvailable = canUseSaleTicket(sale);
+      printSaleTicketBtn.hidden = !ticketAvailable;
+      emailSaleTicketBtn.hidden = !ticketAvailable;
       cancelBtn.textContent = 'Close';
       editSaleBtn.hidden = false;
       saveSaleBtn.hidden = true;

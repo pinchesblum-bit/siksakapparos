@@ -1893,7 +1893,7 @@
           <div class="settings-cards">
             <button type="button" class="settings-card" data-settings-open="website">
               <span class="settings-card-title">Home Screen</span>
-              <span class="settings-card-note">Edit the website title, subtitle, and Sales homepage summary.</span>
+              <span class="settings-card-note">Edit the website title, subtitle, homepage totals, and Sales list direction.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="sales">
               <span class="settings-card-title">Sales</span>
@@ -1949,6 +1949,13 @@
                   <span class="toggle-slider" aria-hidden="true"></span>
                 </span>
               </label>
+              <label class="settings-switch-row field full">
+                <span class="reservation-setting-copy"><span>Hebrew Sales List Order</span><span class="settings-card-note">Name starts on the right and געשלאגן finishes on the left.</span></span>
+                <span class="toggle-switch">
+                  <input type="checkbox" id="settingSalesTableRtl" />
+                  <span class="toggle-slider" aria-hidden="true"></span>
+                </span>
+              </label>
             </div>
             <p class="settings-message" id="websiteSettingsMessage" role="alert"></p>
             <div class="settings-actions" data-settings-actions="website" hidden><button type="button" class="secondary-btn" data-cancel-settings="website">Cancel</button><button type="submit" class="primary-btn">Save</button></div>
@@ -1980,13 +1987,6 @@
                 <span class="reservation-setting-copy"><span>Allow Reservations</span><span class="settings-card-note">When turned off, new sales can only be marked Paid.</span></span>
                 <span class="toggle-switch">
                   <input type="checkbox" id="settingReservationsEnabled" />
-                  <span class="toggle-slider" aria-hidden="true"></span>
-                </span>
-              </label>
-              <label class="settings-switch-row field full">
-                <span class="reservation-setting-copy"><span>Hebrew Sales List Order</span><span class="settings-card-note">Name starts on the right and געשלאגן finishes on the left.</span></span>
-                <span class="toggle-switch">
-                  <input type="checkbox" id="settingSalesTableRtl" />
                   <span class="toggle-slider" aria-hidden="true"></span>
                 </span>
               </label>
@@ -4336,7 +4336,10 @@
         return;
       }
       form.querySelectorAll('input, select, button').forEach(control => { control.disabled = !editing; });
-      if (section === 'website') settingShowNeedsSaved.disabled = false;
+      if (section === 'website') {
+        settingShowNeedsSaved.disabled = false;
+        settingSalesTableRtl.disabled = false;
+      }
       document.querySelector(`[data-settings-actions="${section}"]`).hidden = !editing;
       const editButton = document.querySelector(`[data-edit-settings="${section}"]`);
       if (editButton) editButton.hidden = editing;
@@ -4349,7 +4352,6 @@
       }
       if (section === 'sales') {
         settingReservationsEnabled.disabled = false;
-        settingSalesTableRtl.disabled = false;
         settingPhoneRequired.disabled = false;
         settingEmailRequired.disabled = false;
         addPaymentMethodBtn.disabled = !editing;

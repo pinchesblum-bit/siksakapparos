@@ -275,7 +275,7 @@
     .table-head {
       display: grid;
       grid-template-columns: minmax(250px, 1fr) minmax(240px, 330px) minmax(250px, 1fr);
-      align-items: end;
+      align-items: center;
       gap: 16px;
       padding: 18px 20px;
       border-bottom: 1px solid var(--line);
@@ -322,7 +322,18 @@
     @media (max-width: 760px) {
       .ticket-text-layout { grid-template-columns: minmax(0, 1fr); gap: 28px; }
     }
-    .sales-search { width: 100%; }
+    .sales-search { position: relative; width: 100%; }
+    .sales-search label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
     .sales-sort { width: 100%; }
     .sales-sort select { min-height: 44px; padding: 10px 11px; background: #fff; font-size: 13px; }
     .table-add-sale { justify-self: end; min-height: 44px; }
@@ -335,7 +346,8 @@
     }
     .ticket-scanner {
       width: 150px;
-      min-height: 44px;
+      height: 48px;
+      min-height: 48px;
       padding: 9px 11px;
       font-size: 13px;
       text-align: center;
@@ -349,6 +361,7 @@
       gap: 9px;
       width: max-content;
       max-width: 100%;
+      min-height: 48px;
       color: var(--ink);
       direction: rtl;
       white-space: nowrap;
@@ -360,6 +373,13 @@
     .sales-summary-row strong { font-size: 19px; line-height: 1; font-variant-numeric: tabular-nums; }
     .sales-summary-row.completed { color: var(--success); }
     .sales-summary-divider { width: 1px; height: 19px; background: var(--line); }
+    .sales-search input,
+    .ticket-scanner,
+    .table-add-sale {
+      height: 48px;
+      min-height: 48px;
+      box-sizing: border-box;
+    }
     .sales-search input {
       padding-left: 40px;
       background:
@@ -422,9 +442,11 @@
       align-items: center;
       justify-content: center;
       min-width: 82px;
-      min-height: 32px;
+      height: 34px;
+      min-height: 34px;
       padding: 7px 11px;
       border-radius: 999px;
+      box-sizing: border-box;
       font-weight: 800;
       font-size: 13px;
       line-height: 1;
@@ -500,13 +522,19 @@
     .completion-payment-error { margin: -12px 0 18px; }
     .kapparah-pill {
       display: inline-flex;
-      min-width: 44px;
+      align-items: center;
       justify-content: center;
+      min-width: 44px;
+      height: 34px;
+      min-height: 34px;
       padding: 7px 11px;
       border-radius: 999px;
+      box-sizing: border-box;
       background: var(--accent-soft);
       color: var(--accent);
       font-weight: 800;
+      font-size: 13px;
+      line-height: 1;
     }
     .empty-state {
       padding: 48px 20px;

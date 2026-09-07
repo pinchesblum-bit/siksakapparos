@@ -75,8 +75,7 @@ Deno.serve(async (req: Request) => {
     if (!/^[0-9]{10}$/.test(ticketId)) return json(req, { error: 'Save this sale before sending its ticket.' }, 400);
     const username = Deno.env.get('SMSGATE_USERNAME') || '';
     const password = Deno.env.get('SMSGATE_PASSWORD') || '';
-    const deviceId = Deno.env.get('SMSGATE_DEVICE_ID') || '';
-    if (!username || !password || !deviceId) return json(req, { error: 'Text messaging is not configured yet.' }, 503);
+    if (!username || !password) return json(req, { error: 'Text messaging is not configured yet.' }, 503);
     const methods = Array.isArray(settings.paymentMethods) ? settings.paymentMethods : [];
     const payment = methods.find((item: any) => String(item?.id) === String(sale.paymentType))?.label || sale.paymentType || 'Not selected';
     const message = [
@@ -89,7 +88,7 @@ Deno.serve(async (req: Request) => {
     const response = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
       method: 'POST',
       headers: { Authorization: 'Basic ' + btoa(username + ':' + password), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deviceId, textMessage: { text: message }, phoneNumbers: ['+1' + recipient], withDeliveryReport: true }),
+      body: JSON.stringify({ textMessage: { text: message }, phoneNumbers: ['+1' + recipient], withDeliveryReport: true }),
       signal: AbortSignal.timeout(20000),
     });
     const result = await response.json().catch(() => ({}));

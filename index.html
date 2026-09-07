@@ -309,7 +309,13 @@
       text-align: center;
     }
     .sales-summary { justify-self: start; text-align: left; }
-    .sales-summary-value { margin-top: 2px; color: var(--accent); font-size: 28px; font-weight: 900; line-height: 1; }
+    .sales-summary-totals { margin-top: 8px; min-width: 170px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+    .sales-summary-totals[hidden] { display: none; }
+    .sales-summary-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 5px 0; color: var(--accent); }
+    .sales-summary-row + .sales-summary-row { border-top: 1px solid var(--line); }
+    .sales-summary-row span { font-size: 16px; }
+    .sales-summary-row strong { font-size: 23px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+    .sales-summary-row.completed { color: var(--success); }
     .sales-search input {
       padding-left: 40px;
       background:
@@ -1457,7 +1463,10 @@
           <div class="sales-summary">
             <h2 id="salesSummaryTitle">Sales</h2>
             <div class="small-note" id="salesSummarySubtitle">Names and amount of כפרה ordered</div>
-            <div class="sales-summary-value" id="salesSummaryValue" hidden>0</div>
+            <div class="sales-summary-totals" id="salesSummaryTotals" dir="rtl" hidden aria-live="polite">
+              <div class="sales-summary-row"><span>געבליבן</span><strong id="salesSummaryValue">0</strong></div>
+              <div class="sales-summary-row completed"><span>געשלאגן</span><strong id="salesCompletedValue">0</strong></div>
+            </div>
           </div>
           <div class="sales-tools">
             <div class="sales-search">
@@ -1519,15 +1528,15 @@
           <div class="stat-value" id="reportChickenTotal">0</div>
         </div>
         <div class="report-summary-card">
-          <div class="stat-label" id="reportPaidLabel">Amount of Paid</div>
+          <div class="stat-label" id="reportPaidLabel">סך הכל געבליבן</div>
           <div class="stat-value" id="reportPaidTotal">0</div>
         </div>
         <div class="report-summary-card available">
-          <div class="stat-label" id="reportNeedsReservedLabel">Needs to Be Reserved</div>
+          <div class="stat-label" id="reportNeedsReservedLabel">All Chickens — Paid + Reserved</div>
           <div class="stat-value" id="reportNeedsReservedTotal">0</div>
         </div>
         <div class="report-summary-card needs-save">
-          <div class="stat-label" id="reportNeedsSavedLabel">Needs to Be Saved</div>
+          <div class="stat-label" id="reportNeedsSavedLabel">Paid Chickens Including בנש״ק</div>
           <div class="stat-value" id="reportNeedsSavedTotal">0</div>
         </div>
       </div>
@@ -1716,7 +1725,7 @@
                 <input id="settingSubtitle" required />
               </div>
               <label class="settings-switch-row field full">
-                <span>Show this total on the Sales homepage</span>
+                <span>Show remaining and completed totals on the Sales homepage</span>
                 <span class="toggle-switch">
                   <input type="checkbox" id="settingShowNeedsSaved" />
                   <span class="toggle-slider" aria-hidden="true"></span>
@@ -1839,9 +1848,9 @@
           <form id="reportSettingsForm">
             <div class="settings-grid report-settings-grid">
               <div class="field"><label for="settingReportChickensLabel">Chicken Inventory Box</label><input id="settingReportChickensLabel" required /></div>
-              <div class="field"><label for="settingReportPaidLabel">Paid Orders Box</label><input id="settingReportPaidLabel" required /></div>
-              <div class="field"><label for="settingReportNeedsReservedLabel">Needs Reserved Box</label><input id="settingReportNeedsReservedLabel" required /></div>
-              <div class="field"><label for="settingReportNeedsSavedLabel">Needs Saved Box</label><input id="settingReportNeedsSavedLabel" required /></div>
+              <div class="field"><label for="settingReportPaidLabel">Box 2 — Chickens Left After Paid Sales</label><input id="settingReportPaidLabel" required /></div>
+              <div class="field"><label for="settingReportNeedsReservedLabel">Box 3 — All Chickens (Paid + Reserved, Including בנש״ק)</label><input id="settingReportNeedsReservedLabel" required /></div>
+              <div class="field"><label for="settingReportNeedsSavedLabel">Box 4 — Paid Chickens Including בנש״ק</label><input id="settingReportNeedsSavedLabel" required /></div>
             </div>
             <p class="settings-message" id="reportSettingsMessage" role="alert"></p>
             <div class="settings-actions" data-settings-actions="reports" hidden><button type="button" class="secondary-btn" data-cancel-settings="reports">Cancel</button><button type="submit" class="primary-btn">Save</button></div>
@@ -2178,6 +2187,11 @@
     const CLOUD_API = 'https://tugsxxafeaqbqonrruqt.supabase.co/functions/v1/kapparos-sync';
     let cloudSessionToken = sessionStorage.getItem(LOGIN_SESSION_KEY) || '';
     let cloudSaveTimer = null;
+    let cloudSaveInFlight = null;
+    let cloudSaveRevision = 0;
+    let cloudSaveDirty = false;
+    let cloudReady = false;
+    const PENDING_SAVE_KEY = 'kapparosPendingSaveV2';
     const CHANGE_CONFIRMATION = 'ביסטו זיכער אז דו ווילסט מאכן דעם טויש?';
     const DELETE_CONFIRMATION = 'דו ביסט באקאנט אז די נאמען גייט יעצט ווערן אינגאנצן אויסגעמעקט?';
     const DEFAULT_SETTINGS = {
@@ -2200,10 +2214,10 @@
       customFields: [],
       reportLabels: {
         chickens: 'Amount of Chickens',
-        paid: 'Amount of Paid',
+        paid: 'סך הכל געבליבן',
         reserved: 'Amount of Reserved',
-        needsReserved: 'Needs to Be Reserved',
-        needsSaved: 'Needs to Be Saved'
+        needsReserved: 'All Chickens — Paid + Reserved',
+        needsSaved: 'Paid Chickens Including בנש״ק'
       },
       paymentMethods: [
         { id: 'cash', label: 'Cash' },
@@ -2433,6 +2447,7 @@
     }
 
     function unlockWebsite(token = cloudSessionToken) {
+      cloudReady = true;
       cloudSessionToken = token || cloudSessionToken;
       if (cloudSessionToken) sessionStorage.setItem(LOGIN_SESSION_KEY, cloudSessionToken);
       loginGate.hidden = true;
@@ -2452,6 +2467,7 @@
     }
 
     function lockWebsite() {
+      cloudReady = false;
       cloudSessionToken = '';
       sessionStorage.removeItem(LOGIN_SESSION_KEY);
       sessionStorage.removeItem(LAST_PAGE_KEY);
@@ -2671,12 +2687,13 @@
             label: String(field.label),
             required: Boolean(field.required)
           })),
+          reportMetricsVersion: 2,
           reportLabels: {
             chickens: savedReportLabels.chickens || DEFAULT_SETTINGS.reportLabels.chickens,
-            paid: savedReportLabels.paid || DEFAULT_SETTINGS.reportLabels.paid,
+            paid: (saved.reportMetricsVersion === 2 && savedReportLabels.paid) || DEFAULT_SETTINGS.reportLabels.paid,
             reserved: savedReportLabels.reserved || DEFAULT_SETTINGS.reportLabels.reserved,
-            needsReserved: savedReportLabels.needsReserved || DEFAULT_SETTINGS.reportLabels.needsReserved,
-            needsSaved: savedReportLabels.needsSaved || DEFAULT_SETTINGS.reportLabels.needsSaved
+            needsReserved: (saved.reportMetricsVersion === 2 && savedReportLabels.needsReserved) || DEFAULT_SETTINGS.reportLabels.needsReserved,
+            needsSaved: (saved.reportMetricsVersion === 2 && savedReportLabels.needsSaved) || DEFAULT_SETTINGS.reportLabels.needsSaved
           },
           paymentMethods: savedMethods.length
             ? savedMethods.map(method => ({
@@ -3215,18 +3232,66 @@
     }
 
     function queueCloudSave() {
+      if (!cloudReady) { pendingTicketIdSave = true; return; }
       if (!cloudSessionToken) return;
+      cloudSaveDirty = true;
+      cloudSaveRevision++;
+      sessionStorage.setItem(PENDING_SAVE_KEY, JSON.stringify({
+        sales: state.sales, settings: state.settings, username: state.settings.username
+      }));
       clearTimeout(cloudSaveTimer);
-      cloudSaveTimer = setTimeout(async () => {
-        const token = cloudSessionToken;
-        try {
-          await cloudRequest('save', { sales: state.sales, settings: state.settings }, token);
-        } catch (error) {
-          showToast(error.message);
-          if (error.status === 401) lockWebsite();
-        }
-      }, 150);
+      cloudSaveTimer = setTimeout(() => { flushCloudSave().catch(() => {}); }, 150);
     }
+
+    async function flushCloudSave() {
+      clearTimeout(cloudSaveTimer);
+      if (cloudSaveInFlight) {
+        await cloudSaveInFlight;
+        if (cloudSaveDirty) return flushCloudSave();
+        return;
+      }
+      if (!cloudSaveDirty) return;
+      if (!cloudSessionToken) throw new Error('Please log in to finish saving.');
+      cloudSaveInFlight = (async () => {
+        while (cloudSaveDirty) {
+          const revision = cloudSaveRevision;
+          const snapshot = JSON.parse(JSON.stringify({ sales: state.sales, settings: state.settings }));
+          try {
+            await cloudRequest('save', snapshot);
+            if (revision === cloudSaveRevision) {
+              cloudSaveDirty = false;
+              sessionStorage.removeItem(PENDING_SAVE_KEY);
+            }
+          } catch (error) {
+            showToast('Changes are waiting to save. ' + error.message);
+            if (error.status === 401) lockWebsite();
+            else cloudSaveTimer = setTimeout(() => { flushCloudSave().catch(() => {}); }, 5000);
+            throw error;
+          }
+        }
+      })();
+      try { await cloudSaveInFlight; }
+      finally { cloudSaveInFlight = null; }
+    }
+
+    function restorePendingSave(data) {
+      const raw = sessionStorage.getItem(PENDING_SAVE_KEY);
+      if (!raw) return data;
+      try {
+        const pending = JSON.parse(raw);
+        if (pending.username !== data.settings?.username) return data;
+        cloudSaveDirty = true;
+        cloudSaveRevision++;
+        return { ...data, sales: pending.sales, settings: pending.settings };
+      } catch { return data; }
+    }
+
+    window.addEventListener('online', () => { flushCloudSave().catch(() => {}); });
+    window.addEventListener('beforeunload', event => {
+      if (!cloudSaveDirty) return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
 
     function saveSales() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sales));
@@ -3247,7 +3312,7 @@
 
     function getKapparosSold(excludeSaleId = null) {
       return state.sales.reduce((sum, sale) => {
-        if (sale.id === excludeSaleId) return sum;
+        if (sale.id === excludeSaleId || sale.status === 'expired') return sum;
         return sum + Number(sale.quantity || 0);
       }, 0);
     }
@@ -3255,7 +3320,7 @@
     function validateQuantityAvailability() {
       const quantity = Number(quantityInput.value);
       const available = state.settings.inventory - getKapparosSold(state.editingSaleId);
-      const insufficient = Number.isFinite(quantity) && quantity >= 1 && quantity > available;
+      const insufficient = saleStatus.value !== 'expired' && Number.isFinite(quantity) && quantity >= 1 && quantity > available;
       quantityInput.setCustomValidity(insufficient ? 'עס איז נישט דא גענוג כפרות' : '');
       quantityInput.classList.toggle('inventory-invalid', insufficient);
       quantityInput.setAttribute('aria-invalid', String(insufficient));
@@ -3317,33 +3382,33 @@
     function getNeedsReservedTotal() {
       return state.sales.reduce((sum, sale) => {
         const isCountedStatus = ['paid', 'reserved'].includes(sale.status || 'paid');
-        const isBanshak = isBanshakPayment(sale.paymentType);
-        return isCountedStatus && !isBanshak && !sale.geschlagen ? sum + Number(sale.quantity || 0) : sum;
+        return isCountedStatus ? sum + Number(sale.quantity || 0) : sum;
       }, 0);
     }
 
     function getNeedsSavedTotal() {
       return state.sales.reduce((sum, sale) => {
         const isPaid = (sale.status || 'paid') === 'paid';
-        return isPaid && !sale.geschlagen ? sum + Number(sale.quantity || 0) : sum;
+        return isPaid ? sum + Number(sale.quantity || 0) : sum;
       }, 0);
     }
 
     function getHomeSummaryTotal() {
-      const paidQuantity = state.sales.reduce((sum, sale) => {
-        return (sale.status || 'paid') === 'paid'
-          ? sum + Number(sale.quantity || 0)
-          : sum;
-      }, 0);
-      return Math.max(0, Number(state.settings.inventory || 0) - paidQuantity);
+      return Math.max(0, Number(state.settings.inventory || 0) - getNeedsSavedTotal());
+    }
+
+    function getCompletedTotal() {
+      return state.sales.reduce((sum, sale) => sale.status !== 'expired' && sale.geschlagen
+        ? sum + Number(sale.quantity || 0) : sum, 0);
     }
 
     function updateHomeSummary() {
       const showTotal = Boolean(state.settings.showNeedsSavedOnHome);
-      salesSummaryTitle.textContent = showTotal ? 'סך הכל געבליבן' : 'Sales';
+      salesSummaryTitle.textContent = showTotal ? 'סך הכל:' : 'Sales';
       salesSummarySubtitle.hidden = showTotal;
-      salesSummaryValue.hidden = !showTotal;
+      document.getElementById('salesSummaryTotals').hidden = !showTotal;
       salesSummaryValue.textContent = getHomeSummaryTotal();
+      document.getElementById('salesCompletedValue').textContent = getCompletedTotal();
     }
 
     function money(n) {
@@ -3948,7 +4013,7 @@
       });
 
       state.sales.forEach(sale => {
-        if (!sale.paymentType) return;
+        if (sale.status === 'expired' || !sale.paymentType) return;
         if (!groups[sale.paymentType]) {
           groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
         }
@@ -3983,7 +4048,7 @@
       document.getElementById('reportNeedsReservedLabel').textContent = state.settings.reportLabels.needsReserved;
       document.getElementById('reportNeedsSavedLabel').textContent = state.settings.reportLabels.needsSaved;
       document.getElementById('reportChickenTotal').textContent = state.settings.inventory;
-      document.getElementById('reportPaidTotal').textContent = paidSales.length;
+      document.getElementById('reportPaidTotal').textContent = getHomeSummaryTotal();
       document.getElementById('reportNeedsReservedTotal').textContent = needsReserved;
       document.getElementById('reportNeedsSavedTotal').textContent = needsSaved;
 
@@ -4000,9 +4065,10 @@
     }
 
     function getAccountingSaleDate(sale) {
-      const value = String(sale.createdAt || sale.updatedAt || '');
-      const match = value.match(/^\d{4}-\d{2}-\d{2}/);
-      return match ? match[0] : '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(sale.paidOn || '')) return sale.paidOn;
+      const value = sale.paidAt || sale.createdAt || sale.updatedAt;
+      const date = new Date(value || '');
+      return Number.isNaN(date.getTime()) ? '' : getLocalDateValue(date);
     }
 
     function getAccountingMonthLabel(month) {
@@ -4278,7 +4344,7 @@
         groups[method.id] = { id: method.id, label: method.label, count: 0, money: 0 };
       });
       state.sales.forEach(sale => {
-        if (!sale.paymentType) return;
+        if (sale.status === 'expired' || !sale.paymentType) return;
         if (!groups[sale.paymentType]) {
           groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
         }
@@ -4317,12 +4383,12 @@
         excelRow([{ value: 'Report summary', style: 'Title' }]),
         excelRow([{ value: 'Metric', style: 'Header' }, { value: 'Value', style: 'Header' }]),
         excelRow([state.settings.reportLabels.chickens, { value: state.settings.inventory, type: 'Number', style: 'Integer' }]),
-        excelRow([state.settings.reportLabels.paid, { value: paidSales.length, type: 'Number', style: 'Integer' }]),
+        excelRow([state.settings.reportLabels.paid, { value: getHomeSummaryTotal(), type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.reserved, { value: reservedSales.length, type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.needsReserved, { value: needsReserved, type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.needsSaved, { value: needsSaved, type: 'Number', style: 'Integer' }]),
         excelRow(['בנש״ק unpaid', { value: banshakUnpaid, type: 'Number', style: 'Currency' }]),
-        excelRow(['Total sales', { value: state.sales.length, type: 'Number', style: 'Integer' }]),
+        excelRow(['Total sales', { value: state.sales.filter(sale => sale.status !== 'expired').length, type: 'Number', style: 'Integer' }]),
         excelRow(['כפרות sold', { value: sold, type: 'Number', style: 'Integer' }]),
         excelRow(['Total כפרות inventory', { value: state.settings.inventory, type: 'Number', style: 'Integer' }]),
         excelRow(['כפרות available', { value: Math.max(0, state.settings.inventory - sold), type: 'Number', style: 'Integer' }]),
@@ -4679,7 +4745,10 @@
 
       homeBtn.disabled = true;
       try {
+        await flushCloudSave();
+        const revision = cloudSaveRevision;
         const data = await cloudRequest('get');
+        if (revision !== cloudSaveRevision) return;
         state.searchQuery = '';
         salesSearch.value = '';
         applyCloudState(data);
@@ -5509,6 +5578,8 @@
         if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
         state.sales[index] = {
           ...state.sales[index],
+          paidAt: status === 'paid' ? ((currentSale.status || 'paid') === 'paid' ? currentSale.paidAt : new Date().toISOString()) : null,
+          paidOn: status === 'paid' ? ((currentSale.status || 'paid') === 'paid' ? currentSale.paidOn : getLocalDateValue()) : null,
           fullName,
           phone,
           email,
@@ -5536,6 +5607,8 @@
       const sale = {
         id: newSaleId,
         ticketId: createTicketId(newSaleId, usedTicketIds),
+        paidAt: status === 'paid' ? new Date().toISOString() : null,
+        paidOn: status === 'paid' ? getLocalDateValue() : null,
         createdAt: new Date().toISOString(),
         fullName,
         phone,
@@ -5828,6 +5901,7 @@
       }
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
       try {
+        await flushCloudSave();
         const data = await cloudRequest('credentials', {
           username: nextUsername,
           currentPassword: settingCurrentPassword.value,
@@ -5933,8 +6007,9 @@
           localSettings: importLocal ? state.settings : {}
         }, '');
         localStorage.setItem(CLOUD_MIGRATION_KEY, 'true');
-        applyCloudState(data);
+        applyCloudState(restorePendingSave(data));
         unlockWebsite(data.token);
+        flushCloudSave().catch(() => {});
       } catch (error) {
         loginError.textContent = error.message;
         loginPassword.value = '';
@@ -5944,6 +6019,7 @@
     });
 
     logoutBtn.addEventListener('click', async () => {
+      try { await flushCloudSave(); } catch { return; }
       const token = cloudSessionToken;
       lockWebsite();
       if (token) {
@@ -5972,8 +6048,9 @@
       }
       try {
         const data = await cloudRequest('get');
-        applyCloudState(data);
+        applyCloudState(restorePendingSave(data));
         unlockWebsite();
+        flushCloudSave().catch(() => {});
       } catch {
         lockWebsite();
       }
@@ -5982,3 +6059,4 @@
   </script>
 </body>
 </html>
+

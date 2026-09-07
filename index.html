@@ -1599,6 +1599,90 @@
       .field.full { grid-column: auto; }
       th, td { padding: 14px; }
       .top-actions .desktop-word { display: none; }
+
+      /* Mobile-only polish. Desktop/Windows layout remains unchanged. */
+      html, body { max-width: 100%; overflow-x: hidden; }
+      #salesPage .panel { border-radius: 14px; }
+      #salesPage .table-head {
+        padding: 14px;
+        gap: 10px;
+      }
+      #salesPage .sales-summary,
+      #salesPage .sales-tools,
+      #salesPage .sales-head-actions { min-width: 0; }
+      #salesPage .sales-summary-totals {
+        width: 100%;
+        max-width: none;
+        justify-content: center;
+        gap: 8px;
+        padding-inline: 10px;
+      }
+      #salesPage .sales-summary-total-label { font-size: 14px; }
+      #salesPage .sales-summary-row span,
+      #salesPage .sales-summary-row strong { font-size: 14px; }
+      #salesPage .sales-search input {
+        min-width: 0;
+        padding-right: 12px;
+        text-overflow: ellipsis;
+      }
+      #salesPage .sales-head-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 10px;
+      }
+      #salesPage .ticket-scanner,
+      #salesPage .table-add-sale {
+        width: 100%;
+        min-width: 0;
+        margin: 0;
+      }
+      .sales-table-wrap,
+      .accounting-calendar-wrap,
+      .expense-list-wrap {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-inline: contain;
+      }
+      .sales-table { min-width: 760px; }
+      .modal-backdrop {
+        padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom));
+      }
+      .modal {
+        max-height: calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+        padding: 20px 16px;
+        border-radius: 18px;
+      }
+      .modal-actions,
+      .settings-actions {
+        flex-wrap: wrap;
+      }
+      .modal-actions button,
+      .settings-actions button {
+        min-height: 44px;
+      }
+      .toast {
+        right: 14px;
+        left: 14px;
+        bottom: max(14px, env(safe-area-inset-bottom));
+        text-align: center;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .app-shell { padding-inline: 10px; }
+      .menu-btn { left: 10px; }
+      .top-actions { right: 10px; }
+      #salesPage .table-head { padding: 12px; }
+      #salesPage .sales-summary-totals { gap: 6px; padding-inline: 8px; }
+      #salesPage .sales-summary-row { gap: 4px; }
+      #salesPage .sales-summary-row span,
+      #salesPage .sales-summary-row strong { font-size: 13px; }
+      #salesPage .table-add-sale,
+      #salesPage .ticket-scanner { padding-inline: 9px; }
+      .login-card { padding: 24px 18px; }
+      .confirm-actions,
+      .security-actions { flex-wrap: wrap; }
+      .confirm-actions button,
+      .security-actions button { flex: 1 1 120px; }
     }
   </style>
 </head>

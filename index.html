@@ -300,7 +300,27 @@
     .ticket-settings-link svg { flex: 0 0 auto; color: var(--accent); }
     #ticketSettingsMain[hidden], #ticketDeliverySettingsPage[hidden] { display: none; }
     .ticket-delivery-settings .field { margin-top: 14px; }
-    .ticket-delivery-settings textarea { min-height: 120px; resize: vertical; }
+    .ticket-delivery-settings textarea { min-height: 160px; resize: vertical; }
+    #ticketDeliveryChoices[hidden], #ticketEmailFields[hidden], #ticketTextFields[hidden] { display: none; }
+    .ticket-text-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 320px); gap: 36px; align-items: start; }
+    .ticket-text-editor { min-width: 0; }
+    .ticket-delivery-settings #settingTicketSmsMessage { min-height: 280px; overflow: hidden; resize: none; line-height: 1.65; padding: 16px; }
+    .ticket-preview-label { margin: 0 0 14px; font-size: 13px; font-weight: 700; color: var(--muted); text-align: center; }
+    .ticket-phone { width: min(100%, 300px); margin: 0 auto; border: 5px solid #343332; border-radius: 34px; background: #fff; color: #202124; overflow: hidden; box-shadow: 0 12px 28px rgba(44,39,33,.10); }
+    .ticket-phone-status { padding: 11px 19px 7px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700; }
+    .ticket-phone-contact { display: grid; grid-template-columns: 22px minmax(0, 1fr) 22px; gap: 8px; align-items: center; padding: 12px 15px 15px; background: #fafafa; border-bottom: 1px solid #ececec; }
+    .ticket-phone-contact svg { color: #6f4b2f; }
+    .ticket-phone-sender { min-width: 0; text-align: center; }
+    .ticket-phone-avatar { width: 32px; height: 32px; margin: 0 auto 6px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+    .ticket-phone-sender-name { display: block; overflow-wrap: anywhere; font-size: 12px; font-weight: 650; line-height: 1.3; }
+    .ticket-phone-conversation { min-height: 300px; padding: 18px 13px 28px; }
+    .ticket-phone-time { margin-bottom: 18px; color: #8b8d93; text-align: center; font-size: 10px; }
+    .ticket-phone-bubble { max-width: 94%; padding: 12px 14px; border-radius: 17px 17px 17px 5px; background: #eef0f3; font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; text-align: start; }
+    .ticket-phone-home { width: 96px; height: 4px; margin: 0 auto 10px; border-radius: 8px; background: #282828; }
+    .ticket-preview-note { max-width: 290px; margin: 12px auto 0; color: var(--muted); font-size: 12px; line-height: 1.5; text-align: center; }
+    @media (max-width: 760px) {
+      .ticket-text-layout { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+    }
     .sales-search { width: 100%; }
     .sales-sort { width: 100%; }
     .sales-sort select { min-height: 44px; padding: 10px 11px; background: #fff; font-size: 13px; }
@@ -1833,31 +1853,69 @@
           <div id="ticketDeliverySettingsPage" hidden>
             <div class="settings-view-head">
               <button type="button" class="back-settings-btn" id="backTicketDeliverySettingsBtn">← Back</button>
-              <h3>Send Ticket</h3>
+              <h3 id="ticketDeliverySettingsTitle">Send Ticket</h3>
             </div>
-          <form id="ticketDeliverySettingsForm" class="ticket-delivery-settings" hidden>
-            <p class="small-note">Save the wording used for every ticket. Customer and ticket details fill in automatically.</p>
-            <div class="field">
-              <label for="settingTicketEmailSubject">Email Subject</label>
-              <div class="helper">Email wording can be saved here. Applying it is pending email setup; tickets currently use the existing email wording.</div>
-              <input id="settingTicketEmailSubject" maxlength="200" required dir="auto" />
+            <div id="ticketDeliveryChoices">
+              <button type="button" class="settings-card ticket-settings-link" id="openTextTicketSettingsBtn">
+                <span><span class="settings-card-title">Text</span><span class="settings-card-note">Edit your text message and preview it on a phone.</span></span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+              </button>
+              <button type="button" class="settings-card ticket-settings-link" id="openEmailTicketSettingsBtn">
+                <span><span class="settings-card-title">Email</span><span class="settings-card-note">Customize the email subject and message.</span></span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+              </button>
             </div>
-            <div class="field">
-              <label for="settingTicketEmailMessage">Email Message</label>
-              <textarea id="settingTicketEmailMessage" maxlength="4000" dir="auto"></textarea>
-              <div class="helper">The ticket details, barcode, and attached PDF stay included.</div>
-            </div>
-            <div class="field">
-              <label for="settingTicketSmsMessage">Text Message</label>
-              <textarea id="settingTicketSmsMessage" maxlength="1000" required dir="auto"></textarea>
-            </div>
-            <p class="helper">Use {name}, {ticket_id}, {quantity}, {phone}, {payment_method}, {title}, {subtitle}, or {brand} to insert each sale's details.</p>
-            <p class="settings-message" id="ticketDeliverySettingsMessage" role="alert"></p>
-            <div class="settings-actions">
-              <button type="button" class="secondary-btn" id="cancelTicketDeliverySettingsBtn">Cancel</button>
-              <button type="submit" class="primary-btn" id="saveTicketDeliverySettingsBtn">Save</button>
-            </div>
-          </form>
+            <form id="ticketDeliverySettingsForm" class="ticket-delivery-settings" hidden>
+              <div id="ticketEmailFields" hidden>
+                <p class="small-note">Customize the wording sent with each customer's ticket.</p>
+                <div class="field">
+                  <label for="settingTicketEmailSubject">Email Subject</label>
+                  <div class="helper">Email wording can be saved here. Applying it is pending email setup; tickets currently use the existing email wording.</div>
+                  <input id="settingTicketEmailSubject" maxlength="200" required dir="auto" />
+                </div>
+                <div class="field">
+                  <label for="settingTicketEmailMessage">Email Message</label>
+                  <textarea id="settingTicketEmailMessage" maxlength="4000" rows="8" dir="auto"></textarea>
+                  <div class="helper">The ticket details, barcode, and attached PDF stay included.</div>
+                </div>
+                <p class="helper">Personalize with {name}, {ticket_id}, {quantity}, {phone}, {payment_method}, {title}, {subtitle}, or {brand}.</p>
+              </div>
+              <div id="ticketTextFields" class="ticket-text-layout" hidden>
+                <div class="ticket-text-editor">
+                  <p class="small-note">Write your message below. The preview updates as you type.</p>
+                  <div class="field">
+                    <label for="settingTicketSmsMessage">Text Message</label>
+                    <textarea id="settingTicketSmsMessage" maxlength="1000" required rows="12" dir="auto" aria-describedby="ticketTextHelp"></textarea>
+                  </div>
+                  <p class="helper" id="ticketTextHelp">Personalize with {name}, {ticket_id}, {quantity}, {phone}, {payment_method}, {title}, {subtitle}, or {brand}. Each customer's details fill in when sent.</p>
+                </div>
+                <aside aria-label="Sample text message preview">
+                  <p class="ticket-preview-label">PHONE PREVIEW</p>
+                  <div class="ticket-phone" dir="ltr">
+                    <div class="ticket-phone-status"><span>9:41</span><svg width="40" height="12" viewBox="0 0 40 12" fill="currentColor" aria-hidden="true"><rect x="1" y="8" width="3" height="3" rx="1"/><rect x="6" y="5" width="3" height="6" rx="1"/><rect x="11" y="2" width="3" height="9" rx="1"/><rect x="23" y="2" width="14" height="8" rx="2" fill="none" stroke="currentColor"/><rect x="25" y="4" width="10" height="4" rx="1"/><rect x="38" y="4" width="2" height="4" rx="1"/></svg></div>
+                    <div class="ticket-phone-contact">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
+                      <div class="ticket-phone-sender">
+                        <span class="ticket-phone-avatar" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h14v16l-3-2-4 2-4-2-3 2V4Z"/><path d="M8 8h8M8 12h6"/></svg></span>
+                        <span class="ticket-phone-sender-name" id="ticketSmsPreviewSender" dir="auto">Kapparos Tickets</span>
+                      </div>
+                      <span></span>
+                    </div>
+                    <div class="ticket-phone-conversation">
+                      <div class="ticket-phone-time">Text Message · Today 9:41 AM</div>
+                      <div class="ticket-phone-bubble" id="ticketSmsPreviewMessage" dir="auto" aria-live="polite"></div>
+                    </div>
+                    <div class="ticket-phone-home" aria-hidden="true"></div>
+                  </div>
+                  <p class="ticket-preview-note">Sample customer details. Appearance may vary by phone.</p>
+                </aside>
+              </div>
+              <p class="settings-message" id="ticketDeliverySettingsMessage" role="alert"></p>
+              <div class="settings-actions">
+                <button type="button" class="secondary-btn" id="cancelTicketDeliverySettingsBtn">Cancel</button>
+                <button type="submit" class="primary-btn" id="saveTicketDeliverySettingsBtn">Save</button>
+              </div>
+            </form>
           </div>
         </div>
 
@@ -2437,6 +2495,7 @@
     const settingTicketSmsMessage = document.getElementById('settingTicketSmsMessage');
     const ticketDeliverySettingsMessage = document.getElementById('ticketDeliverySettingsMessage');
     const saveTicketDeliverySettingsBtn = document.getElementById('saveTicketDeliverySettingsBtn');
+    let ticketDeliveryView = 'main';
     const settingTitle = document.getElementById('settingTitle');
     const settingSubtitle = document.getElementById('settingSubtitle');
     const settingShowNeedsSaved = document.getElementById('settingShowNeedsSaved');
@@ -3652,16 +3711,45 @@
         [key, typeof saved[key] === 'string' ? saved[key] : fallback]));
     }
 
-    function renderTicketDeliverySettings(open = false) {
+    function updateTicketTextPreview() {
+      const title = state.settings.title || 'פנים מאירות סיקסא';
+      const subtitle = state.settings.subtitle || 'כפרות';
+      const sample = {
+        title, subtitle, brand: [title, subtitle].filter(Boolean).join(' '),
+        name: 'Sample Customer', ticket_id: '1234567890', quantity: '2',
+        phone: '2125550100', payment_method: 'Cash'
+      };
+      const preview = settingTicketSmsMessage.value.trim().replace(/\{([a-z_]+)\}/g, (match, key) =>
+        Object.prototype.hasOwnProperty.call(sample, key) ? String(sample[key]) : match);
+      document.getElementById('ticketSmsPreviewSender').textContent = title;
+      document.getElementById('ticketSmsPreviewMessage').textContent = preview || 'Your message will appear here.';
+      if (ticketDeliveryView === 'text') {
+        settingTicketSmsMessage.style.height = 'auto';
+        settingTicketSmsMessage.style.height = `${Math.max(280, settingTicketSmsMessage.scrollHeight + 2)}px`;
+      }
+    }
+
+    function renderTicketDeliverySettings(view = 'main') {
+      ticketDeliveryView = ['choose', 'text', 'email'].includes(view) ? view : 'main';
       const saved = getTicketDeliverySettings();
       settingTicketEmailSubject.value = saved.emailSubject;
       settingTicketEmailMessage.value = saved.emailMessage;
       settingTicketSmsMessage.value = saved.smsMessage;
       ticketDeliverySettingsMessage.textContent = '';
-      ticketDeliverySettingsForm.hidden = !open;
-      document.getElementById('ticketSettingsMain').hidden = open;
-      document.getElementById('ticketDeliverySettingsPage').hidden = !open;
-      openTicketDeliverySettingsBtn.setAttribute('aria-expanded', String(open));
+      const editing = ticketDeliveryView === 'text' || ticketDeliveryView === 'email';
+      ticketDeliverySettingsForm.hidden = !editing;
+      document.getElementById('ticketSettingsMain').hidden = ticketDeliveryView !== 'main';
+      document.getElementById('ticketDeliverySettingsPage').hidden = ticketDeliveryView === 'main';
+      document.getElementById('ticketDeliveryChoices').hidden = ticketDeliveryView !== 'choose';
+      document.getElementById('ticketEmailFields').hidden = ticketDeliveryView !== 'email';
+      document.getElementById('ticketTextFields').hidden = ticketDeliveryView !== 'text';
+      settingTicketEmailSubject.disabled = ticketDeliveryView !== 'email';
+      settingTicketEmailMessage.disabled = ticketDeliveryView !== 'email';
+      settingTicketSmsMessage.disabled = ticketDeliveryView !== 'text';
+      document.getElementById('ticketDeliverySettingsTitle').textContent = ticketDeliveryView === 'text'
+        ? 'Text Settings' : ticketDeliveryView === 'email' ? 'Email Settings' : 'Send Ticket';
+      openTicketDeliverySettingsBtn.setAttribute('aria-expanded', String(ticketDeliveryView !== 'main'));
+      if (ticketDeliveryView === 'text') requestAnimationFrame(updateTicketTextPreview);
     }
 
     function renderSettings() {
@@ -5942,28 +6030,35 @@
       showToast('Sales settings saved');
     });
 
-    openTicketDeliverySettingsBtn.addEventListener('click', () => {
-      renderTicketDeliverySettings(true);
-    });
+    openTicketDeliverySettingsBtn.addEventListener('click', () => renderTicketDeliverySettings('choose'));
+    document.getElementById('openTextTicketSettingsBtn').addEventListener('click', () => renderTicketDeliverySettings('text'));
+    document.getElementById('openEmailTicketSettingsBtn').addEventListener('click', () => renderTicketDeliverySettings('email'));
     document.getElementById('backTicketDeliverySettingsBtn').addEventListener('click', () => {
-      renderTicketDeliverySettings();
-      openTicketDeliverySettingsBtn.focus();
+      const previous = ticketDeliveryView;
+      renderTicketDeliverySettings(previous === 'choose' ? 'main' : 'choose');
+      if (previous === 'choose') openTicketDeliverySettingsBtn.focus();
+      else document.getElementById(previous === 'text' ? 'openTextTicketSettingsBtn' : 'openEmailTicketSettingsBtn').focus();
     });
-    document.getElementById('cancelTicketDeliverySettingsBtn').addEventListener('click', () => renderTicketDeliverySettings());
+    document.getElementById('cancelTicketDeliverySettingsBtn').addEventListener('click', () => renderTicketDeliverySettings('choose'));
+    settingTicketSmsMessage.addEventListener('input', updateTicketTextPreview);
+    window.addEventListener('resize', () => {
+      if (ticketDeliveryView === 'text') requestAnimationFrame(updateTicketTextPreview);
+    });
     ticketDeliverySettingsForm.addEventListener('submit', async event => {
       event.preventDefault();
-      if (saveTicketDeliverySettingsBtn.disabled || !ticketDeliverySettingsForm.reportValidity()) return;
-      const next = {
-        emailSubject: settingTicketEmailSubject.value.trim(),
-        emailMessage: settingTicketEmailMessage.value.trim(),
-        smsMessage: settingTicketSmsMessage.value.trim()
-      };
-      if (!next.emailSubject || !next.smsMessage) {
-        ticketDeliverySettingsMessage.textContent = 'Enter an email subject and text message.';
+      if (saveTicketDeliverySettingsBtn.disabled || !['text', 'email'].includes(ticketDeliveryView)
+        || !ticketDeliverySettingsForm.reportValidity()) return;
+      const editedView = ticketDeliveryView;
+      const saved = getTicketDeliverySettings();
+      const next = editedView === 'text'
+        ? { ...saved, smsMessage: settingTicketSmsMessage.value.trim() }
+        : { ...saved, emailSubject: settingTicketEmailSubject.value.trim(), emailMessage: settingTicketEmailMessage.value.trim() };
+      if (editedView === 'text' ? !next.smsMessage : !next.emailSubject) {
+        ticketDeliverySettingsMessage.textContent = editedView === 'text' ? 'Enter a text message.' : 'Enter an email subject.';
         return;
       }
-      if (JSON.stringify(next) === JSON.stringify(getTicketDeliverySettings())) {
-        renderTicketDeliverySettings();
+      if (JSON.stringify(next) === JSON.stringify(saved)) {
+        renderTicketDeliverySettings('choose');
         return;
       }
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
@@ -5972,8 +6067,8 @@
         state.settings.ticketDelivery = next;
         saveSettings();
         await flushCloudSave();
-        renderTicketDeliverySettings();
-        showToast('Send Ticket settings saved');
+        if (ticketDeliveryView === editedView) renderTicketDeliverySettings('choose');
+        showToast(editedView === 'text' ? 'Text settings saved' : 'Email settings saved');
       } catch (error) {
         ticketDeliverySettingsMessage.textContent = 'Changes are waiting to save. ' + error.message;
       } finally {
@@ -6209,6 +6304,7 @@
   </script>
 </body>
 </html>
+
 
 
 

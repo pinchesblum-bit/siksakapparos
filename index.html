@@ -1722,13 +1722,6 @@
                   <span class="toggle-slider" aria-hidden="true"></span>
                 </span>
               </label>
-              <div class="field">
-                <label for="settingHomeSummaryScope">Homepage Number Should Count</label>
-                <select id="settingHomeSummaryScope" required>
-                  <option value="paid">Needs to Be Saved</option>
-                  <option value="paid_reserved">Needs to Be Reserved</option>
-                </select>
-              </div>
             </div>
             <p class="settings-message" id="websiteSettingsMessage" role="alert"></p>
             <div class="settings-actions" data-settings-actions="website" hidden><button type="button" class="secondary-btn" data-cancel-settings="website">Cancel</button><button type="submit" class="primary-btn">Save</button></div>
@@ -2369,7 +2362,6 @@
     const settingTitle = document.getElementById('settingTitle');
     const settingSubtitle = document.getElementById('settingSubtitle');
     const settingShowNeedsSaved = document.getElementById('settingShowNeedsSaved');
-    const settingHomeSummaryScope = document.getElementById('settingHomeSummaryScope');
     const settingDefaultPrice = document.getElementById('settingDefaultPrice');
     const settingInventory = document.getElementById('settingInventory');
     const settingPhoneRequired = document.getElementById('settingPhoneRequired');
@@ -3338,22 +3330,17 @@
     }
 
     function getHomeSummaryTotal() {
-      return state.settings.homeSummaryScope === 'paid_reserved' ? getNeedsReservedTotal() : getNeedsSavedTotal();
-    }
-
-    function getHomeSummaryLabel() {
-      return state.settings.homeSummaryScope === 'paid_reserved'
-        ? state.settings.reportLabels.needsReserved
-        : state.settings.reportLabels.needsSaved;
+      const paidQuantity = state.sales.reduce((sum, sale) => {
+        return (sale.status || 'paid') === 'paid'
+          ? sum + Number(sale.quantity || 0)
+          : sum;
+      }, 0);
+      return Math.max(0, Number(state.settings.inventory || 0) - paidQuantity);
     }
 
     function updateHomeSummary() {
       const showTotal = Boolean(state.settings.showNeedsSavedOnHome);
-      const paidOption = settingHomeSummaryScope.querySelector('option[value="paid"]');
-      const paidReservedOption = settingHomeSummaryScope.querySelector('option[value="paid_reserved"]');
-      if (paidOption) paidOption.textContent = state.settings.reportLabels.needsSaved;
-      if (paidReservedOption) paidReservedOption.textContent = state.settings.reportLabels.needsReserved;
-      salesSummaryTitle.textContent = showTotal ? getHomeSummaryLabel() : 'Sales';
+      salesSummaryTitle.textContent = showTotal ? 'סך הכל געבליבן' : 'Sales';
       salesSummarySubtitle.hidden = showTotal;
       salesSummaryValue.hidden = !showTotal;
       salesSummaryValue.textContent = getHomeSummaryTotal();
@@ -3519,7 +3506,6 @@
       settingTitle.value = state.settings.title;
       settingSubtitle.value = state.settings.subtitle;
       settingShowNeedsSaved.checked = Boolean(state.settings.showNeedsSavedOnHome);
-      settingHomeSummaryScope.value = state.settings.homeSummaryScope;
       settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
       settingInventory.value = state.settings.inventory;
       settingPhoneRequired.checked = state.settings.phoneRequired !== false;
@@ -3594,8 +3580,7 @@
         settingTitle.value = state.settings.title;
         settingSubtitle.value = state.settings.subtitle;
         settingShowNeedsSaved.checked = Boolean(state.settings.showNeedsSavedOnHome);
-          settingHomeSummaryScope.value = state.settings.homeSummaryScope;
-        websiteSettingsMessage.textContent = '';
+            websiteSettingsMessage.textContent = '';
       }
       if (section === 'sales') {
         settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
@@ -5695,11 +5680,9 @@
       const title = settingTitle.value.trim();
       const subtitle = settingSubtitle.value.trim();
       const showNeedsSavedOnHome = settingShowNeedsSaved.checked;
-      const homeSummaryScope = settingHomeSummaryScope.value === 'paid_reserved' ? 'paid_reserved' : 'paid';
       if (title === state.settings.title
         && subtitle === state.settings.subtitle
-        && showNeedsSavedOnHome === Boolean(state.settings.showNeedsSavedOnHome)
-        && homeSummaryScope === state.settings.homeSummaryScope) {
+        && showNeedsSavedOnHome === Boolean(state.settings.showNeedsSavedOnHome)) {
         websiteSettingsMessage.style.color = '#7a7269';
         websiteSettingsMessage.textContent = 'No changes to save.';
         setSettingsEditMode('website', false);
@@ -5709,7 +5692,6 @@
       state.settings.title = title;
       state.settings.subtitle = subtitle;
       state.settings.showNeedsSavedOnHome = showNeedsSavedOnHome;
-      state.settings.homeSummaryScope = homeSummaryScope;
       saveSettings();
       applySettingsToUi();
       websiteSettingsMessage.style.color = '#426447';

@@ -463,6 +463,16 @@
     }
     .sales-table-wrap { overflow-x: auto; }
     .sales-table { min-width: 860px; }
+    .sales-table[dir="rtl"] th,
+    .sales-table[dir="rtl"] td { text-align: right; }
+    .sales-table[dir="rtl"] th:nth-child(3),
+    .sales-table[dir="rtl"] td:nth-child(3),
+    .sales-table[dir="rtl"] th:nth-child(4),
+    .sales-table[dir="rtl"] td:nth-child(4),
+    .sales-table[dir="rtl"] th:nth-child(6),
+    .sales-table[dir="rtl"] td:nth-child(6) { text-align: center; }
+    .sales-table[dir="rtl"] .sale-contact { direction: ltr; text-align: right; }
+    .sales-table[dir="rtl"] .note-preview { text-align: right; }
     .sales-table th:nth-child(3),
     .sales-table td:nth-child(3),
     .sales-table th:nth-child(4),
@@ -1692,7 +1702,7 @@
           </div>
           <div class="sales-head-actions">
             <input class="ticket-scanner" id="ticketScanner" inputmode="numeric" maxlength="10" autocomplete="off" aria-label="Scan ticket" placeholder="Scan ticket" />
-            <button class="primary-btn table-add-sale" id="addSaleBtn">+ <span class="desktop-word">Add </span>Sale</button>
+            <button class="primary-btn table-add-sale" id="addSaleBtn">+ <span class="desktop-word">Add&nbsp;</span>Sale</button>
           </div>
         </div>
         <div class="sales-table-wrap" id="salesTableWrap"></div>
@@ -1970,6 +1980,13 @@
                 <span class="reservation-setting-copy"><span>Allow Reservations</span><span class="settings-card-note">When turned off, new sales can only be marked Paid.</span></span>
                 <span class="toggle-switch">
                   <input type="checkbox" id="settingReservationsEnabled" />
+                  <span class="toggle-slider" aria-hidden="true"></span>
+                </span>
+              </label>
+              <label class="settings-switch-row field full">
+                <span class="reservation-setting-copy"><span>Hebrew Sales List Order</span><span class="settings-card-note">Name starts on the right and געשלאגן finishes on the left.</span></span>
+                <span class="toggle-switch">
+                  <input type="checkbox" id="settingSalesTableRtl" />
                   <span class="toggle-slider" aria-hidden="true"></span>
                 </span>
               </label>
@@ -2602,6 +2619,7 @@
       salesSortMode: 'name',
       printTicketsEnabled: true,
       reservationsEnabled: true,
+      salesTableRtl: true,
       phoneRequired: true,
       emailRequired: false,
       todoSortMode: 'manual',
@@ -2803,6 +2821,7 @@
     const settingDefaultPrice = document.getElementById('settingDefaultPrice');
     const settingInventory = document.getElementById('settingInventory');
     const settingReservationsEnabled = document.getElementById('settingReservationsEnabled');
+    const settingSalesTableRtl = document.getElementById('settingSalesTableRtl');
     const reservedPaymentPlansSection = document.getElementById('reservedPaymentPlansSection');
     const settingPhoneRequired = document.getElementById('settingPhoneRequired');
     const settingEmailRequired = document.getElementById('settingEmailRequired');
@@ -3113,6 +3132,7 @@
           homeSummaryScope: saved.homeSummaryScope === 'paid_reserved' ? 'paid_reserved' : 'paid',
           printTicketsEnabled: saved.printTicketsEnabled !== false,
           reservationsEnabled: saved.reservationsEnabled !== false,
+          salesTableRtl: saved.salesTableRtl !== false,
           phoneRequired: saved.phoneRequired !== false,
           emailRequired: Boolean(saved.emailRequired),
           todoSortMode: ['manual', 'name', 'due'].includes(saved.todoSortMode) ? saved.todoSortMode : DEFAULT_SETTINGS.todoSortMode,
@@ -4270,6 +4290,7 @@
       settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
       settingInventory.value = state.settings.inventory;
       settingReservationsEnabled.checked = state.settings.reservationsEnabled !== false;
+      settingSalesTableRtl.checked = state.settings.salesTableRtl !== false;
       reservedPaymentPlansSection.hidden = state.settings.reservationsEnabled === false;
       settingPhoneRequired.checked = state.settings.phoneRequired !== false;
       settingEmailRequired.checked = Boolean(state.settings.emailRequired);
@@ -4327,9 +4348,10 @@
         [settingCurrentPassword, settingPassword, settingConfirmPassword].forEach(input => { input.type = 'password'; });
       }
       if (section === 'sales') {
-        settingReservationsEnabled.disabled = !editing;
-        settingPhoneRequired.disabled = !editing;
-        settingEmailRequired.disabled = !editing;
+        settingReservationsEnabled.disabled = false;
+        settingSalesTableRtl.disabled = false;
+        settingPhoneRequired.disabled = false;
+        settingEmailRequired.disabled = false;
         addPaymentMethodBtn.disabled = !editing;
         addPaymentPlanBtn.disabled = !editing;
         addCustomFieldBtn.disabled = !editing;
@@ -4350,6 +4372,7 @@
         settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
         settingInventory.value = state.settings.inventory;
         settingReservationsEnabled.checked = state.settings.reservationsEnabled !== false;
+        settingSalesTableRtl.checked = state.settings.salesTableRtl !== false;
         reservedPaymentPlansSection.hidden = state.settings.reservationsEnabled === false;
         settingPhoneRequired.checked = state.settings.phoneRequired !== false;
         settingEmailRequired.checked = Boolean(state.settings.emailRequired);
@@ -4498,7 +4521,7 @@
         }).join('');
 
       wrap.innerHTML = `
-        <table class="sales-table">
+        <table class="sales-table" dir="${state.settings.salesTableRtl !== false ? 'rtl' : 'ltr'}">
           <colgroup><col style="width:20%"><col style="width:15%"><col style="width:13%"><col style="width:10%"><col style="width:27%"><col style="width:15%"></colgroup>
           <thead><tr><th><span class="name-sort-heading">Full Name<span id="salesSortSlot"></span></span></th><th>Phone / Email</th><th>Status</th><th>כפרה</th><th>Notes</th><th>געשלאגן</th></tr></thead>
           <tbody>${rows}</tbody>
@@ -6459,8 +6482,41 @@
       showToast('Home Screen settings saved');
     });
 
-    settingReservationsEnabled.addEventListener('change', () => {
-      reservedPaymentPlansSection.hidden = !settingReservationsEnabled.checked;
+    settingReservationsEnabled.addEventListener('change', async () => {
+      const previousValue = state.settings.reservationsEnabled !== false;
+      const nextValue = settingReservationsEnabled.checked;
+      if (nextValue === previousValue) return;
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) {
+        settingReservationsEnabled.checked = previousValue;
+        return;
+      }
+      state.settings.reservationsEnabled = nextValue;
+      saveSettings();
+      applySettingsToUi();
+      renderSales();
+      salesSettingsMessage.style.color = '#426447';
+      salesSettingsMessage.textContent = nextValue
+        ? 'Reservations are now available for new sales.'
+        : 'New sales can now only be marked Paid.';
+      showToast(nextValue ? 'Reservations turned on' : 'Reservations turned off');
+    });
+
+    settingSalesTableRtl.addEventListener('change', async () => {
+      const previousValue = state.settings.salesTableRtl !== false;
+      const nextValue = settingSalesTableRtl.checked;
+      if (nextValue === previousValue) return;
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) {
+        settingSalesTableRtl.checked = previousValue;
+        return;
+      }
+      state.settings.salesTableRtl = nextValue;
+      saveSettings();
+      renderSales();
+      salesSettingsMessage.style.color = '#426447';
+      salesSettingsMessage.textContent = nextValue
+        ? 'The Sales list now starts from the right.'
+        : 'The Sales list now starts from the left.';
+      showToast(nextValue ? 'Sales list changed to right-to-left' : 'Sales list changed to left-to-right');
     });
 
     salesSettingsForm.addEventListener('submit', async e => {

@@ -1866,6 +1866,14 @@
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
             <h3>Login</h3>
           </div>
+          <label class="settings-switch-row field full">
+            <span>Private Access<span class="settings-card-note">Require a username and password when opening the website. Protected pages and actions always require your password.</span></span>
+            <span class="toggle-switch">
+              <input type="checkbox" id="settingPrivateAccessEnabled" checked />
+              <span class="toggle-slider" aria-hidden="true"></span>
+            </span>
+          </label>
+          <p class="settings-message" id="privateAccessMessage" role="alert"></p>
           <button type="button" class="secondary-btn" id="openLoginSettingsBtn">Change Username and Password</button>
           <form id="loginSettingsForm" hidden>
             <input id="settingCurrentPassword" type="password" autocomplete="current-password" hidden />
@@ -2223,7 +2231,7 @@
     const SETTINGS_KEY = 'kapparosSettingsV1';
     const LOGIN_SESSION_KEY = 'kapparosLoggedInV1';
     const CLOUD_MIGRATION_KEY = 'kapparosCloudMigratedV1';
-    const CLOUD_API = 'https://tugsxxafeaqbqonrruqt.supabase.co/functions/v1/kapparos-sync';
+    const CLOUD_API = 'https://tugsxxafeaqbqonrruqt.supabase.co/functions/v1/kapparos-access';
     let cloudSessionToken = sessionStorage.getItem(LOGIN_SESSION_KEY) || '';
     let cloudSaveTimer = null;
     let cloudSaveInFlight = null;
@@ -2253,6 +2261,7 @@
       accountingExpenses: [],
       defaultPrice: 23,
       inventory: 100,
+      privateAccessEnabled: true,
       username: 'admin',
       passwordHash: '2a00ac564b31afd7eaab2c9e59f81e386dc6ad673c8f8d000e6de3d37f9a3a94',
       customFields: [],
@@ -2414,6 +2423,9 @@
     const salesSettingsForm = document.getElementById('salesSettingsForm');
     const loginSettingsForm = document.getElementById('loginSettingsForm');
     const openLoginSettingsBtn = document.getElementById('openLoginSettingsBtn');
+    const settingPrivateAccessEnabled = document.getElementById('settingPrivateAccessEnabled');
+    const privateAccessMessage = document.getElementById('privateAccessMessage');
+    let pendingPrivateAccessMode = null;
     const reportSettingsForm = document.getElementById('reportSettingsForm');
     const ticketSettingsForm = document.getElementById('ticketSettingsForm');
     const settingPrintTicketsEnabled = document.getElementById('settingPrintTicketsEnabled');
@@ -2497,6 +2509,7 @@
       cloudReady = true;
       cloudSessionToken = token || cloudSessionToken;
       if (cloudSessionToken) sessionStorage.setItem(LOGIN_SESSION_KEY, cloudSessionToken);
+      logoutBtn.hidden = cloudSessionToken.startsWith('guest.');
       loginGate.hidden = true;
       appShell.classList.remove('locked');
       appShell.setAttribute('aria-hidden', 'false');
@@ -2565,6 +2578,14 @@
     function openSecurityDialog(action) {
       pendingSecurityAction = action;
       const securityContent = {
+        'private-access': {
+          title: 'Private Access',
+          description: 'Enter your website password to change the login requirement. Passwords for protected pages and actions stay in place.'
+        },
+        'export-data': {
+          title: 'Export All Data',
+          description: 'Enter your website password to include protected Accounting data in the export.'
+        },
         'login-settings': {
           title: 'Verify Your Identity',
           description: 'Enter your current password before changing the username or password.'
@@ -2612,6 +2633,34 @@
     async function completeSecurityAction(password) {
       const action = pendingSecurityAction;
       closeSecurityDialog();
+
+      if (action === 'private-access') {
+        const enabled = pendingPrivateAccessMode;
+        pendingPrivateAccessMode = null;
+        if (typeof enabled !== 'boolean' || !(await askConfirmation(CHANGE_CONFIRMATION))) return;
+        try {
+          await flushCloudSave();
+          const result = await cloudRequest('private-access', { enabled, password });
+          state.settings.privateAccessEnabled = result.privateAccessEnabled;
+          state.settings.accessModeVersion = result.accessModeVersion;
+          localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+          settingPrivateAccessEnabled.checked = result.privateAccessEnabled;
+          privateAccessMessage.style.color = '#426447';
+          privateAccessMessage.textContent = enabled
+            ? 'Private Access is on. Visitors must log in.'
+            : 'Private Access is off. Visitors can enter without logging in; protected pages and actions still require the password.';
+          showToast(enabled ? 'Private Access turned on' : 'Private Access turned off');
+        } catch (error) {
+          settingPrivateAccessEnabled.checked = state.settings.privateAccessEnabled !== false;
+          privateAccessMessage.style.color = '#9d2f25';
+          privateAccessMessage.textContent = error.message;
+        }
+        return;
+      }
+      if (action === 'export-data') {
+        exportAllData();
+        return;
+      }
 
       if (action === 'accounting') {
         state.accountingRange = 'all';
@@ -3228,7 +3277,7 @@
     async function cloudRequest(action, payload = {}, token = cloudSessionToken) {
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers.Authorization = `Bearer ${token}`;
-      const endpoint = action === 'send-ticket-text' ? CLOUD_API.replace(/kapparos-sync$/, 'kapparos-sms') : CLOUD_API;
+      const endpoint = CLOUD_API;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers,
@@ -3617,6 +3666,8 @@
 
     function renderSettings() {
       renderTicketDeliverySettings();
+      settingPrivateAccessEnabled.checked = state.settings.privateAccessEnabled !== false;
+      privateAccessMessage.textContent = '';
       settingTitle.value = state.settings.title;
       settingSubtitle.value = state.settings.subtitle;
       settingShowNeedsSaved.checked = Boolean(state.settings.showNeedsSavedOnHome);
@@ -4770,6 +4821,11 @@
         else showSettingsHome();
       });
     });
+    settingPrivateAccessEnabled.addEventListener('change', () => {
+      pendingPrivateAccessMode = settingPrivateAccessEnabled.checked;
+      settingPrivateAccessEnabled.checked = state.settings.privateAccessEnabled !== false;
+      openSecurityDialog('private-access');
+    });
     openLoginSettingsBtn.addEventListener('click', () => {
       openSecurityDialog('login-settings');
     });
@@ -5127,7 +5183,7 @@
     });
     resetAllExpensesBtn.addEventListener('click', () => {
       const paidExpenses = (state.settings.accountingExpenses || []).filter(expense => expense.paid);
-      if (!paidExpenses.length) {
+      if (!cloudSessionToken.startsWith('guest.') && !paidExpenses.length) {
         showToast('All expenses are already unpaid');
         return;
       }
@@ -5379,7 +5435,14 @@
       }
       continueSecurityBtn.disabled = true;
       try {
-        await cloudRequest('verify-password', { password });
+        await flushCloudSave();
+        const verified = await cloudRequest('verify-password', { password });
+        if (verified.token) {
+          cloudSessionToken = verified.token;
+          sessionStorage.setItem(LOGIN_SESSION_KEY, cloudSessionToken);
+          logoutBtn.hidden = false;
+          applyCloudState(verified);
+        }
         await completeSecurityAction(password);
       } catch (error) {
         if (error.status === 401) {
@@ -6012,7 +6075,10 @@
       showToast('Report settings saved');
     });
 
-    exportExcelBtn.addEventListener('click', exportAllData);
+    exportExcelBtn.addEventListener('click', () => {
+      if (cloudSessionToken.startsWith('guest.')) openSecurityDialog('export-data');
+      else exportAllData();
+    });
 
     document.addEventListener('click', e => {
       if (!menuPopover.contains(e.target) && !menuBtn.contains(e.target)) {
@@ -6094,6 +6160,7 @@
       if (token) {
         try { await cloudRequest('logout', {}, token); } catch {}
       }
+      await initializeCloudSession();
     });
 
     applySettingsToUi();
@@ -6111,14 +6178,28 @@
     }, 60000);
 
     async function initializeCloudSession() {
-      if (!cloudSessionToken) {
-        lockWebsite();
-        return;
-      }
       try {
-        const data = await cloudRequest('get');
-        applyCloudState(restorePendingSave(data));
-        unlockWebsite();
+        if (cloudSessionToken) {
+          try {
+            const data = await cloudRequest('get');
+            applyCloudState(restorePendingSave(data));
+            unlockWebsite();
+            flushCloudSave().catch(() => {});
+            return;
+          } catch (error) {
+            if (error.status !== 401) throw error;
+            lockWebsite();
+          }
+        }
+        const entry = await cloudRequest('entry', {}, '');
+        if (entry.privateAccessEnabled !== false || !entry.token) {
+          lockWebsite();
+          return;
+        }
+        // A fresh visitor session never restores password-gated Accounting access.
+        sessionStorage.removeItem(ACCOUNTING_ACCESS_KEY);
+        applyCloudState(restorePendingSave(entry));
+        unlockWebsite(entry.token);
         flushCloudSave().catch(() => {});
       } catch {
         lockWebsite();

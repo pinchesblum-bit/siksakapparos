@@ -2161,9 +2161,9 @@
             <textarea id="sendTicketTextPreview" readonly></textarea>
           </div>
           <div class="send-ticket-copy-actions">
-            <button type="button" class="secondary-btn" id="copySendTicketPhoneBtn">Copy Phone</button>
-            <button type="button" class="primary-btn" id="copySendTicketMessageBtn">Copy Message</button>
-            <button type="button" class="secondary-btn" id="openGoogleVoiceBtn">Open Google Voice</button>
+            <button type="button" class="secondary-btn" id="copySendTicketPhoneBtn" hidden>Copy Phone</button>
+            <button type="button" class="primary-btn" id="copySendTicketMessageBtn" hidden>Copy Message</button>
+            <button type="button" class="secondary-btn" id="openGoogleVoiceBtn" hidden>Open Google Voice</button>
           </div>
         </div>
         <p class="settings-message" id="sendTicketError" role="alert"></p>
@@ -3034,6 +3034,26 @@
       }
     }
 
+    async function sendTicketText(button, saleId, recipient) {
+      const sale = state.sales.find(item => item.id === saleId);
+      if (!canUseSaleTicket(sale)) return false;
+      const originalText = button.textContent;
+      button.disabled = true;
+      button.textContent = 'Sending…';
+      sendTicketError.textContent = '';
+      try {
+        await cloudRequest('send-ticket-text', { saleId, recipient });
+        showToast('Ticket text queued for sending');
+        return true;
+      } catch (error) {
+        sendTicketError.textContent = error.message || 'The ticket text could not be sent.';
+        return false;
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+
     let sendTicketSaleId = '';
     let sendTicketMethod = '';
 
@@ -3092,10 +3112,11 @@
         sendTicketRecipient.pattern = '[0-9]{10}';
         sendTicketRecipient.maxLength = 10;
         sendTicketRecipient.value = String(sale.phone || '').replace(/\D/g, '').slice(0, 10);
-        sendTicketHelper.textContent = 'Copy the phone and message, then open Google Voice and paste them.';
+        sendTicketHelper.textContent = 'Use the saved phone number or enter a different number for this ticket.';
         sendTicketTextPreview.value = buildTicketText(sale);
         sendTicketTextTools.hidden = false;
-        sendTicketSubmitBtn.hidden = true;
+        sendTicketSubmitBtn.hidden = false;
+        sendTicketSubmitBtn.textContent = 'Send';
       }
       setTimeout(() => sendTicketRecipient.focus(), 0);
     }
@@ -3169,7 +3190,8 @@
     async function cloudRequest(action, payload = {}, token = cloudSessionToken) {
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers.Authorization = `Bearer ${token}`;
-      const response = await fetch(CLOUD_API, {
+      const endpoint = action === 'send-ticket-text' ? CLOUD_API.replace(/kapparos-sync$/, 'kapparos-sms') : CLOUD_API;
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers,
         body: JSON.stringify({ action, ...payload })
@@ -5357,9 +5379,11 @@
     });
     sendTicketForm.addEventListener('submit', async event => {
       event.preventDefault();
-      if (sendTicketMethod !== 'email' || !sendTicketForm.reportValidity()) return;
+      if (sendTicketSubmitBtn.disabled || !['email', 'text'].includes(sendTicketMethod) || !sendTicketForm.reportValidity()) return;
       const recipient = sendTicketRecipient.value.trim();
-      const sent = await sendTicketEmail(sendTicketSubmitBtn, sendTicketSaleId, recipient);
+      const sent = sendTicketMethod === 'text'
+        ? await sendTicketText(sendTicketSubmitBtn, sendTicketSaleId, recipient)
+        : await sendTicketEmail(sendTicketSubmitBtn, sendTicketSaleId, recipient);
       if (sent) {
         closeSendTicketModal();
         closeModal();

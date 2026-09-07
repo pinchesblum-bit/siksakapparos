@@ -441,6 +441,12 @@
       direction: rtl;
     }
     .geschlagen-check input { width: 22px; height: 22px; min-height: 0; accent-color: var(--success); }
+    .geschlagen-check.completion-invalid {
+      border-color: #b63b31;
+      background: #fff8f7;
+      color: #9d2f25;
+      box-shadow: 0 0 0 3px rgba(182,59,49,.14);
+    }
     .kapparah-pill {
       display: inline-flex;
       min-width: 44px;
@@ -1904,6 +1910,7 @@
           <span>געשלאגן</span>
           <input id="geschlagen" name="geschlagen" type="checkbox" />
         </label>
+        <div class="inventory-error" id="geschlagenPaymentError" role="alert" hidden>This sale is not paid.</div>
         <div class="form-grid">
           <div class="field full">
             <label for="fullName">Full Name <span class="required-mark">*</span></label>
@@ -2383,6 +2390,8 @@
     const addCustomFieldBtn = document.getElementById('addCustomFieldBtn');
     const customSaleFields = document.getElementById('customSaleFields');
     const geschlagenInput = document.getElementById('geschlagen');
+    const geschlagenControl = geschlagenInput.closest('.geschlagen-check');
+    const geschlagenPaymentError = document.getElementById('geschlagenPaymentError');
     const exportExcelBtn = document.getElementById('exportExcelBtn');
     const websiteSettingsMessage = document.getElementById('websiteSettingsMessage');
     const salesSettingsMessage = document.getElementById('salesSettingsMessage');
@@ -3397,10 +3406,6 @@
 
     function updatePaymentFieldsForStatus() {
       const usesPlan = saleStatus.value === 'reserved' || (Boolean(state.editingSaleId) && saleStatus.value === 'expired');
-      const canCompleteSale = saleStatus.value === 'paid';
-      const completeSaleControl = geschlagenInput.closest('.geschlagen-check');
-      if (completeSaleControl) completeSaleControl.hidden = !canCompleteSale;
-      if (!canCompleteSale) geschlagenInput.checked = false;
       paymentTypeWrap.hidden = usesPlan;
       paymentType.disabled = usesPlan;
       paymentType.required = !usesPlan;
@@ -3417,6 +3422,15 @@
       otherDetailsWrap.classList.toggle('show', isOther);
       otherDetails.disabled = usesPlan || !isOther;
       otherDetails.required = isOther;
+      validateSaleCompletionStatus();
+    }
+
+    function validateSaleCompletionStatus() {
+      const invalid = geschlagenInput.checked && saleStatus.value !== 'paid';
+      geschlagenInput.setCustomValidity(invalid ? 'This sale is not paid.' : '');
+      geschlagenControl?.classList.toggle('completion-invalid', invalid);
+      geschlagenPaymentError.hidden = !invalid;
+      return !invalid;
     }
 
     let settingsDraftMethods = [];
@@ -4455,6 +4469,9 @@
       setSaleFormMode(true);
       deleteSaleBtn.hidden = true;
       const sale = state.sales.find(item => item.id === state.editingSaleId);
+      if (geschlagenControl) geschlagenControl.hidden = sale?.status !== 'paid';
+      geschlagenPaymentError.hidden = true;
+      geschlagenControl?.classList.remove('completion-invalid');
       const ticketAvailable = canUseSaleTicket(sale);
       printSaleTicketBtn.hidden = !ticketAvailable;
       emailSaleTicketBtn.hidden = !ticketAvailable;
@@ -4466,6 +4483,7 @@
     function showSaleEditor(existingSale = null) {
       saleModalTitle.textContent = existingSale ? 'Edit Sale' : 'Add Sale';
       setSaleFormMode(false);
+      if (geschlagenControl) geschlagenControl.hidden = false;
       updatePaymentFieldsForStatus();
       deleteSaleBtn.hidden = !existingSale;
       printSaleTicketBtn.hidden = true;
@@ -4486,6 +4504,9 @@
       quantityInput.classList.remove('inventory-invalid');
       quantityInput.setAttribute('aria-invalid', 'false');
       quantityInventoryError.hidden = true;
+      geschlagenInput.setCustomValidity('');
+      geschlagenControl?.classList.remove('completion-invalid');
+      geschlagenPaymentError.hidden = true;
       saleStatus.querySelector('option[value="expired"]')?.remove();
       otherDetailsWrap.classList.remove('show');
       otherDetails.required = false;
@@ -5366,7 +5387,10 @@
     plannedPaymentType.addEventListener('change', updatePaymentFieldsForStatus);
 
     geschlagenInput.addEventListener('change', async () => {
-      if (!fullNameInput.disabled || !state.editingSaleId) return;
+      if (!fullNameInput.disabled || !state.editingSaleId) {
+        validateSaleCompletionStatus();
+        return;
+      }
       const sale = state.sales.find(item => item.id === state.editingSaleId);
       if (!sale) return;
       if (sale.status !== 'paid') {
@@ -5393,6 +5417,10 @@
     saleForm.addEventListener('submit', async e => {
       e.preventDefault();
 
+      if (!validateSaleCompletionStatus()) {
+        geschlagenInput.focus();
+        return;
+      }
       if (!validateQuantityAvailability()) {
         quantityInput.focus();
         return;

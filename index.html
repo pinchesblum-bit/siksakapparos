@@ -322,6 +322,53 @@
     @media (max-width: 760px) {
       .ticket-text-layout { grid-template-columns: minmax(0, 1fr); gap: 28px; }
     }
+    .ticket-designer-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(320px,420px); gap:32px; align-items:start; }
+    .ticket-designer-editor { min-width:0; }
+    .designer-section { margin:0 0 16px; padding:16px; border:1px solid var(--line); border-radius:14px; background:rgba(255,255,255,.56); }
+    .designer-section h4 { margin:0 0 12px; font-size:16px; }
+    .designer-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .designer-grid .field { margin-top:0; }
+    .designer-color-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    .designer-color { display:flex; align-items:center; gap:9px; min-height:44px; padding:7px 10px; border:1px solid var(--line); border-radius:10px; background:#fff; }
+    .designer-color input[type="color"] { width:34px; height:30px; padding:0; border:0; background:transparent; }
+    .designer-checks { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 18px; }
+    .designer-check { display:flex; align-items:center; gap:9px; min-height:34px; font-size:14px; font-weight:650; }
+    .designer-check input { width:18px; height:18px; }
+    .ticket-designer-previews { position:sticky; top:18px; min-width:0; }
+    .designer-preview-card { margin-bottom:18px; }
+    .designer-preview-shell { padding:12px; border:1px solid var(--line); border-radius:14px; background:#eef1f5; overflow:auto; }
+    .email-preview { min-width:280px; padding:18px; border-radius:10px; font-family:Arial,sans-serif; }
+    .email-preview-card { max-width:360px; margin:auto; padding:20px; border:2px solid; border-radius:14px; }
+    .email-preview-heading { margin:0 0 4px; text-align:center; font-weight:900; line-height:1.2; overflow-wrap:anywhere; }
+    .email-preview-subheading { margin:0 0 6px; text-align:center; font-size:18px; font-weight:800; overflow-wrap:anywhere; }
+    .email-preview-ticket { margin:0 0 16px; text-align:center; font-weight:700; }
+    .email-preview-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); gap:10px; padding:8px 4px; border-bottom:1px solid rgba(0,0,0,.12); }
+    .email-preview-row:last-child { border-bottom:0; }
+    .email-preview-value { font-weight:700; overflow-wrap:anywhere; }
+    .designer-barcode { margin:18px auto 8px; text-align:center; }
+    .designer-barcode svg { width:88%; height:58px; }
+    .designer-barcode-number { margin-top:5px; font:700 11px monospace; letter-spacing:.16em; }
+    .email-preview-message { margin:14px 0 0; text-align:center; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .pdf-preview { position:relative; width:100%; aspect-ratio:612/792; margin:auto; padding:7% 8%; border:1px solid #d8d8d8; box-shadow:0 5px 15px rgba(0,0,0,.08); overflow:hidden; font-family:Arial,sans-serif; text-align:center; }
+    .pdf-preview-inner { height:100%; border:2px solid; padding:5% 6%; display:flex; flex-direction:column; align-items:center; }
+    .pdf-preview-heading { margin:0; font-weight:900; line-height:1.15; overflow-wrap:anywhere; }
+    .pdf-preview-subheading { margin:4px 0; font-weight:800; }
+    .pdf-preview-ticket { margin:4px 0 10px; font-weight:900; }
+    .pdf-preview-rule { width:100%; border-top:2px solid; margin-bottom:8px; }
+    .pdf-preview-details { width:100%; display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; }
+    .pdf-preview-detail { min-width:0; }
+    .pdf-preview-detail span { display:block; overflow-wrap:anywhere; }
+    .pdf-preview-detail .label { font-size:10px; font-weight:700; }
+    .pdf-preview-detail .value { margin-top:2px; font-size:13px; font-weight:800; }
+    .pdf-preview .designer-barcode { width:100%; margin:auto 0 4px; }
+    .pdf-preview-footer { margin-top:5px; font-size:10px; }
+    @media (max-width: 980px) {
+      .ticket-designer-layout { grid-template-columns:minmax(0,1fr); }
+      .ticket-designer-previews { position:static; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+    }
+    @media (max-width: 680px) {
+      .designer-grid,.designer-color-grid,.designer-checks,.ticket-designer-previews { grid-template-columns:minmax(0,1fr); }
+    }
     .sales-search { position: relative; width: 100%; }
     .sales-search label {
       position: absolute;
@@ -1927,24 +1974,96 @@
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
               </button>
               <button type="button" class="settings-card ticket-settings-link" id="openEmailTicketSettingsBtn">
-                <span><span class="settings-card-title">Email</span><span class="settings-card-note">Customize the email subject and message.</span></span>
+                <span><span class="settings-card-title">Email & PDF</span><span class="settings-card-note">Edit all wording and design with live previews.</span></span>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
               </button>
             </div>
             <form id="ticketDeliverySettingsForm" class="ticket-delivery-settings" hidden>
-              <div id="ticketEmailFields" hidden>
-                <p class="small-note">Customize the wording sent with each customer's ticket.</p>
-                <div class="field">
-                  <label for="settingTicketEmailSubject">Email Subject</label>
-                  <div class="helper">Email wording can be saved here. Applying it is pending email setup; tickets currently use the existing email wording.</div>
-                  <input id="settingTicketEmailSubject" maxlength="200" required dir="auto" />
+              <div id="ticketEmailFields" class="ticket-designer-layout" hidden>
+                <div class="ticket-designer-editor">
+                  <p class="small-note">Edit the complete email and PDF. Both previews update while you type.</p>
+                  <section class="designer-section">
+                    <h4>Email wording</h4>
+                    <div class="field">
+                      <label for="settingTicketEmailSubject">Email Subject</label>
+                      <input id="settingTicketEmailSubject" maxlength="200" required dir="auto" />
+                    </div>
+                    <div class="designer-grid">
+                      <div class="field"><label for="settingTicketEmailSender">Sender Name</label><input id="settingTicketEmailSender" maxlength="120" required dir="auto" /></div>
+                      <div class="field"><label for="settingTicketHeading">Main Heading</label><input id="settingTicketHeading" maxlength="160" required dir="auto" /></div>
+                      <div class="field"><label for="settingTicketSubheading">Second Heading</label><input id="settingTicketSubheading" maxlength="160" dir="auto" /></div>
+                      <div class="field"><label for="settingTicketNumberLabel">Ticket Number Label</label><input id="settingTicketNumberLabel" maxlength="80" required dir="auto" /></div>
+                    </div>
+                    <div class="field">
+                      <label for="settingTicketEmailMessage">Email Message</label>
+                      <textarea id="settingTicketEmailMessage" maxlength="4000" rows="7" dir="auto"></textarea>
+                    </div>
+                    <div class="field"><label for="settingTicketFooter">PDF Footer</label><input id="settingTicketFooter" maxlength="240" dir="auto" /></div>
+                    <p class="helper">Use {name}, {ticket_id}, {quantity}, {phone}, {payment_method}, {price_paid}, {title}, {subtitle}, or {brand}. Customer details fill in automatically.</p>
+                  </section>
+                  <section class="designer-section">
+                    <h4>Detail labels</h4>
+                    <div class="designer-grid">
+                      <div class="field"><label for="settingTicketNameLabel">Name</label><input id="settingTicketNameLabel" maxlength="80" required dir="auto" /></div>
+                      <div class="field"><label for="settingTicketPhoneLabel">Phone</label><input id="settingTicketPhoneLabel" maxlength="80" required dir="auto" /></div>
+                      <div class="field"><label for="settingTicketQuantityLabel">Quantity</label><input id="settingTicketQuantityLabel" maxlength="80" required dir="auto" /></div>
+                      <div class="field"><label for="settingTicketPriceLabel">Price</label><input id="settingTicketPriceLabel" maxlength="80" required dir="auto" /></div>
+                      <div class="field"><label for="settingTicketPaymentLabel">Payment Method</label><input id="settingTicketPaymentLabel" maxlength="80" required dir="auto" /></div>
+                    </div>
+                  </section>
+                  <section class="designer-section">
+                    <h4>Visible sections</h4>
+                    <div class="designer-checks">
+                      <label class="designer-check"><input type="checkbox" id="settingEmailShowSubtitle" /> Email second heading</label>
+                      <label class="designer-check"><input type="checkbox" id="settingEmailShowDetails" /> Email customer details</label>
+                      <label class="designer-check"><input type="checkbox" id="settingEmailShowPrice" /> Email price</label>
+                      <label class="designer-check"><input type="checkbox" id="settingEmailShowBarcode" /> Email barcode</label>
+                      <label class="designer-check"><input type="checkbox" id="settingEmailShowMessage" /> Email message</label>
+                      <label class="designer-check"><input type="checkbox" id="settingPdfShowSubtitle" /> PDF second heading</label>
+                      <label class="designer-check"><input type="checkbox" id="settingPdfShowDetails" /> PDF customer details</label>
+                      <label class="designer-check"><input type="checkbox" id="settingPdfShowPrice" /> PDF price</label>
+                      <label class="designer-check"><input type="checkbox" id="settingPdfShowBarcode" /> PDF barcode</label>
+                      <label class="designer-check"><input type="checkbox" id="settingPdfShowFooter" /> PDF footer</label>
+                    </div>
+                  </section>
+                  <section class="designer-section">
+                    <h4>Email appearance</h4>
+                    <div class="designer-color-grid">
+                      <label class="designer-color"><input type="color" id="settingEmailBackgroundColor" /><span>Background</span></label>
+                      <label class="designer-color"><input type="color" id="settingEmailCardColor" /><span>Email card</span></label>
+                      <label class="designer-color"><input type="color" id="settingEmailAccentColor" /><span>Accent</span></label>
+                      <label class="designer-color"><input type="color" id="settingEmailTextColor" /><span>Text</span></label>
+                      <label class="designer-color"><input type="color" id="settingEmailMutedColor" /><span>Labels</span></label>
+                    </div>
+                    <div class="designer-grid">
+                      <div class="field"><label for="settingEmailFontSize">Text Size</label><input type="number" id="settingEmailFontSize" min="12" max="24" step="1" /></div>
+                      <div class="field"><label for="settingEmailHeadingSize">Heading Size</label><input type="number" id="settingEmailHeadingSize" min="20" max="48" step="1" /></div>
+                    </div>
+                  </section>
+                  <section class="designer-section">
+                    <h4>PDF appearance</h4>
+                    <div class="designer-color-grid">
+                      <label class="designer-color"><input type="color" id="settingPdfBackgroundColor" /><span>Background</span></label>
+                      <label class="designer-color"><input type="color" id="settingPdfAccentColor" /><span>Accent</span></label>
+                      <label class="designer-color"><input type="color" id="settingPdfTextColor" /><span>Text</span></label>
+                      <label class="designer-color"><input type="color" id="settingPdfMutedColor" /><span>Labels</span></label>
+                    </div>
+                    <div class="designer-grid">
+                      <div class="field"><label for="settingPdfHeadingSize">Heading Size</label><input type="number" id="settingPdfHeadingSize" min="38" max="86" step="1" /></div>
+                      <div class="field"><label for="settingPdfValueSize">Detail Size</label><input type="number" id="settingPdfValueSize" min="26" max="56" step="1" /></div>
+                    </div>
+                  </section>
                 </div>
-                <div class="field">
-                  <label for="settingTicketEmailMessage">Email Message</label>
-                  <textarea id="settingTicketEmailMessage" maxlength="4000" rows="8" dir="auto"></textarea>
-                  <div class="helper">The ticket details, barcode, and attached PDF stay included.</div>
-                </div>
-                <p class="helper">Personalize with {name}, {ticket_id}, {quantity}, {phone}, {payment_method}, {title}, {subtitle}, or {brand}.</p>
+                <aside class="ticket-designer-previews" aria-label="Ticket design previews">
+                  <div class="designer-preview-card">
+                    <p class="ticket-preview-label">EMAIL PREVIEW</p>
+                    <div class="designer-preview-shell"><div id="ticketEmailPreview"></div></div>
+                  </div>
+                  <div class="designer-preview-card">
+                    <p class="ticket-preview-label">PDF PREVIEW</p>
+                    <div class="designer-preview-shell"><div id="ticketPdfPreview"></div></div>
+                  </div>
+                </aside>
               </div>
               <div id="ticketTextFields" class="ticket-text-layout" hidden>
                 <div class="ticket-text-editor">
@@ -2367,7 +2486,40 @@
     const DELETE_CONFIRMATION = 'דו ביסט באקאנט אז די נאמען גייט יעצט ווערן אינגאנצן אויסגעמעקט?';
     const DEFAULT_TICKET_DELIVERY = {
       emailSubject: '{brand} — Ticket #{ticket_id}',
+      emailSender: '{brand}',
+      heading: '{title}',
+      subheading: '{subtitle}',
+      ticketNumberLabel: 'Ticket',
       emailMessage: 'Scan the barcode above, or use the attached printable PDF.',
+      footer: 'Please keep this ticket.',
+      nameLabel: 'Name',
+      phoneLabel: 'Phone',
+      quantityLabel: 'Amount of כפרות',
+      priceLabel: 'Price Paid',
+      paymentLabel: 'Payment Method',
+      emailShowSubtitle: true,
+      emailShowDetails: true,
+      emailShowPrice: true,
+      emailShowBarcode: true,
+      emailShowMessage: true,
+      pdfShowSubtitle: true,
+      pdfShowDetails: true,
+      pdfShowPrice: false,
+      pdfShowBarcode: true,
+      pdfShowFooter: true,
+      emailBackgroundColor: '#f7f2e7',
+      emailCardColor: '#ffffff',
+      emailAccentColor: '#6f4b2f',
+      emailTextColor: '#241f1a',
+      emailMutedColor: '#756c63',
+      emailFontSize: 16,
+      emailHeadingSize: 30,
+      pdfBackgroundColor: '#ffffff',
+      pdfAccentColor: '#6f4b2f',
+      pdfTextColor: '#241f1a',
+      pdfMutedColor: '#756c63',
+      pdfHeadingSize: 64,
+      pdfValueSize: 43,
       smsMessage: '{title}\n{subtitle}\n\nTicket ID: {ticket_id}\nName: {name}\nPhone: {phone}\nAmount of כפרות: {quantity}\nPayment Method: {payment_method}'
     };
     const DEFAULT_SETTINGS = {
@@ -2559,6 +2711,17 @@
     const settingTicketEmailSubject = document.getElementById('settingTicketEmailSubject');
     const settingTicketEmailMessage = document.getElementById('settingTicketEmailMessage');
     const settingTicketSmsMessage = document.getElementById('settingTicketSmsMessage');
+    const ticketDesignerIds = [
+      'settingTicketEmailSender', 'settingTicketHeading', 'settingTicketSubheading', 'settingTicketNumberLabel',
+      'settingTicketFooter', 'settingTicketNameLabel', 'settingTicketPhoneLabel', 'settingTicketQuantityLabel',
+      'settingTicketPriceLabel', 'settingTicketPaymentLabel', 'settingEmailShowSubtitle', 'settingEmailShowDetails',
+      'settingEmailShowPrice', 'settingEmailShowBarcode', 'settingEmailShowMessage', 'settingPdfShowSubtitle',
+      'settingPdfShowDetails', 'settingPdfShowPrice', 'settingPdfShowBarcode', 'settingPdfShowFooter',
+      'settingEmailBackgroundColor', 'settingEmailCardColor', 'settingEmailAccentColor', 'settingEmailTextColor',
+      'settingEmailMutedColor', 'settingEmailFontSize', 'settingEmailHeadingSize', 'settingPdfBackgroundColor',
+      'settingPdfAccentColor', 'settingPdfTextColor', 'settingPdfMutedColor', 'settingPdfHeadingSize', 'settingPdfValueSize'
+    ];
+    const ticketDesignerElements = Object.fromEntries(ticketDesignerIds.map(id => [id, document.getElementById(id)]));
     const ticketDeliverySettingsMessage = document.getElementById('ticketDeliverySettingsMessage');
     const saveTicketDeliverySettingsBtn = document.getElementById('saveTicketDeliverySettingsBtn');
     let ticketDeliveryView = 'main';
@@ -3084,78 +3247,119 @@
       const sale = saleOverride || state.sales.find(item => item.id === state.ticketSaleId);
       if (!sale) throw new Error('Ticket is not ready.');
       const ticketId = getSaleTicketId(sale);
+      const design = getTicketDeliverySettings();
+      const priceNumber = Number(sale.price);
+      const values = {
+        title: state.settings.title || 'Kapparos',
+        subtitle: state.settings.subtitle || '',
+        brand: [state.settings.title, state.settings.subtitle].filter(Boolean).join(' '),
+        name: sale.fullName || '—',
+        ticket_id: ticketId,
+        quantity: String(sale.quantity || 0),
+        phone: sale.phone || '—',
+        payment_method: getTicketPaymentText(sale),
+        price_paid: Number.isFinite(priceNumber) ? `$${priceNumber.toFixed(2)}` : '$0.00'
+      };
+      const fill = value => fillTicketPreviewTemplate(value, values);
       const canvas = document.createElement('canvas');
       canvas.width = 1440;
       canvas.height = 1720;
       const context = canvas.getContext('2d');
       if (!context) throw new Error('This device could not prepare the PDF.');
 
-      context.fillStyle = '#ffffff';
+      const background = safeTicketColor(design.pdfBackgroundColor, '#ffffff');
+      const accent = safeTicketColor(design.pdfAccentColor, '#6f4b2f');
+      const textColor = safeTicketColor(design.pdfTextColor, '#241f1a');
+      const muted = safeTicketColor(design.pdfMutedColor, '#756c63');
+      const headingSize = safeTicketSize(design.pdfHeadingSize, 64, 38, 86);
+      const valueSize = safeTicketSize(design.pdfValueSize, 43, 26, 56);
+
+      context.fillStyle = background;
       context.fillRect(0, 0, canvas.width, canvas.height);
-      context.strokeStyle = '#6f4b2f';
+      context.strokeStyle = accent;
       context.lineWidth = 5;
       context.strokeRect(42, 42, canvas.width - 84, canvas.height - 84);
       context.textAlign = 'center';
-      context.fillStyle = '#241f1a';
-      context.font = '900 64px Arial, sans-serif';
-      context.fillText(state.settings.title, canvas.width / 2, 145);
-      context.fillStyle = '#6f4b2f';
-      context.font = '800 46px Arial, sans-serif';
-      context.fillText(state.settings.subtitle, canvas.width / 2, 215);
+      context.fillStyle = textColor;
+      context.font = `900 ${headingSize}px Arial, sans-serif`;
+      context.fillText(fill(design.heading), canvas.width / 2, 145, canvas.width - 180);
+
+      let headerY = 215;
+      if (design.pdfShowSubtitle && fill(design.subheading)) {
+        context.fillStyle = accent;
+        context.font = '800 46px Arial, sans-serif';
+        context.fillText(fill(design.subheading), canvas.width / 2, headerY, canvas.width - 180);
+        headerY += 75;
+      }
+      context.fillStyle = accent;
       context.font = '900 38px Arial, sans-serif';
-      context.fillText(`TICKET #${ticketId}`, canvas.width / 2, 290);
+      context.fillText(`${fill(design.ticketNumberLabel)} #${ticketId}`, canvas.width / 2, headerY, canvas.width - 180);
+      const dividerY = headerY + 50;
       context.beginPath();
-      context.moveTo(110, 340);
-      context.lineTo(canvas.width - 110, 340);
+      context.moveTo(110, dividerY);
+      context.lineTo(canvas.width - 110, dividerY);
       context.stroke();
 
-      const details = [
-        ['Name', sale.fullName || '—'],
-        ['Phone', sale.phone || '—'],
-        ['Amount of כפרות', String(sale.quantity || 0)],
-        ['Payment Method', getTicketPaymentText(sale)]
-      ];
-      details.forEach(([label, value], index) => {
-        const y = 435 + index * 190;
-        context.fillStyle = '#756c63';
-        context.font = '800 28px Arial, sans-serif';
-        context.fillText(label, canvas.width / 2, y);
-        context.fillStyle = '#241f1a';
-        context.font = '700 43px Arial, sans-serif';
-        const cleanValue = String(value || '—');
-        const fittedValue = cleanValue.length > 42 ? `${cleanValue.slice(0, 41)}…` : cleanValue;
-        context.fillText(fittedValue, canvas.width / 2, y + 62, canvas.width - 190);
-      });
-
-      const patterns = {
-        0: 'nnwwn', 1: 'wnnnw', 2: 'nwnnw', 3: 'wwnnn', 4: 'nnwnw',
-        5: 'wnwnn', 6: 'nwwnn', 7: 'nnnww', 8: 'wnnwn', 9: 'nwnwn'
-      };
-      const units = [1, 1, 1, 1];
-      for (let index = 0; index < ticketId.length; index += 2) {
-        const bars = patterns[ticketId[index]];
-        const spaces = patterns[ticketId[index + 1]];
-        for (let part = 0; part < 5; part += 1) {
-          units.push(bars[part] === 'w' ? 3 : 1, spaces[part] === 'w' ? 3 : 1);
-        }
+      let contentBottom = dividerY;
+      if (design.pdfShowDetails) {
+        const details = [
+          [design.nameLabel, values.name],
+          [design.phoneLabel, values.phone],
+          [design.quantityLabel, values.quantity],
+          ...(design.pdfShowPrice ? [[design.priceLabel, values.price_paid]] : []),
+          [design.paymentLabel, values.payment_method]
+        ];
+        const availableHeight = design.pdfShowBarcode ? 720 : 1080;
+        const rowGap = Math.min(175, Math.max(125, availableHeight / Math.max(1, details.length)));
+        const startY = dividerY + 85;
+        details.forEach(([label, value], index) => {
+          const y = startY + index * rowGap;
+          context.fillStyle = muted;
+          context.font = '800 28px Arial, sans-serif';
+          context.fillText(fill(label), canvas.width / 2, y, canvas.width - 190);
+          context.fillStyle = textColor;
+          context.font = `700 ${valueSize}px Arial, sans-serif`;
+          const cleanValue = String(value || '—');
+          const fittedValue = cleanValue.length > 52 ? `${cleanValue.slice(0, 51)}…` : cleanValue;
+          context.fillText(fittedValue, canvas.width / 2, y + Math.max(52, valueSize + 15), canvas.width - 190);
+          contentBottom = y + Math.max(62, valueSize + 25);
+        });
       }
-      units.push(3, 1, 1);
-      const barcodeWidth = 1040;
-      const unitWidth = barcodeWidth / units.reduce((sum, unit) => sum + unit, 0);
-      let barcodeX = (canvas.width - barcodeWidth) / 2;
-      const barcodeY = 1210;
-      context.fillStyle = '#17130f';
-      units.forEach((unit, index) => {
-        const width = unit * unitWidth;
-        if (index % 2 === 0) context.fillRect(barcodeX, barcodeY, width, 230);
-        barcodeX += width;
-      });
-      context.fillStyle = '#241f1a';
-      context.font = '700 34px monospace';
-      context.fillText(ticketId.split('').join(' '), canvas.width / 2, 1505);
-      context.fillStyle = '#756c63';
-      context.font = '500 25px Arial, sans-serif';
-      context.fillText('Please keep this ticket.', canvas.width / 2, 1590);
+
+      if (design.pdfShowBarcode) {
+        const patterns = {
+          0: 'nnwwn', 1: 'wnnnw', 2: 'nwnnw', 3: 'wwnnn', 4: 'nnwnw',
+          5: 'wnwnn', 6: 'nwwnn', 7: 'nnnww', 8: 'wnnwn', 9: 'nwnwn'
+        };
+        const units = [1, 1, 1, 1];
+        for (let index = 0; index < ticketId.length; index += 2) {
+          const bars = patterns[ticketId[index]];
+          const spaces = patterns[ticketId[index + 1]];
+          for (let part = 0; part < 5; part += 1) {
+            units.push(bars[part] === 'w' ? 3 : 1, spaces[part] === 'w' ? 3 : 1);
+          }
+        }
+        units.push(3, 1, 1);
+        const barcodeWidth = 1040;
+        const unitWidth = barcodeWidth / units.reduce((sum, unit) => sum + unit, 0);
+        let barcodeX = (canvas.width - barcodeWidth) / 2;
+        const barcodeY = Math.min(1250, Math.max(contentBottom + 75, design.pdfShowDetails ? 1040 : 520));
+        const barcodeHeight = Math.min(230, 1490 - barcodeY);
+        context.fillStyle = textColor;
+        units.forEach((unit, index) => {
+          const width = unit * unitWidth;
+          if (index % 2 === 0) context.fillRect(barcodeX, barcodeY, width, barcodeHeight);
+          barcodeX += width;
+        });
+        context.font = '700 34px monospace';
+        context.fillText(ticketId.split('').join(' '), canvas.width / 2, barcodeY + barcodeHeight + 62);
+      }
+
+      if (design.pdfShowFooter && fill(design.footer)) {
+        context.fillStyle = muted;
+        context.font = '500 25px Arial, sans-serif';
+        context.fillText(fill(design.footer), canvas.width / 2, 1590, canvas.width - 190);
+      }
 
       const jpegBlob = await new Promise((resolve, reject) => {
         canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('The PDF could not be created.')), 'image/jpeg', .95);
@@ -3771,23 +3975,164 @@
       customSaleFields.hidden = !state.settings.customFields.length;
     }
 
+    const TICKET_DESIGNER_FIELD_MAP = {
+      settingTicketEmailSender: 'emailSender',
+      settingTicketHeading: 'heading',
+      settingTicketSubheading: 'subheading',
+      settingTicketNumberLabel: 'ticketNumberLabel',
+      settingTicketFooter: 'footer',
+      settingTicketNameLabel: 'nameLabel',
+      settingTicketPhoneLabel: 'phoneLabel',
+      settingTicketQuantityLabel: 'quantityLabel',
+      settingTicketPriceLabel: 'priceLabel',
+      settingTicketPaymentLabel: 'paymentLabel',
+      settingEmailShowSubtitle: 'emailShowSubtitle',
+      settingEmailShowDetails: 'emailShowDetails',
+      settingEmailShowPrice: 'emailShowPrice',
+      settingEmailShowBarcode: 'emailShowBarcode',
+      settingEmailShowMessage: 'emailShowMessage',
+      settingPdfShowSubtitle: 'pdfShowSubtitle',
+      settingPdfShowDetails: 'pdfShowDetails',
+      settingPdfShowPrice: 'pdfShowPrice',
+      settingPdfShowBarcode: 'pdfShowBarcode',
+      settingPdfShowFooter: 'pdfShowFooter',
+      settingEmailBackgroundColor: 'emailBackgroundColor',
+      settingEmailCardColor: 'emailCardColor',
+      settingEmailAccentColor: 'emailAccentColor',
+      settingEmailTextColor: 'emailTextColor',
+      settingEmailMutedColor: 'emailMutedColor',
+      settingEmailFontSize: 'emailFontSize',
+      settingEmailHeadingSize: 'emailHeadingSize',
+      settingPdfBackgroundColor: 'pdfBackgroundColor',
+      settingPdfAccentColor: 'pdfAccentColor',
+      settingPdfTextColor: 'pdfTextColor',
+      settingPdfMutedColor: 'pdfMutedColor',
+      settingPdfHeadingSize: 'pdfHeadingSize',
+      settingPdfValueSize: 'pdfValueSize'
+    };
+
     function getTicketDeliverySettings() {
       const saved = state.settings.ticketDelivery || {};
-      return Object.fromEntries(Object.entries(DEFAULT_TICKET_DELIVERY).map(([key, fallback]) =>
-        [key, typeof saved[key] === 'string' ? saved[key] : fallback]));
+      return Object.fromEntries(Object.entries(DEFAULT_TICKET_DELIVERY).map(([key, fallback]) => {
+        if (typeof fallback === 'boolean') return [key, typeof saved[key] === 'boolean' ? saved[key] : fallback];
+        if (typeof fallback === 'number') {
+          const value = Number(saved[key]);
+          return [key, Number.isFinite(value) ? value : fallback];
+        }
+        return [key, typeof saved[key] === 'string' ? saved[key] : fallback];
+      }));
+    }
+
+    function readTicketDesignerDraft() {
+      const draft = {
+        ...getTicketDeliverySettings(),
+        emailSubject: settingTicketEmailSubject.value,
+        emailMessage: settingTicketEmailMessage.value
+      };
+      Object.entries(TICKET_DESIGNER_FIELD_MAP).forEach(([id, key]) => {
+        const input = ticketDesignerElements[id];
+        if (!input) return;
+        if (input.type === 'checkbox') draft[key] = input.checked;
+        else if (input.type === 'number') draft[key] = Number(input.value);
+        else draft[key] = input.value;
+      });
+      return draft;
+    }
+
+    function ticketDesignerSample() {
+      const title = state.settings.title || 'פנים מאירות סיקסא';
+      const subtitle = state.settings.subtitle || 'כפרות';
+      return {
+        title, subtitle, brand: [title, subtitle].filter(Boolean).join(' '),
+        name: 'Sample Customer', ticket_id: '1234567890', quantity: '2',
+        phone: '212-555-0100', payment_method: 'Cash', price_paid: '$46.00'
+      };
+    }
+
+    function fillTicketPreviewTemplate(value, sample = ticketDesignerSample()) {
+      return String(value || '').replace(/\{([a-z_]+)\}/g, (match, key) =>
+        Object.prototype.hasOwnProperty.call(sample, key) ? String(sample[key]) : match);
+    }
+
+    function safeTicketColor(value, fallback) {
+      return /^#[0-9a-f]{6}$/i.test(String(value || '')) ? String(value) : fallback;
+    }
+
+    function safeTicketSize(value, fallback, min, max) {
+      const number = Number(value);
+      return Number.isFinite(number) ? Math.min(max, Math.max(min, number)) : fallback;
+    }
+
+    function updateTicketEmailPreview() {
+      if (ticketDeliveryView !== 'email') return;
+      const draft = readTicketDesignerDraft();
+      const sample = ticketDesignerSample();
+      const emailBackground = safeTicketColor(draft.emailBackgroundColor, '#f7f2e7');
+      const emailCard = safeTicketColor(draft.emailCardColor, '#ffffff');
+      const emailAccent = safeTicketColor(draft.emailAccentColor, '#6f4b2f');
+      const emailText = safeTicketColor(draft.emailTextColor, '#241f1a');
+      const emailMuted = safeTicketColor(draft.emailMutedColor, '#756c63');
+      const emailFontSize = safeTicketSize(draft.emailFontSize, 16, 12, 24);
+      const emailHeadingSize = safeTicketSize(draft.emailHeadingSize, 30, 20, 48);
+      const pdfBackground = safeTicketColor(draft.pdfBackgroundColor, '#ffffff');
+      const pdfAccent = safeTicketColor(draft.pdfAccentColor, '#6f4b2f');
+      const pdfText = safeTicketColor(draft.pdfTextColor, '#241f1a');
+      const pdfMuted = safeTicketColor(draft.pdfMutedColor, '#756c63');
+      const pdfHeadingSize = safeTicketSize(draft.pdfHeadingSize, 64, 38, 86);
+      const pdfValueSize = safeTicketSize(draft.pdfValueSize, 43, 26, 56);
+      const detailValues = [
+        [draft.nameLabel, sample.name, true],
+        [draft.phoneLabel, sample.phone, true],
+        [draft.quantityLabel, sample.quantity, true],
+        [draft.priceLabel, sample.price_paid, Boolean(draft.emailShowPrice)],
+        [draft.paymentLabel, sample.payment_method, true]
+      ];
+      const emailRows = detailValues.filter(item => item[2]).map(([label, value]) =>
+        `<div class="email-preview-row"><span style="color:${emailMuted}">${escapeHtml(fillTicketPreviewTemplate(label, sample))}</span><span class="email-preview-value" dir="auto">${escapeHtml(value)}</span></div>`).join('');
+      const heading = fillTicketPreviewTemplate(draft.heading, sample);
+      const subheading = fillTicketPreviewTemplate(draft.subheading, sample);
+      const ticketLabel = fillTicketPreviewTemplate(draft.ticketNumberLabel, sample);
+      const emailMessage = fillTicketPreviewTemplate(draft.emailMessage, sample);
+      const barcode = `<div class="designer-barcode">${buildTicketBarcodeSvg(sample.ticket_id)}<div class="designer-barcode-number">${sample.ticket_id}</div></div>`;
+      document.getElementById('ticketEmailPreview').innerHTML = `
+        <div style="padding:0 0 9px;font:12px Arial,sans-serif;color:#5f6368"><strong>From:</strong> ${escapeHtml(fillTicketPreviewTemplate(draft.emailSender, sample))}<br><strong>Subject:</strong> ${escapeHtml(fillTicketPreviewTemplate(draft.emailSubject, sample))}</div>
+        <div class="email-preview" style="background:${emailBackground};color:${emailText};font-size:${emailFontSize}px">
+          <div class="email-preview-card" style="background:${emailCard};border-color:${emailAccent}">
+            <div class="email-preview-heading" style="color:${emailAccent};font-size:${emailHeadingSize}px">${escapeHtml(heading)}</div>
+            ${draft.emailShowSubtitle && subheading ? `<div class="email-preview-subheading" style="color:${emailAccent}">${escapeHtml(subheading)}</div>` : ''}
+            <div class="email-preview-ticket">${escapeHtml(ticketLabel)} #${sample.ticket_id}</div>
+            ${draft.emailShowDetails ? `<div>${emailRows}</div>` : ''}
+            ${draft.emailShowBarcode ? barcode : ''}
+            ${draft.emailShowMessage ? `<div class="email-preview-message" style="color:${emailMuted}">${escapeHtml(emailMessage)}</div>` : ''}
+          </div>
+        </div>`;
+
+      const pdfDetails = [
+        [draft.nameLabel, sample.name],
+        [draft.phoneLabel, sample.phone],
+        [draft.quantityLabel, sample.quantity],
+        ...(draft.pdfShowPrice ? [[draft.priceLabel, sample.price_paid]] : []),
+        [draft.paymentLabel, sample.payment_method]
+      ].map(([label, value]) => `<div class="pdf-preview-detail"><span class="label" style="color:${pdfMuted}">${escapeHtml(fillTicketPreviewTemplate(label, sample))}</span><span class="value" style="font-size:${Math.max(10, Math.round(pdfValueSize / 3.3))}px">${escapeHtml(value)}</span></div>`).join('');
+      document.getElementById('ticketPdfPreview').innerHTML = `
+        <div class="pdf-preview" style="background:${pdfBackground};color:${pdfText}">
+          <div class="pdf-preview-inner" style="border-color:${pdfAccent}">
+            <div class="pdf-preview-heading" style="color:${pdfText};font-size:${Math.max(18, Math.round(pdfHeadingSize / 2.5))}px">${escapeHtml(heading)}</div>
+            ${draft.pdfShowSubtitle && subheading ? `<div class="pdf-preview-subheading" style="color:${pdfAccent}">${escapeHtml(subheading)}</div>` : ''}
+            <div class="pdf-preview-ticket" style="color:${pdfAccent}">${escapeHtml(ticketLabel)} #${sample.ticket_id}</div>
+            <div class="pdf-preview-rule" style="border-color:${pdfAccent}"></div>
+            ${draft.pdfShowDetails ? `<div class="pdf-preview-details">${pdfDetails}</div>` : ''}
+            ${draft.pdfShowBarcode ? barcode : '<div style="flex:1"></div>'}
+            ${draft.pdfShowFooter ? `<div class="pdf-preview-footer" style="color:${pdfMuted}">${escapeHtml(fillTicketPreviewTemplate(draft.footer, sample))}</div>` : ''}
+          </div>
+        </div>`;
     }
 
     function updateTicketTextPreview() {
-      const title = state.settings.title || 'פנים מאירות סיקסא';
-      const subtitle = state.settings.subtitle || 'כפרות';
-      const sample = {
-        title, subtitle, brand: [title, subtitle].filter(Boolean).join(' '),
-        name: 'Sample Customer', ticket_id: '1234567890', quantity: '2',
-        phone: '212-555-0100', payment_method: 'Cash'
-      };
+      const sample = ticketDesignerSample();
       const preview = settingTicketSmsMessage.value.trim().replace(/\{([a-z_]+)\}/g, (match, key) =>
         Object.prototype.hasOwnProperty.call(sample, key) ? String(sample[key]) : match);
-      document.getElementById('ticketSmsPreviewSender').textContent = title;
+      document.getElementById('ticketSmsPreviewSender').textContent = sample.title;
       document.getElementById('ticketSmsPreviewMessage').textContent = preview || 'Your message will appear here.';
       if (ticketDeliveryView === 'text') {
         settingTicketSmsMessage.style.height = 'auto';
@@ -3801,6 +4146,12 @@
       settingTicketEmailSubject.value = saved.emailSubject;
       settingTicketEmailMessage.value = saved.emailMessage;
       settingTicketSmsMessage.value = saved.smsMessage;
+      Object.entries(TICKET_DESIGNER_FIELD_MAP).forEach(([id, key]) => {
+        const input = ticketDesignerElements[id];
+        if (!input) return;
+        if (input.type === 'checkbox') input.checked = Boolean(saved[key]);
+        else input.value = saved[key];
+      });
       ticketDeliverySettingsMessage.textContent = '';
       const editing = ticketDeliveryView === 'text' || ticketDeliveryView === 'email';
       ticketDeliverySettingsForm.hidden = !editing;
@@ -3812,10 +4163,12 @@
       settingTicketEmailSubject.disabled = ticketDeliveryView !== 'email';
       settingTicketEmailMessage.disabled = ticketDeliveryView !== 'email';
       settingTicketSmsMessage.disabled = ticketDeliveryView !== 'text';
+      ticketDesignerIds.forEach(id => { ticketDesignerElements[id].disabled = ticketDeliveryView !== 'email'; });
       document.getElementById('ticketDeliverySettingsTitle').textContent = ticketDeliveryView === 'text'
-        ? 'Text Settings' : ticketDeliveryView === 'email' ? 'Email Settings' : 'Send Ticket';
+        ? 'Text Settings' : ticketDeliveryView === 'email' ? 'Email & PDF Designer' : 'Send Ticket';
       openTicketDeliverySettingsBtn.setAttribute('aria-expanded', String(ticketDeliveryView !== 'main'));
       if (ticketDeliveryView === 'text') requestAnimationFrame(updateTicketTextPreview);
+      if (ticketDeliveryView === 'email') requestAnimationFrame(updateTicketEmailPreview);
     }
 
     function renderSettings() {
@@ -6107,6 +6460,11 @@
     });
     document.getElementById('cancelTicketDeliverySettingsBtn').addEventListener('click', () => renderTicketDeliverySettings('choose'));
     settingTicketSmsMessage.addEventListener('input', updateTicketTextPreview);
+    [settingTicketEmailSubject, settingTicketEmailMessage, ...ticketDesignerIds.map(id => ticketDesignerElements[id])]
+      .forEach(input => {
+        input.addEventListener('input', updateTicketEmailPreview);
+        input.addEventListener('change', updateTicketEmailPreview);
+      });
     window.addEventListener('resize', () => {
       if (ticketDeliveryView === 'text') requestAnimationFrame(updateTicketTextPreview);
     });
@@ -6116,9 +6474,19 @@
         || !ticketDeliverySettingsForm.reportValidity()) return;
       const editedView = ticketDeliveryView;
       const saved = getTicketDeliverySettings();
-      const next = editedView === 'text'
-        ? { ...saved, smsMessage: settingTicketSmsMessage.value.trim() }
-        : { ...saved, emailSubject: settingTicketEmailSubject.value.trim(), emailMessage: settingTicketEmailMessage.value.trim() };
+      let next;
+      if (editedView === 'text') {
+        next = { ...saved, smsMessage: settingTicketSmsMessage.value.trim() };
+      } else {
+        next = readTicketDesignerDraft();
+        Object.keys(next).forEach(key => {
+          if (typeof next[key] === 'string') next[key] = next[key].trim();
+        });
+        next.emailFontSize = safeTicketSize(next.emailFontSize, 16, 12, 24);
+        next.emailHeadingSize = safeTicketSize(next.emailHeadingSize, 30, 20, 48);
+        next.pdfHeadingSize = safeTicketSize(next.pdfHeadingSize, 64, 38, 86);
+        next.pdfValueSize = safeTicketSize(next.pdfValueSize, 43, 26, 56);
+      }
       if (editedView === 'text' ? !next.smsMessage : !next.emailSubject) {
         ticketDeliverySettingsMessage.textContent = editedView === 'text' ? 'Enter a text message.' : 'Enter an email subject.';
         return;
@@ -6134,7 +6502,7 @@
         saveSettings();
         await flushCloudSave();
         if (ticketDeliveryView === editedView) renderTicketDeliverySettings('choose');
-        showToast(editedView === 'text' ? 'Text settings saved' : 'Email settings saved');
+        showToast(editedView === 'text' ? 'Text settings saved' : 'Email and PDF design saved');
       } catch (error) {
         ticketDeliverySettingsMessage.textContent = 'Changes are waiting to save. ' + error.message;
       } finally {

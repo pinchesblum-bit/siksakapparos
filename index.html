@@ -3397,6 +3397,10 @@
 
     function updatePaymentFieldsForStatus() {
       const usesPlan = saleStatus.value === 'reserved' || (Boolean(state.editingSaleId) && saleStatus.value === 'expired');
+      const canCompleteSale = saleStatus.value === 'paid';
+      const completeSaleControl = geschlagenInput.closest('.geschlagen-check');
+      if (completeSaleControl) completeSaleControl.hidden = !canCompleteSale;
+      if (!canCompleteSale) geschlagenInput.checked = false;
       paymentTypeWrap.hidden = usesPlan;
       paymentType.disabled = usesPlan;
       paymentType.required = !usesPlan;
@@ -5365,6 +5369,10 @@
       if (!fullNameInput.disabled || !state.editingSaleId) return;
       const sale = state.sales.find(item => item.id === state.editingSaleId);
       if (!sale) return;
+      if (sale.status !== 'paid') {
+        geschlagenInput.checked = false;
+        return;
+      }
       const previousValue = Boolean(sale.geschlagen);
       const nextValue = geschlagenInput.checked;
       if (previousValue === nextValue) return;

@@ -1555,7 +1555,6 @@
             <h2 id="salesSummaryTitle" dir="auto">Sales</h2>
             <div class="small-note" id="salesSummarySubtitle">Names and amount of כפרה ordered</div>
             <div class="sales-summary-totals" id="salesSummaryTotals" dir="rtl" hidden aria-live="polite">
-              <span class="sales-summary-total-label">סך הכל:</span>
               <div class="sales-summary-row completed"><span>געשלאגן</span><strong id="salesCompletedValue" dir="ltr">0</strong></div>
               <span class="sales-summary-divider" aria-hidden="true"></span>
               <div class="sales-summary-row"><span>געבליבן</span><strong id="salesSummaryValue" dir="ltr">0</strong></div>
@@ -3601,7 +3600,7 @@
 
     function updateHomeSummary() {
       const showTotal = Boolean(state.settings.showNeedsSavedOnHome);
-      salesSummaryTitle.textContent = showTotal ? 'סך הכל:' : 'Sales';
+      salesSummaryTitle.textContent = showTotal ? '' : 'Sales';
       salesSummaryTitle.closest('.sales-summary').classList.toggle('has-totals', showTotal);
       salesSummarySubtitle.hidden = showTotal;
       document.getElementById('salesSummaryTotals').hidden = !showTotal;

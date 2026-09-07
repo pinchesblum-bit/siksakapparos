@@ -309,12 +309,14 @@
       text-align: center;
     }
     .sales-summary { justify-self: start; text-align: left; }
-    .sales-summary-totals { margin-top: 8px; min-width: 170px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+    .sales-summary.has-totals { display: flex; flex-direction: row-reverse; align-items: center; gap: 10px; width: fit-content; }
+    .sales-summary.has-totals h2 { margin: 0; font-size: 16px; line-height: 1.3; white-space: nowrap; }
+    .sales-summary-totals { min-width: 136px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
     .sales-summary-totals[hidden] { display: none; }
-    .sales-summary-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 5px 0; color: var(--accent); }
+    .sales-summary-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 3px 0; color: var(--accent); }
     .sales-summary-row + .sales-summary-row { border-top: 1px solid var(--line); }
-    .sales-summary-row span { font-size: 16px; }
-    .sales-summary-row strong { font-size: 23px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+    .sales-summary-row span { font-size: 14px; }
+    .sales-summary-row strong { font-size: 19px; line-height: 1.2; font-variant-numeric: tabular-nums; }
     .sales-summary-row.completed { color: var(--success); }
     .sales-search input {
       padding-left: 40px;
@@ -1461,7 +1463,7 @@
       <div class="panel">
         <div class="table-head">
           <div class="sales-summary">
-            <h2 id="salesSummaryTitle">Sales</h2>
+            <h2 id="salesSummaryTitle" dir="auto">Sales</h2>
             <div class="small-note" id="salesSummarySubtitle">Names and amount of כפרה ordered</div>
             <div class="sales-summary-totals" id="salesSummaryTotals" dir="rtl" hidden aria-live="polite">
               <div class="sales-summary-row"><span>געבליבן</span><strong id="salesSummaryValue">0</strong></div>
@@ -3405,6 +3407,7 @@
     function updateHomeSummary() {
       const showTotal = Boolean(state.settings.showNeedsSavedOnHome);
       salesSummaryTitle.textContent = showTotal ? 'סך הכל:' : 'Sales';
+      salesSummaryTitle.closest('.sales-summary').classList.toggle('has-totals', showTotal);
       salesSummarySubtitle.hidden = showTotal;
       document.getElementById('salesSummaryTotals').hidden = !showTotal;
       salesSummaryValue.textContent = getHomeSummaryTotal();

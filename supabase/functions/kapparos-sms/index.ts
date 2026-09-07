@@ -76,6 +76,7 @@ Deno.serve(async (req: Request) => {
     if (settings.printTicketsEnabled === false) return json(req, { error: 'Tickets are turned off.' }, 400);
     const recipient = String(body.recipient || sale.phone || '').trim();
     if (!/^[0-9]{10}$/.test(recipient)) return json(req, { error: 'Enter exactly 10 digits.' }, 400);
+    const displayPhone = recipient.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1-$2-$3');
     const ticketId = String(sale.ticketId || '');
     if (!/^[0-9]{10}$/.test(ticketId)) return json(req, { error: 'Save this sale before sending its ticket.' }, 400);
     const username = Deno.env.get('SMSGATE_USERNAME') || '';
@@ -86,7 +87,7 @@ Deno.serve(async (req: Request) => {
     const defaultMessage = [
       settings.title || 'פנים מאירות סיקסא', settings.subtitle || 'כפרות', '',
       `Ticket ID: ${ticketId}`, `Name: ${sale.fullName || '—'}`,
-      `Phone: ${recipient}`, `Amount of כפרות: ${sale.quantity || 0}`,
+      `Phone: ${displayPhone}`, `Amount of כפרות: ${sale.quantity || 0}`,
       `Payment Method: ${payment}`
     ].join('\n');
     const template = settings.ticketDelivery?.smsMessage;
@@ -94,7 +95,7 @@ Deno.serve(async (req: Request) => {
     const subtitle = settings.subtitle || 'כפרות';
     const message = typeof template === 'string' && template.trim()
       ? fillTicketTemplate(template.slice(0, 1000), { title, subtitle, brand: [title, subtitle].filter(Boolean).join(' '),
-          ticket_id: ticketId, name: sale.fullName || '—', phone: recipient,
+          ticket_id: ticketId, name: sale.fullName || '—', phone: displayPhone,
           quantity: sale.quantity || 0, payment_method: payment })
       : defaultMessage;
     // Use only saved templates and server-stored sale details.

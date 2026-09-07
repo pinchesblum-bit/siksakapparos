@@ -53,6 +53,11 @@ async function requireSession(req: Request) {
 
 
 
+function fillTicketTemplate(template: string, values: Record<string, unknown>) {
+  return template.replace(/\{([a-z_]+)\}/g, (match, key) =>
+    Object.prototype.hasOwnProperty.call(values, key) ? String(values[key] ?? '') : match);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(req) });
   if (req.method !== 'POST') return json(req, { error: 'Method not allowed' }, 405);
@@ -78,13 +83,21 @@ Deno.serve(async (req: Request) => {
     if (!username || !password) return json(req, { error: 'Text messaging is not configured yet.' }, 503);
     const methods = Array.isArray(settings.paymentMethods) ? settings.paymentMethods : [];
     const payment = methods.find((item: any) => String(item?.id) === String(sale.paymentType))?.label || sale.paymentType || 'Not selected';
-    const message = [
+    const defaultMessage = [
       settings.title || 'פנים מאירות סיקסא', settings.subtitle || 'כפרות', '',
       `Ticket ID: ${ticketId}`, `Name: ${sale.fullName || '—'}`,
       `Phone: ${recipient}`, `Amount of כפרות: ${sale.quantity || 0}`,
       `Payment Method: ${payment}`
     ].join('\n');
-    // Send only server-stored order details, never arbitrary client-supplied text.
+    const template = settings.ticketDelivery?.smsMessage;
+    const title = settings.title || 'פנים מאירות סיקסא';
+    const subtitle = settings.subtitle || 'כפרות';
+    const message = typeof template === 'string' && template.trim()
+      ? fillTicketTemplate(template.slice(0, 1000), { title, subtitle, brand: [title, subtitle].filter(Boolean).join(' '),
+          ticket_id: ticketId, name: sale.fullName || '—', phone: recipient,
+          quantity: sale.quantity || 0, payment_method: payment })
+      : defaultMessage;
+    // Use only saved templates and server-stored sale details.
     const response = await fetch('https://api.sms-gate.app/3rdparty/v1/messages', {
       method: 'POST',
       headers: { Authorization: 'Basic ' + btoa(username + ':' + password), 'Content-Type': 'application/json' },

@@ -285,11 +285,18 @@
     .sales-tools {
       width: 100%;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 155px;
+      grid-template-columns: minmax(0, 1fr);
       align-items: end;
       gap: 10px;
       justify-self: center;
     }
+    .name-sort-heading { display: inline-flex; align-items: center; gap: 5px; }
+    .name-sort-control { display: inline-flex; position: relative; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 5px; color: var(--ink); vertical-align: middle; }
+    .name-sort-control:hover, .name-sort-control:focus-within { background: var(--accent-soft); outline: 1px solid var(--accent); }
+    .name-sort-control select { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; padding: 0; opacity: 0; cursor: pointer; }
+    .ticket-delivery-settings { margin-top: 16px; }
+    .ticket-delivery-settings .field { margin-top: 14px; }
+    .ticket-delivery-settings textarea { min-height: 120px; resize: vertical; }
     .sales-search { width: 100%; }
     .sales-sort { width: 100%; }
     .sales-sort select { min-height: 44px; padding: 10px 11px; background: #fff; font-size: 13px; }
@@ -1475,13 +1482,15 @@
               <label for="salesSearch" class="small-note">Search Sales</label>
               <input id="salesSearch" type="search" placeholder="Name, phone, ticket ID, or notes" autocomplete="off" />
             </div>
-            <div class="sales-sort">
-              <label for="salesSort" class="small-note">Order</label>
-              <select id="salesSort">
-                <option value="name">Name א–ת / A–Z</option>
-                <option value="newest">Date — newest</option>
-                <option value="oldest">Date — oldest</option>
-              </select>
+            <div id="salesSortStorage" hidden>
+              <label class="name-sort-control" id="salesSortControl" title="Order sales">
+                <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
+                <select id="salesSort" aria-label="Order sales">
+                  <option value="name">Name א–ת / A–Z</option>
+                  <option value="newest">Date — newest</option>
+                  <option value="oldest">Date — oldest</option>
+                </select>
+              </label>
             </div>
           </div>
           <div class="sales-head-actions">
@@ -1810,6 +1819,31 @@
               </span>
             </label>
             <p class="settings-message" id="ticketSettingsMessage" role="alert"></p>
+          </form>
+          <button type="button" class="secondary-btn" id="openTicketDeliverySettingsBtn" aria-expanded="false" aria-controls="ticketDeliverySettingsForm">Send Ticket</button>
+          <form id="ticketDeliverySettingsForm" class="ticket-delivery-settings" hidden>
+            <h3>Send Ticket</h3>
+            <p class="small-note">Save the wording used for every ticket. Customer and ticket details fill in automatically.</p>
+            <div class="field">
+              <label for="settingTicketEmailSubject">Email Subject</label>
+              <div class="helper">Email wording can be saved here. Applying it is pending email setup; tickets currently use the existing email wording.</div>
+              <input id="settingTicketEmailSubject" maxlength="200" required dir="auto" />
+            </div>
+            <div class="field">
+              <label for="settingTicketEmailMessage">Email Message</label>
+              <textarea id="settingTicketEmailMessage" maxlength="4000" dir="auto"></textarea>
+              <div class="helper">The ticket details, barcode, and attached PDF stay included.</div>
+            </div>
+            <div class="field">
+              <label for="settingTicketSmsMessage">Text Message</label>
+              <textarea id="settingTicketSmsMessage" maxlength="1000" required dir="auto"></textarea>
+            </div>
+            <p class="helper">Use {name}, {ticket_id}, {quantity}, {phone}, {payment_method}, {title}, {subtitle}, or {brand} to insert each sale's details.</p>
+            <p class="settings-message" id="ticketDeliverySettingsMessage" role="alert"></p>
+            <div class="settings-actions">
+              <button type="button" class="secondary-btn" id="cancelTicketDeliverySettingsBtn">Cancel</button>
+              <button type="submit" class="primary-btn" id="saveTicketDeliverySettingsBtn">Save</button>
+            </div>
           </form>
         </div>
 
@@ -2159,17 +2193,6 @@
           <input id="sendTicketRecipient" autocomplete="off" required />
           <div class="helper" id="sendTicketHelper"></div>
         </div>
-        <div class="send-ticket-text-tools" id="sendTicketTextTools" hidden>
-          <div class="field">
-            <label for="sendTicketTextPreview">Message</label>
-            <textarea id="sendTicketTextPreview" readonly></textarea>
-          </div>
-          <div class="send-ticket-copy-actions">
-            <button type="button" class="secondary-btn" id="copySendTicketPhoneBtn" hidden>Copy Phone</button>
-            <button type="button" class="primary-btn" id="copySendTicketMessageBtn" hidden>Copy Message</button>
-            <button type="button" class="secondary-btn" id="openGoogleVoiceBtn" hidden>Open Google Voice</button>
-          </div>
-        </div>
         <p class="settings-message" id="sendTicketError" role="alert"></p>
         <div class="modal-actions">
           <button type="button" class="secondary-btn" id="cancelSendTicketBtn">Cancel</button>
@@ -2196,6 +2219,11 @@
     const PENDING_SAVE_KEY = 'kapparosPendingSaveV2';
     const CHANGE_CONFIRMATION = 'ביסטו זיכער אז דו ווילסט מאכן דעם טויש?';
     const DELETE_CONFIRMATION = 'דו ביסט באקאנט אז די נאמען גייט יעצט ווערן אינגאנצן אויסגעמעקט?';
+    const DEFAULT_TICKET_DELIVERY = {
+      emailSubject: '{brand} — Ticket #{ticket_id}',
+      emailMessage: 'Scan the barcode above, or use the attached printable PDF.',
+      smsMessage: '{title}\n{subtitle}\n\nTicket ID: {ticket_id}\nName: {name}\nPhone: {phone}\nAmount of כפרות: {quantity}\nPayment Method: {payment_method}'
+    };
     const DEFAULT_SETTINGS = {
       title: 'פנים מאירות סיקסא',
       subtitle: 'כפרות',
@@ -2292,6 +2320,7 @@
     const salesSearch = document.getElementById('salesSearch');
     const ticketScanner = document.getElementById('ticketScanner');
     const salesSort = document.getElementById('salesSort');
+    const salesSortControl = document.getElementById('salesSortControl');
     const homeBtn = document.getElementById('homeBtn');
     const todoList = document.getElementById('todoList');
     const todoSort = document.getElementById('todoSort');
@@ -2375,6 +2404,13 @@
     const ticketSettingsForm = document.getElementById('ticketSettingsForm');
     const settingPrintTicketsEnabled = document.getElementById('settingPrintTicketsEnabled');
     const ticketSettingsMessage = document.getElementById('ticketSettingsMessage');
+    const ticketDeliverySettingsForm = document.getElementById('ticketDeliverySettingsForm');
+    const openTicketDeliverySettingsBtn = document.getElementById('openTicketDeliverySettingsBtn');
+    const settingTicketEmailSubject = document.getElementById('settingTicketEmailSubject');
+    const settingTicketEmailMessage = document.getElementById('settingTicketEmailMessage');
+    const settingTicketSmsMessage = document.getElementById('settingTicketSmsMessage');
+    const ticketDeliverySettingsMessage = document.getElementById('ticketDeliverySettingsMessage');
+    const saveTicketDeliverySettingsBtn = document.getElementById('saveTicketDeliverySettingsBtn');
     const settingTitle = document.getElementById('settingTitle');
     const settingSubtitle = document.getElementById('settingSubtitle');
     const settingShowNeedsSaved = document.getElementById('settingShowNeedsSaved');
@@ -2422,11 +2458,6 @@
     const sendTicketHelper = document.getElementById('sendTicketHelper');
     const sendTicketError = document.getElementById('sendTicketError');
     const sendTicketSubmitBtn = document.getElementById('sendTicketSubmitBtn');
-    const sendTicketTextTools = document.getElementById('sendTicketTextTools');
-    const sendTicketTextPreview = document.getElementById('sendTicketTextPreview');
-    const copySendTicketPhoneBtn = document.getElementById('copySendTicketPhoneBtn');
-    const copySendTicketMessageBtn = document.getElementById('copySendTicketMessageBtn');
-    const openGoogleVoiceBtn = document.getElementById('openGoogleVoiceBtn');
     const sendTicketMethodBtns = document.querySelectorAll('[data-send-ticket-method]');
     const confirmModal = document.getElementById('confirmModal');
     const confirmMessage = document.getElementById('confirmMessage');
@@ -3033,6 +3064,7 @@
         const image = await renderTicketToJpeg(sale);
         const pdf = createPdfFromJpeg(image.bytes, image.width, image.height);
         const pdfBase64 = await blobToBase64(pdf);
+        await flushCloudSave();
         await cloudRequest('send-ticket', { saleId: sale.id, recipient, pdfBase64 });
         showToast(`Ticket sent to ${recipient}`);
         return true;
@@ -3053,6 +3085,7 @@
       button.textContent = 'Sending…';
       sendTicketError.textContent = '';
       try {
+        await flushCloudSave();
         await cloudRequest('send-ticket-text', { saleId, recipient });
         showToast('Ticket text queued for sending');
         return true;
@@ -3068,19 +3101,6 @@
     let sendTicketSaleId = '';
     let sendTicketMethod = '';
 
-    function buildTicketText(sale) {
-      return [
-        state.settings.title,
-        state.settings.subtitle,
-        '',
-        `Ticket ID: ${getSaleTicketId(sale)}`,
-        `Name: ${sale.fullName || '—'}`,
-        `Phone: ${String(sendTicketRecipient.value || sale.phone || '').trim() || '—'}`,
-        `Amount of כפרות: ${sale.quantity || 0}`,
-        `Payment Method: ${getTicketPaymentText(sale)}`
-      ].join('\n');
-    }
-
     function closeSendTicketModal() {
       sendTicketModal.classList.remove('open');
       sendTicketModal.setAttribute('aria-hidden', 'true');
@@ -3088,8 +3108,6 @@
       sendTicketMethod = '';
       sendTicketForm.reset();
       sendTicketRecipientWrap.hidden = true;
-      sendTicketTextTools.hidden = true;
-      sendTicketTextPreview.value = '';
       sendTicketSubmitBtn.hidden = true;
       sendTicketError.textContent = '';
       sendTicketMethodBtns.forEach(button => button.classList.remove('selected'));
@@ -3113,7 +3131,6 @@
         sendTicketRecipient.removeAttribute('maxlength');
         sendTicketRecipient.value = sale.email || '';
         sendTicketHelper.textContent = 'You can use the saved email or enter a different email for this ticket.';
-        sendTicketTextTools.hidden = true;
         sendTicketSubmitBtn.hidden = false;
         sendTicketSubmitBtn.textContent = 'Send';
       } else {
@@ -3124,8 +3141,6 @@
         sendTicketRecipient.maxLength = 10;
         sendTicketRecipient.value = String(sale.phone || '').replace(/\D/g, '').slice(0, 10);
         sendTicketHelper.textContent = 'Use the saved phone number or enter a different number for this ticket.';
-        sendTicketTextPreview.value = buildTicketText(sale);
-        sendTicketTextTools.hidden = false;
         sendTicketSubmitBtn.hidden = false;
         sendTicketSubmitBtn.textContent = 'Send';
       }
@@ -3139,8 +3154,6 @@
       sendTicketMethod = '';
       sendTicketForm.reset();
       sendTicketRecipientWrap.hidden = true;
-      sendTicketTextTools.hidden = true;
-      sendTicketTextPreview.value = '';
       sendTicketSubmitBtn.hidden = true;
       sendTicketError.textContent = '';
       sendTicketMethodBtns.forEach(button => button.classList.remove('selected'));
@@ -3570,7 +3583,24 @@
       customSaleFields.hidden = !state.settings.customFields.length;
     }
 
+    function getTicketDeliverySettings() {
+      const saved = state.settings.ticketDelivery || {};
+      return Object.fromEntries(Object.entries(DEFAULT_TICKET_DELIVERY).map(([key, fallback]) =>
+        [key, typeof saved[key] === 'string' ? saved[key] : fallback]));
+    }
+
+    function renderTicketDeliverySettings(open = false) {
+      const saved = getTicketDeliverySettings();
+      settingTicketEmailSubject.value = saved.emailSubject;
+      settingTicketEmailMessage.value = saved.emailMessage;
+      settingTicketSmsMessage.value = saved.smsMessage;
+      ticketDeliverySettingsMessage.textContent = '';
+      ticketDeliverySettingsForm.hidden = !open;
+      openTicketDeliverySettingsBtn.setAttribute('aria-expanded', String(open));
+    }
+
     function renderSettings() {
+      renderTicketDeliverySettings();
       settingTitle.value = state.settings.title;
       settingSubtitle.value = state.settings.subtitle;
       settingShowNeedsSaved.checked = Boolean(state.settings.showNeedsSavedOnHome);
@@ -3800,9 +3830,10 @@
       wrap.innerHTML = `
         <table class="sales-table">
           <colgroup><col style="width:20%"><col style="width:15%"><col style="width:13%"><col style="width:10%"><col style="width:27%"><col style="width:15%"></colgroup>
-          <thead><tr><th>Full Name</th><th>Phone / Email</th><th>Status</th><th>כפרה</th><th>Notes</th><th>געשלאגן</th></tr></thead>
+          <thead><tr><th><span class="name-sort-heading">Full Name<span id="salesSortSlot"></span></span></th><th>Phone / Email</th><th>Status</th><th>כפרה</th><th>Notes</th><th>געשלאגן</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>`;
+      document.getElementById('salesSortSlot').appendChild(salesSortControl);
     }
 
     function compareTodoNames(a, b) {
@@ -4555,6 +4586,9 @@
       cancelBtn.textContent = 'Close';
       editSaleBtn.hidden = false;
       saveSaleBtn.hidden = true;
+      setTimeout(() => {
+        if (saleModal.classList.contains('open') && !sendTicketModal.classList.contains('open')) cancelBtn.focus();
+      }, 0);
     }
 
     function showSaleEditor(existingSale = null) {
@@ -5396,43 +5430,8 @@
     sendTicketRecipient.addEventListener('input', () => {
       if (sendTicketMethod === 'text') {
         sendTicketRecipient.value = sendTicketRecipient.value.replace(/\D/g, '').slice(0, 10);
-        const sale = state.sales.find(item => item.id === sendTicketSaleId);
-        if (sale) sendTicketTextPreview.value = buildTicketText(sale);
       }
       sendTicketError.textContent = '';
-    });
-    async function copySendTicketValue(value, successMessage) {
-      try {
-        await navigator.clipboard.writeText(value);
-      } catch (_) {
-        const temporary = document.createElement('textarea');
-        temporary.value = value;
-        temporary.style.position = 'fixed';
-        temporary.style.opacity = '0';
-        document.body.appendChild(temporary);
-        temporary.select();
-        document.execCommand('copy');
-        temporary.remove();
-      }
-      showToast(successMessage);
-    }
-    copySendTicketPhoneBtn.addEventListener('click', () => {
-      const phone = sendTicketRecipient.value.replace(/\D/g, '');
-      if (phone.length !== 10) {
-        sendTicketError.textContent = 'Enter exactly 10 digits.';
-        sendTicketRecipient.focus();
-        return;
-      }
-      copySendTicketValue(phone, 'Phone number copied');
-    });
-    copySendTicketMessageBtn.addEventListener('click', () => {
-      const sale = state.sales.find(item => item.id === sendTicketSaleId);
-      if (!sale) return;
-      sendTicketTextPreview.value = buildTicketText(sale);
-      copySendTicketValue(sendTicketTextPreview.value, 'Ticket message copied');
-    });
-    openGoogleVoiceBtn.addEventListener('click', () => {
-      window.open('https://voice.google.com/u/0/messages', '_blank', 'noopener,noreferrer');
     });
     sendTicketForm.addEventListener('submit', async event => {
       event.preventDefault();
@@ -5498,6 +5497,7 @@
 
     saleForm.addEventListener('submit', async e => {
       e.preventDefault();
+      if (saleForm.classList.contains('sale-readonly')) { closeModal(); return; }
 
       if (!validateSaleCompletionStatus()) {
         geschlagenInput.focus();
@@ -5860,6 +5860,41 @@
       showToast('Sales settings saved');
     });
 
+    openTicketDeliverySettingsBtn.addEventListener('click', () => {
+      renderTicketDeliverySettings(ticketDeliverySettingsForm.hidden);
+    });
+    document.getElementById('cancelTicketDeliverySettingsBtn').addEventListener('click', () => renderTicketDeliverySettings());
+    ticketDeliverySettingsForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (saveTicketDeliverySettingsBtn.disabled || !ticketDeliverySettingsForm.reportValidity()) return;
+      const next = {
+        emailSubject: settingTicketEmailSubject.value.trim(),
+        emailMessage: settingTicketEmailMessage.value.trim(),
+        smsMessage: settingTicketSmsMessage.value.trim()
+      };
+      if (!next.emailSubject || !next.smsMessage) {
+        ticketDeliverySettingsMessage.textContent = 'Enter an email subject and text message.';
+        return;
+      }
+      if (JSON.stringify(next) === JSON.stringify(getTicketDeliverySettings())) {
+        renderTicketDeliverySettings();
+        return;
+      }
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+      saveTicketDeliverySettingsBtn.disabled = true;
+      try {
+        state.settings.ticketDelivery = next;
+        saveSettings();
+        await flushCloudSave();
+        renderTicketDeliverySettings();
+        showToast('Send Ticket settings saved');
+      } catch (error) {
+        ticketDeliverySettingsMessage.textContent = 'Changes are waiting to save. ' + error.message;
+      } finally {
+        saveTicketDeliverySettingsBtn.disabled = false;
+      }
+    });
+
     settingPrintTicketsEnabled.addEventListener('change', async () => {
       const previousValue = state.settings.printTicketsEnabled !== false;
       const nextValue = settingPrintTicketsEnabled.checked;
@@ -5963,6 +5998,14 @@
     });
 
     document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.defaultPrevented && !e.isComposing && saleModal.classList.contains('open')
+        && saleForm.classList.contains('sale-readonly')
+        && !confirmModal.classList.contains('open') && !securityModal.classList.contains('open')
+        && !sendTicketModal.classList.contains('open')) {
+        e.preventDefault();
+        if (!e.repeat) closeModal();
+        return;
+      }
       if (e.key === 'Enter' && confirmModal.classList.contains('open')) {
         e.preventDefault();
         finishConfirmation(true);
@@ -6062,4 +6105,5 @@
   </script>
 </body>
 </html>
+
 

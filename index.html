@@ -4555,7 +4555,9 @@
       }
       ticketScannerBusy = true;
       try {
-        if (!(await askConfirmation('פארצייכן אלץ געשלאגן'))) return;
+        const customerName = String(sale.fullName || '').trim();
+        const confirmationName = customerName || 'דעם פארקויף';
+        if (!(await askConfirmation(`פארצייכן ${confirmationName} אלץ געשלאגן?`))) return;
         sale.geschlagen = true;
         sale.updatedAt = new Date().toISOString();
         saveSales();
@@ -5316,7 +5318,11 @@
       if (sendTicketMethod !== 'email' || !sendTicketForm.reportValidity()) return;
       const recipient = sendTicketRecipient.value.trim();
       const sent = await sendTicketEmail(sendTicketSubmitBtn, sendTicketSaleId, recipient);
-      if (sent) closeSendTicketModal();
+      if (sent) {
+        closeSendTicketModal();
+        closeModal();
+        showPage('sales');
+      }
     });
     saleModal.addEventListener('click', e => { if (e.target === saleModal) closeModal(); });
 

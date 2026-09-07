@@ -274,7 +274,7 @@
 
     .table-head {
       display: grid;
-      grid-template-columns: minmax(150px, 1fr) minmax(280px, 420px) minmax(150px, 1fr);
+      grid-template-columns: minmax(250px, 1fr) minmax(240px, 330px) minmax(250px, 1fr);
       align-items: end;
       gap: 16px;
       padding: 18px 20px;
@@ -284,6 +284,7 @@
     .small-note { color: var(--muted); font-size: 13px; }
     .sales-tools {
       width: 100%;
+      max-width: 330px;
       display: grid;
       grid-template-columns: minmax(0, 1fr);
       align-items: end;
@@ -339,16 +340,26 @@
       font-size: 13px;
       text-align: center;
     }
-    .sales-summary { justify-self: start; text-align: left; }
-    .sales-summary.has-totals { display: flex; flex-direction: row-reverse; align-items: center; gap: 10px; width: fit-content; }
-    .sales-summary.has-totals h2 { margin: 0; font-size: 16px; line-height: 1.3; white-space: nowrap; }
-    .sales-summary-totals { min-width: 136px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+    .sales-summary { min-width: 0; justify-self: start; text-align: left; }
+    .sales-summary.has-totals { width: 100%; }
+    .sales-summary.has-totals h2 { display: none; }
+    .sales-summary-totals {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      width: max-content;
+      max-width: 100%;
+      color: var(--ink);
+      direction: rtl;
+      white-space: nowrap;
+    }
     .sales-summary-totals[hidden] { display: none; }
-    .sales-summary-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 3px 0; color: var(--accent); }
-    .sales-summary-row + .sales-summary-row { border-top: 1px solid var(--line); }
-    .sales-summary-row span { font-size: 14px; }
-    .sales-summary-row strong { font-size: 19px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+    .sales-summary-total-label { font-size: 16px; font-weight: 850; color: var(--ink); }
+    .sales-summary-row { display: inline-flex; align-items: baseline; gap: 6px; padding: 0; color: var(--accent); }
+    .sales-summary-row span { font-size: 14px; font-weight: 650; }
+    .sales-summary-row strong { font-size: 19px; line-height: 1; font-variant-numeric: tabular-nums; }
     .sales-summary-row.completed { color: var(--success); }
+    .sales-summary-divider { width: 1px; height: 19px; background: var(--line); }
     .sales-search input {
       padding-left: 40px;
       background:
@@ -1391,7 +1402,7 @@
       }
       .todo-content { grid-column: 2; }
       .todo-due { grid-column: 2; min-width: 0; text-align: left; }
-      .sales-tools { grid-template-columns: 1fr; }
+      .sales-tools { max-width: none; grid-template-columns: 1fr; }
       .sales-search { width: 100%; }
       .sales-head-actions { justify-self: stretch; width: 100%; }
       .ticket-scanner { flex: 1; width: auto; min-width: 0; }
@@ -1502,8 +1513,10 @@
             <h2 id="salesSummaryTitle" dir="auto">Sales</h2>
             <div class="small-note" id="salesSummarySubtitle">Names and amount of כפרה ordered</div>
             <div class="sales-summary-totals" id="salesSummaryTotals" dir="rtl" hidden aria-live="polite">
-              <div class="sales-summary-row"><span>געבליבן</span><strong id="salesSummaryValue">0</strong></div>
-              <div class="sales-summary-row completed"><span>געשלאגן</span><strong id="salesCompletedValue">0</strong></div>
+              <span class="sales-summary-total-label">סך הכל:</span>
+              <div class="sales-summary-row completed"><span>געשלאגן</span><strong id="salesCompletedValue" dir="ltr">0</strong></div>
+              <span class="sales-summary-divider" aria-hidden="true"></span>
+              <div class="sales-summary-row"><span>געבליבן</span><strong id="salesSummaryValue" dir="ltr">0</strong></div>
             </div>
           </div>
           <div class="sales-tools">

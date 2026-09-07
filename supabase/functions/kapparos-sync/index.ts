@@ -1,3 +1,5 @@
+import nodemailer from 'npm:nodemailer@10.0.1';
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ALLOWED_ORIGINS = new Set([
@@ -5,6 +7,8 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 const DEFAULT_PASSWORD_HASH = '2a00ac564b31afd7eaab2c9e59f81e386dc6ad673c8f8d000e6de3d37f9a3a94';
 const SESSION_DAYS = 30;
+const GMAIL_USER = (Deno.env.get('GMAIL_USER') || '').trim().toLowerCase();
+const GMAIL_APP_PASSWORD = (Deno.env.get('GMAIL_APP_PASSWORD') || '').replace(/\s+/g, '');
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
 const RESEND_FALLBACK_FROM = 'Kapparos Tickets <onboarding@resend.dev>';
 
@@ -169,7 +173,12 @@ function fillTicketTemplate(template: string, values: Record<string, unknown>) {
 }
 
 async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, recipientOverride = '') {
-  if (!RESEND_API_KEY) throw new Error('Email delivery needs RESEND_API_KEY configured in Supabase secrets.');
+  if (Boolean(GMAIL_USER) !== Boolean(GMAIL_APP_PASSWORD)) {
+    throw new Error('Gmail delivery is only partly configured. Add both GMAIL_USER and GMAIL_APP_PASSWORD in Supabase secrets.');
+  }
+  if (!GMAIL_USER && !RESEND_API_KEY) {
+    throw new Error('Email delivery is not configured. Add the Gmail secrets in Supabase.');
+  }
   const recipient = String(recipientOverride || sale.email || '').trim();
   if (!validEmail(recipient)) throw new Error('Add a valid email address to this sale first.');
   if (!pdfBase64 || pdfBase64.length > 8_000_000 || !/^[A-Za-z0-9+/=]+$/.test(pdfBase64)) {
@@ -198,7 +207,6 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
     ? delivery.emailMessage.slice(0, 4000) : 'Scan the barcode above, or use the attached printable PDF.';
   const subject = fillTicketTemplate(subjectTemplate, values).replace(/[\r\n]+/g, ' ').trim();
   const emailMessage = fillTicketTemplate(messageTemplate, values);
-  const from = await getResendSender();
   const html = `<!doctype html><html><body style="margin:0;background:#f7f2e7;font-family:Arial,sans-serif;color:#241f1a">
     <div style="max-width:620px;margin:32px auto;padding:30px;background:#fff;border:2px solid #6f4b2f;border-radius:18px">
       <h1 style="margin:0 0 6px;text-align:center;color:#6f4b2f">${escapeEmailHtml(title)}</h1>
@@ -219,6 +227,37 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
     </div>
   </body></html>`;
 
+  if (GMAIL_USER && GMAIL_APP_PASSWORD) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
+      });
+      const info = await transporter.sendMail({
+        from: { name: brandName || 'Kapparos Tickets', address: GMAIL_USER },
+        to: recipient,
+        subject,
+        html,
+        attachments: [{
+          filename: `kapparos-ticket-${ticketId}.pdf`,
+          content: pdfBase64,
+          encoding: 'base64',
+          contentType: 'application/pdf',
+        }],
+      });
+      return { id: String(info?.messageId || ''), provider: 'gmail' };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error || '');
+      if (/535|credentials|username and password not accepted|invalid login/i.test(message)) {
+        throw new Error('Gmail rejected the connection. Create a new Google App Password and update GMAIL_APP_PASSWORD in Supabase secrets.');
+      }
+      throw new Error('Gmail could not send the ticket email. ' + message.slice(0, 300));
+    }
+  }
+
+  const from = await getResendSender();
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {

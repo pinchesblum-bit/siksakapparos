@@ -4961,21 +4961,17 @@
 
       const groupValues = Object.values(groups);
       const paidGroups = groupValues.filter(group => !isBanshakPayment(group.id));
-      document.getElementById('salesCountGrid').innerHTML = groupValues.map(group => `
+      const onlineSalesCount = state.sales.filter(sale => sale.isOnlineSale === true && sale.status !== 'expired').length;
+      document.getElementById('salesCountGrid').innerHTML = [...paidGroups, { label: 'Total online', count: onlineSalesCount }].map(group => `
         <div class="stat-card">
           <div class="stat-label">${escapeHtml(group.label)} sales</div>
           <div class="stat-value">${group.count}</div>
         </div>`).join('');
-      const banshakUnpaid = state.sales.reduce((sum, sale) => (sale.status || 'paid') === 'paid' && isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
       document.getElementById('moneyTotalsGrid').innerHTML = paidGroups.map(group => `
         <div class="stat-card">
           <div class="stat-label">${escapeHtml(group.label)} total</div>
           <div class="stat-value">${money(group.money)}</div>
-        </div>`).join('') + `
-        <div class="stat-card">
-          <div class="stat-label">בנש״ק unpaid</div>
-          <div class="stat-value">${money(banshakUnpaid)}</div>
-        </div>`;
+        </div>`).join('');
 
       const paidSales = state.sales.filter(sale => (sale.status || 'paid') === 'paid');
       const reservedSales = state.sales.filter(sale => sale.status === 'reserved');

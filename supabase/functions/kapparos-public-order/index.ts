@@ -1,6 +1,5 @@
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const DEMO_CODE_HASH = '855d1700c7a6661f267d7618f0f9b6c9ddc5afb0b20a69c7a5b9df0b9bc8703d';
 const ADMIN_ORIGIN = 'https://pinchesblum-bit.github.io';
 const ALLOWED_ORIGINS = new Set([
   'https://siksakapparos.org',
@@ -77,10 +76,6 @@ function safeSale(sale: any, remaining: number) {
   };
 }
 async function createOrder(body: any) {
-  const submittedCode = String(body.demoCode || '').trim().toUpperCase();
-  if (!submittedCode || await hash(submittedCode) !== DEMO_CODE_HASH) {
-    throw Object.assign(new Error('The private demo code is incorrect.'), { status: 403 });
-  }
   const fullName = cleanName(body.fullName);
   const phone = String(body.phone || '').replace(/\D/g, '');
   const email = String(body.email || '').trim().toLowerCase().slice(0, 200);

@@ -4955,7 +4955,7 @@
         if (!groups[sale.paymentType]) {
           groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
         }
-        groups[sale.paymentType].count += 1;
+        if (sale.isOnlineSale !== true) groups[sale.paymentType].count += 1;
         if ((sale.status || 'paid') === 'paid' && !isBanshakPayment(sale.paymentType)) groups[sale.paymentType].money += Number(sale.price || 0);
       });
 

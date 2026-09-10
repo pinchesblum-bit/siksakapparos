@@ -1293,6 +1293,7 @@
     .sales-basics-grid > .field > input,
     .sales-basics-grid > .field > .price-wrap { height: 44px; min-height: 44px; }
     .sales-basics-grid .helper { margin: 0; line-height: 1.4; }
+    .buying-options-grid textarea { min-height: 132px; resize: vertical; line-height: 1.5; }
     .reservation-setting-copy { display: grid; gap: 4px; }
     .reservation-setting-copy .settings-card-note { margin: 0; font-weight: 500; }
     @media (max-width: 700px) {
@@ -1999,6 +2000,10 @@
               <span class="settings-card-title">Accounting</span>
               <span class="settings-card-note">Manage expense payment statuses.</span>
             </button>
+            <button type="button" class="settings-card" data-settings-open="buying">
+              <span class="settings-card-title">Buying Website</span>
+              <span class="settings-card-note">Control public ordering, page text, pricing, inventory, pickup times, payment choices, and confirmation text.</span>
+            </button>
             <button type="button" class="settings-card" data-settings-open="login">
               <span class="settings-card-title">Login</span>
               <span class="settings-card-note">Change the username and password.</span>
@@ -2008,6 +2013,39 @@
             <span class="settings-card-note">Download sales, reports, tasks, and accounting for Excel.</span>
             </button>
           </div>
+        </div>
+
+        <div class="settings-view" data-settings-view="buying" hidden>
+          <div class="settings-view-head">
+            <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
+            <h3>Buying Website</h3>
+            <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="buying">Edit</button>
+          </div>
+          <form id="buyingWebsiteSettingsForm">
+            <div class="settings-section">
+              <h3>Ordering</h3>
+              <label class="settings-switch-row field full">
+                <span class="reservation-setting-copy"><span>Allow Online Orders</span><span class="settings-card-note">Turn this off to close ordering without removing the public page.</span></span>
+                <span class="toggle-switch"><input type="checkbox" id="settingBuyingEnabled" /><span class="toggle-slider" aria-hidden="true"></span></span>
+              </label>
+            </div>
+            <div class="settings-grid">
+              <div class="field"><label for="settingBuyingTitle">Page Title</label><input id="settingBuyingTitle" required /></div>
+              <div class="field"><label for="settingBuyingSubtitle">Page Subtitle</label><input id="settingBuyingSubtitle" required /></div>
+              <div class="field full"><label for="settingBuyingButtonText">Order Button Text</label><input id="settingBuyingButtonText" required /></div>
+            </div>
+            <div class="settings-grid sales-basics-grid">
+              <div class="field"><label for="settingBuyingPrice">Price per כפרה</label><div class="price-wrap"><span>$</span><input id="settingBuyingPrice" type="number" min="0" step="0.01" required /></div><div class="helper">Shown in the order summary.</div></div>
+              <div class="field"><label for="settingBuyingInventory">Online Inventory</label><input id="settingBuyingInventory" type="number" min="0" step="1" required /><div class="helper">At zero, the order button is disabled.</div></div>
+            </div>
+            <div class="settings-grid buying-options-grid">
+              <div class="field"><label for="settingBuyingPickupTimes">Pickup Times</label><textarea id="settingBuyingPickupTimes" rows="5" required></textarea><div class="helper">Enter one pickup time per line.</div></div>
+              <div class="field"><label for="settingBuyingPaymentChoices">Payment Choices</label><textarea id="settingBuyingPaymentChoices" rows="5" required></textarea><div class="helper">Enter one payment choice per line.</div></div>
+              <div class="field full"><label for="settingBuyingConfirmationText">Customer Confirmation Text</label><textarea id="settingBuyingConfirmationText" rows="4" required></textarea><div class="helper">Shown beside the order summary.</div></div>
+            </div>
+            <p class="settings-message" id="buyingWebsiteSettingsMessage" role="alert"></p>
+            <div class="settings-actions" data-settings-actions="buying" hidden><button type="button" class="secondary-btn" data-cancel-settings="buying">Cancel</button><button type="submit" class="primary-btn">Save</button></div>
+          </form>
         </div>
 
         <div class="settings-view" data-settings-view="website" hidden>
@@ -2694,6 +2732,17 @@
       pdfValueSize: 43,
       smsMessage: '{title}\n{subtitle}\n\nHello {name},\n\nThank you for choosing {brand} for your kapparos.\n\nOrder details:\nName: {name}\nPhone: {phone}\nNumber of kapparos: {quantity}\nPayment method: {payment_method}\n\nPlease present this ticket number when picking up your kapparos:\n#{ticket_id}\n\nגמר חתימה טובה'
     };
+    const DEFAULT_BUYING_WEBSITE = {
+      orderingEnabled: true,
+      title: 'פנים מאירות סיקסא',
+      subtitle: 'כפרות',
+      buttonText: 'באשטעלט יעצט אייער כפרה',
+      price: 18,
+      inventory: 100,
+      pickupTimes: ['Tuesday evening', 'Wednesday morning'],
+      paymentChoices: ['Credit card', 'Pay later'],
+      confirmationText: 'Your ticket will be sent by text and email after the order is completed.'
+    };
     const DEFAULT_SETTINGS = {
       title: 'פנים מאירות סיקסא',
       subtitle: 'כפרות',
@@ -2711,6 +2760,7 @@
       accountingExpenses: [],
       defaultPrice: 23,
       inventory: 100,
+      buyingWebsite: DEFAULT_BUYING_WEBSITE,
       privateAccessEnabled: true,
       username: 'admin',
       passwordHash: '2a00ac564b31afd7eaab2c9e59f81e386dc6ad673c8f8d000e6de3d37f9a3a94',
@@ -2870,6 +2920,7 @@
     const settingsHome = document.getElementById('settingsHome');
     const settingsViews = document.querySelectorAll('[data-settings-view]');
     const websiteSettingsForm = document.getElementById('websiteSettingsForm');
+    const buyingWebsiteSettingsForm = document.getElementById('buyingWebsiteSettingsForm');
     const salesSettingsForm = document.getElementById('salesSettingsForm');
     const loginSettingsForm = document.getElementById('loginSettingsForm');
     const openLoginSettingsBtn = document.getElementById('openLoginSettingsBtn');
@@ -2902,6 +2953,16 @@
     const settingTitle = document.getElementById('settingTitle');
     const settingSubtitle = document.getElementById('settingSubtitle');
     const settingShowNeedsSaved = document.getElementById('settingShowNeedsSaved');
+    const settingBuyingEnabled = document.getElementById('settingBuyingEnabled');
+    const settingBuyingTitle = document.getElementById('settingBuyingTitle');
+    const settingBuyingSubtitle = document.getElementById('settingBuyingSubtitle');
+    const settingBuyingButtonText = document.getElementById('settingBuyingButtonText');
+    const settingBuyingPrice = document.getElementById('settingBuyingPrice');
+    const settingBuyingInventory = document.getElementById('settingBuyingInventory');
+    const settingBuyingPickupTimes = document.getElementById('settingBuyingPickupTimes');
+    const settingBuyingPaymentChoices = document.getElementById('settingBuyingPaymentChoices');
+    const settingBuyingConfirmationText = document.getElementById('settingBuyingConfirmationText');
+    const buyingWebsiteSettingsMessage = document.getElementById('buyingWebsiteSettingsMessage');
     const settingDefaultPrice = document.getElementById('settingDefaultPrice');
     const settingInventory = document.getElementById('settingInventory');
     const settingReservationsEnabled = document.getElementById('settingReservationsEnabled');
@@ -2960,7 +3021,7 @@
     const TICKET_SALE_KEY = 'kapparos_ticket_sale_id';
     const ACCOUNTING_ACCESS_KEY = 'kapparos_accounting_access';
     const VALID_PAGES = new Set(['sales', 'todo', 'reports', 'accounting', 'ticket', 'settings']);
-    const VALID_SETTINGS_VIEWS = new Set(['website', 'sales', 'ticket', 'reports', 'tasks', 'accounting', 'login', 'export']);
+    const VALID_SETTINGS_VIEWS = new Set(['website', 'buying', 'sales', 'ticket', 'reports', 'tasks', 'accounting', 'login', 'export']);
 
     function setLoginPasswordVisible(visible) {
       loginPassword.type = visible ? 'text' : 'password';
@@ -3211,6 +3272,26 @@
           passwordHash: saved.passwordHash || DEFAULT_SETTINGS.passwordHash,
           defaultPrice: Number.isFinite(Number(saved.defaultPrice)) ? Number(saved.defaultPrice) : DEFAULT_SETTINGS.defaultPrice,
           inventory: Number.isFinite(Number(saved.inventory)) ? Math.max(0, Math.floor(Number(saved.inventory))) : DEFAULT_SETTINGS.inventory,
+          buyingWebsite: (() => {
+            const value = saved.buyingWebsite && typeof saved.buyingWebsite === 'object' ? saved.buyingWebsite : {};
+            const cleanLines = (items, fallback) => {
+              const lines = Array.isArray(items) ? items : fallback;
+              const cleaned = lines.map(item => String(item || '').trim()).filter(Boolean);
+              return cleaned.length ? cleaned : fallback.slice();
+            };
+            return {
+              ...DEFAULT_BUYING_WEBSITE, ...value,
+              orderingEnabled: value.orderingEnabled !== false,
+              title: String(value.title || DEFAULT_BUYING_WEBSITE.title).trim(),
+              subtitle: String(value.subtitle || DEFAULT_BUYING_WEBSITE.subtitle).trim(),
+              buttonText: String(value.buttonText || DEFAULT_BUYING_WEBSITE.buttonText).trim(),
+              price: Number.isFinite(Number(value.price)) ? Math.max(0, Number(value.price)) : DEFAULT_BUYING_WEBSITE.price,
+              inventory: Number.isFinite(Number(value.inventory)) ? Math.max(0, Math.floor(Number(value.inventory))) : DEFAULT_BUYING_WEBSITE.inventory,
+              pickupTimes: cleanLines(value.pickupTimes, DEFAULT_BUYING_WEBSITE.pickupTimes),
+              paymentChoices: cleanLines(value.paymentChoices, DEFAULT_BUYING_WEBSITE.paymentChoices),
+              confirmationText: String(value.confirmationText || DEFAULT_BUYING_WEBSITE.confirmationText).trim()
+            };
+          })(),
           showNeedsSavedOnHome: Boolean(saved.showNeedsSavedOnHome),
           homeSummaryLabel: typeof saved.homeSummaryLabel === 'string' && saved.homeSummaryLabel.trim() ? saved.homeSummaryLabel.trim() : DEFAULT_SETTINGS.homeSummaryLabel,
           homeSummaryScope: saved.homeSummaryScope === 'paid_reserved' ? 'paid_reserved' : 'paid',
@@ -4112,7 +4193,7 @@
     let settingsDraftMethods = [];
     let settingsDraftPlans = [];
     let settingsDraftFields = [];
-    const settingsEditMode = { website: false, sales: false, ticket: false, login: false, reports: false };
+    const settingsEditMode = { website: false, buying: false, sales: false, ticket: false, login: false, reports: false };
 
     function renderPaymentMethodsEditor() {
       paymentMethodsList.innerHTML = settingsDraftMethods.map((method, index) => {
@@ -4371,6 +4452,15 @@
       settingTitle.value = state.settings.title;
       settingSubtitle.value = state.settings.subtitle;
       settingShowNeedsSaved.checked = Boolean(state.settings.showNeedsSavedOnHome);
+      settingBuyingEnabled.checked = state.settings.buyingWebsite.orderingEnabled !== false;
+      settingBuyingTitle.value = state.settings.buyingWebsite.title;
+      settingBuyingSubtitle.value = state.settings.buyingWebsite.subtitle;
+      settingBuyingButtonText.value = state.settings.buyingWebsite.buttonText;
+      settingBuyingPrice.value = Number(state.settings.buyingWebsite.price).toFixed(2);
+      settingBuyingInventory.value = state.settings.buyingWebsite.inventory;
+      settingBuyingPickupTimes.value = state.settings.buyingWebsite.pickupTimes.join('\n');
+      settingBuyingPaymentChoices.value = state.settings.buyingWebsite.paymentChoices.join('\n');
+      settingBuyingConfirmationText.value = state.settings.buyingWebsite.confirmationText;
       settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
       settingInventory.value = state.settings.inventory;
       settingReservationsEnabled.checked = state.settings.reservationsEnabled !== false;
@@ -4389,6 +4479,7 @@
       settingReportNeedsReservedLabel.value = state.settings.reportLabels.needsReserved;
       settingReportNeedsSavedLabel.value = state.settings.reportLabels.needsSaved;
       websiteSettingsMessage.textContent = '';
+      buyingWebsiteSettingsMessage.textContent = '';
       salesSettingsMessage.textContent = '';
       loginSettingsMessage.textContent = '';
       reportSettingsMessage.textContent = '';
@@ -4409,6 +4500,7 @@
       settingsEditMode[section] = editing;
       const form = {
         website: websiteSettingsForm,
+        buying: buyingWebsiteSettingsForm,
         sales: salesSettingsForm,
         ticket: ticketSettingsForm,
         login: loginSettingsForm,
@@ -4419,7 +4511,7 @@
         settingPrintTicketsEnabled.disabled = false;
         return;
       }
-      form.querySelectorAll('input, select, button').forEach(control => { control.disabled = !editing; });
+      form.querySelectorAll('input, select, textarea, button').forEach(control => { control.disabled = !editing; });
       if (section === 'website') {
         settingShowNeedsSaved.disabled = false;
         settingSalesTableRtl.disabled = false;
@@ -4453,6 +4545,19 @@
         settingSubtitle.value = state.settings.subtitle;
         settingShowNeedsSaved.checked = Boolean(state.settings.showNeedsSavedOnHome);
             websiteSettingsMessage.textContent = '';
+      }
+      if (section === 'buying') {
+        const value = state.settings.buyingWebsite;
+        settingBuyingEnabled.checked = value.orderingEnabled !== false;
+        settingBuyingTitle.value = value.title;
+        settingBuyingSubtitle.value = value.subtitle;
+        settingBuyingButtonText.value = value.buttonText;
+        settingBuyingPrice.value = Number(value.price).toFixed(2);
+        settingBuyingInventory.value = value.inventory;
+        settingBuyingPickupTimes.value = value.pickupTimes.join('\n');
+        settingBuyingPaymentChoices.value = value.paymentChoices.join('\n');
+        settingBuyingConfirmationText.value = value.confirmationText;
+        buyingWebsiteSettingsMessage.textContent = '';
       }
       if (section === 'sales') {
         settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
@@ -5545,7 +5650,7 @@
         const section = btn.dataset.editSettings;
         resetSettingsSection(section);
         setSettingsEditMode(section, true);
-        ({ website: settingTitle, sales: settingDefaultPrice, login: settingCurrentPassword, reports: settingReportChickensLabel }[section])?.focus();
+        ({ website: settingTitle, buying: settingBuyingTitle, sales: settingDefaultPrice, login: settingCurrentPassword, reports: settingReportChickensLabel }[section])?.focus();
       });
     });
     document.querySelectorAll('[data-cancel-settings]').forEach(btn => {
@@ -6540,6 +6645,48 @@
       });
       renderCustomFieldsEditor();
       customFieldsList.querySelector('.custom-field-row:last-child input')?.select();
+    });
+
+    buyingWebsiteSettingsForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!buyingWebsiteSettingsForm.reportValidity()) return;
+      const pickupTimes = settingBuyingPickupTimes.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+      const paymentChoices = settingBuyingPaymentChoices.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+      if (!pickupTimes.length || !paymentChoices.length) {
+        buyingWebsiteSettingsMessage.style.color = '#a23939';
+        buyingWebsiteSettingsMessage.textContent = 'Enter at least one pickup time and one payment choice.';
+        return;
+      }
+      const next = {
+        orderingEnabled: settingBuyingEnabled.checked,
+        title: settingBuyingTitle.value.trim(),
+        subtitle: settingBuyingSubtitle.value.trim(),
+        buttonText: settingBuyingButtonText.value.trim(),
+        price: Math.max(0, Number(settingBuyingPrice.value)),
+        inventory: Math.max(0, Math.floor(Number(settingBuyingInventory.value))),
+        pickupTimes,
+        paymentChoices,
+        confirmationText: settingBuyingConfirmationText.value.trim()
+      };
+      if (JSON.stringify(next) === JSON.stringify(state.settings.buyingWebsite)) {
+        buyingWebsiteSettingsMessage.style.color = '#7a7269';
+        buyingWebsiteSettingsMessage.textContent = 'No changes to save.';
+        setSettingsEditMode('buying', false);
+        return;
+      }
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+      state.settings.buyingWebsite = next;
+      saveSettings();
+      try {
+        await flushCloudSave();
+        buyingWebsiteSettingsMessage.style.color = '#426447';
+        buyingWebsiteSettingsMessage.textContent = 'Buying Website settings saved.';
+        setSettingsEditMode('buying', false);
+        showToast('Buying Website settings saved');
+      } catch (error) {
+        buyingWebsiteSettingsMessage.style.color = '#a23939';
+        buyingWebsiteSettingsMessage.textContent = error.message || 'The settings are waiting to save.';
+      }
     });
 
     websiteSettingsForm.addEventListener('submit', async e => {

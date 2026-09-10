@@ -15,7 +15,7 @@ const DEFAULTS = {
   inventory: 100,
   pickupTimes: ['Tuesday evening', 'Wednesday morning'],
   paymentChoices: ['Credit card'],
-  confirmationText: 'Your ticket will be sent by text and email after the order is completed.'
+  confirmationText: 'After checkout, choose Print Ticket, Email Ticket, or Text Ticket.'
 };
 
 function responseHeaders(origin: string) {

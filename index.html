@@ -2706,6 +2706,7 @@
     let cloudSaveRevision = 0;
     let cloudSaveDirty = false;
     let cloudReady = false;
+    let cloudKnownSaleIds = new Set();
     const PENDING_SAVE_KEY = 'kapparosPendingSaveV2';
     const CHANGE_CONFIRMATION = 'ביסטו זיכער אז דו ווילסט מאכן דעם טויש?';
     const DELETE_CONFIRMATION = 'דו ביסט באקאנט אז די נאמען גייט יעצט ווערן אינגאנצן אויסגעמעקט?';
@@ -3897,6 +3898,8 @@
     }
 
     function applyCloudState(data) {
+      const knownSales = Array.isArray(data._knownSaleIds) ? data._knownSaleIds : (Array.isArray(data.sales) ? data.sales.map(item => item.id) : []);
+      cloudKnownSaleIds = new Set(knownSales.map(String));
       state.sales = Array.isArray(data.sales) ? data.sales : [];
       if (ensureSaleTicketIds()) pendingTicketIdSave = true;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sales));
@@ -3937,10 +3940,11 @@
       cloudSaveInFlight = (async () => {
         while (cloudSaveDirty) {
           const revision = cloudSaveRevision;
-          const snapshot = JSON.parse(JSON.stringify({ sales: state.sales, settings: state.settings }));
+          const snapshot = JSON.parse(JSON.stringify({ sales: state.sales, settings: state.settings, knownSaleIds: Array.from(cloudKnownSaleIds) }));
           try {
-            await cloudRequest('save', snapshot);
+            const saved = await cloudRequest('save', snapshot);
             if (revision === cloudSaveRevision) {
+              if (Array.isArray(saved.sales)) cloudKnownSaleIds = new Set(saved.sales.map(item => String(item.id)));
               cloudSaveDirty = false;
               sessionStorage.removeItem(PENDING_SAVE_KEY);
             }
@@ -3964,7 +3968,7 @@
         if (pending.username !== data.settings?.username) return data;
         cloudSaveDirty = true;
         cloudSaveRevision++;
-        return { ...data, sales: pending.sales, settings: pending.settings };
+        return { ...data, sales: pending.sales, settings: pending.settings, _knownSaleIds: (data.sales || []).map(item => item.id) };
       } catch { return data; }
     }
 

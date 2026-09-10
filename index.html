@@ -515,6 +515,21 @@
       font-weight: 500;
       letter-spacing: 0;
     }
+    .sale-name-content { display:inline-flex; align-items:center; gap:7px; max-width:100%; }
+    .online-sale-badge {
+      display:inline-flex;
+      align-items:center;
+      min-height:21px;
+      padding:3px 7px;
+      border:1px solid #c9d8e9;
+      border-radius:999px;
+      background:#eaf2fb;
+      color:#315f8b;
+      font:800 10px/1 Inter,ui-sans-serif,system-ui,sans-serif;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+      white-space:nowrap;
+    }
     .status-pill {
       display: inline-flex;
       align-items: center;
@@ -4702,7 +4717,7 @@
             : '';
           return `${divider}
             <tr class="sale-row" data-sale-id="${escapeHtml(sale.id)}" tabindex="0" title="Click to open this sale">
-              <td class="sale-name">${escapeHtml(sale.fullName)}</td>
+              <td class="sale-name"><span class="sale-name-content"><span>${escapeHtml(sale.fullName)}</span>${sale.isOnlineSale ? '<span class="online-sale-badge">Online</span>' : ''}</span></td>
               <td><span class="sale-contact"><span>${escapeHtml(sale.phone || '')}</span>${sale.email ? `<span class="sale-contact-email" title="${escapeHtml(sale.email)}">${escapeHtml(sale.email)}</span>` : ''}</span></td>
               <td><span class="status-pill ${escapeHtml(sale.status || 'paid')}">${getStatusLabel(sale.status || 'paid')}</span></td>
               <td><span class="kapparah-pill">${sale.quantity}</span></td>

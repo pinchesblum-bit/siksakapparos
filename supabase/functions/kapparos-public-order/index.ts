@@ -97,65 +97,56 @@ async function createOrder(body: any) {
     throw Object.assign(new Error('Checkout session expired. Please try again.'), { status: 400 });
   }
   const tokenHash = await hash(orderToken);
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const current = await stateRow();
-    if (!current) throw Object.assign(new Error('The order system is unavailable.'), { status: 503 });
-    const settings = current.settings || {};
-    const buying = settings.buyingWebsite || {};
-    const sales = Array.isArray(current.sales) ? current.sales : [];
-    const existing = sales.find((sale: any) => sale?.onlineOrderKey === orderKey);
-    const allocation = Math.max(0, Math.floor(Number(buying.inventory || 0)));
-    const alreadySold = sales.reduce((sum: number, sale: any) =>
-      sale?.isOnlineSale && String(sale.status || 'paid') !== 'expired'
-        ? sum + Math.max(0, Number(sale.quantity || 0)) : sum, 0);
-    const remaining = Math.max(0, allocation - alreadySold);
-    if (existing) {
-      if (existing.onlineOrderTokenHash !== tokenHash) {
-        throw Object.assign(new Error('This checkout session is not valid.'), { status: 403 });
-      }
-      return safeSale(existing, remaining);
-    }
-    if (buying.orderingEnabled === false) {
-      throw Object.assign(new Error('Online ordering is currently closed.'), { status: 409 });
-    }
-    if (quantity > remaining) {
+  const current = await stateRow();
+  if (!current) throw Object.assign(new Error('The order system is unavailable.'), { status: 503 });
+  const buying = current.settings?.buyingWebsite || {};
+  const sales = Array.isArray(current.sales) ? current.sales : [];
+  const now = new Date().toISOString();
+  const unitPrice = Math.max(0, Number(buying.price || 0));
+  const sale = {
+    id: crypto.randomUUID(),
+    ticketId: ticketId(sales),
+    paidAt: now,
+    paidOn: now.slice(0, 10),
+    createdAt: now,
+    updatedAt: now,
+    fullName,
+    phone,
+    email,
+    status: 'paid',
+    quantity,
+    price: Number((quantity * unitPrice).toFixed(2)),
+    paymentType: 'credit',
+    otherDetails: '',
+    plannedPaymentType: '',
+    plannedPaymentDate: '',
+    geschlagen: false,
+    customFields: {},
+    notes: 'Online sale',
+    isOnlineSale: true,
+    isDemoSale: true,
+    onlineOrderKey: orderKey,
+    onlineOrderTokenHash: tokenHash
+  };
+  const result = await db('rpc/kapparos_create_online_demo_order', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_sale: sale,
+      p_order_key: orderKey,
+      p_token_hash: tokenHash,
+      p_quantity: quantity
+    })
+  });
+  if (!result?.ok) {
+    if (result?.code === 'invalid_session') throw Object.assign(new Error('This checkout session is not valid.'), { status: 403 });
+    if (result?.code === 'closed') throw Object.assign(new Error('Online ordering is currently closed.'), { status: 409 });
+    if (result?.code === 'inventory') {
+      const remaining = Math.max(0, Number(result.remaining || 0));
       throw Object.assign(new Error(remaining ? 'Only ' + remaining + ' are still available online.' : 'Online orders are sold out.'), { status: 409 });
     }
-    const now = new Date().toISOString();
-    const unitPrice = Math.max(0, Number(buying.price || 0));
-    const sale = {
-      id: crypto.randomUUID(),
-      ticketId: ticketId(sales),
-      paidAt: now,
-      paidOn: now.slice(0, 10),
-      createdAt: now,
-      updatedAt: now,
-      fullName,
-      phone,
-      email,
-      status: 'paid',
-      quantity,
-      price: Number((quantity * unitPrice).toFixed(2)),
-      paymentType: 'credit',
-      otherDetails: '',
-      plannedPaymentType: '',
-      plannedPaymentDate: '',
-      geschlagen: false,
-      customFields: {},
-      notes: 'Online sale',
-      isOnlineSale: true,
-      isDemoSale: true,
-      onlineOrderKey: orderKey,
-      onlineOrderTokenHash: tokenHash
-    };
-    const query = 'kapparos_app_state?id=eq.main&updated_at=eq.' + encodeURIComponent(String(current.updated_at || ''));
-    const updated = await db(query, {
-      method: 'PATCH',
-      body: JSON.stringify({ sales: [...sales, sale], updated_at: now })
-    });
-    if (Array.isArray(updated) && updated.length) return safeSale(sale, remaining - quantity);
+    throw Object.assign(new Error('The order system is unavailable.'), { status: 503 });
   }
-  throw Object.assign(new Error('Another order was saved at the same time. Please try again.'), { status: 409 });
+  return safeSale(result.sale, Math.max(0, Number(result.remaining || 0)));
 }
 async function verifiedOnlineSale(body: any) {
   const saleId = String(body.saleId || '');

@@ -102,7 +102,7 @@ async function createOrder(body: any) {
   const buying = current.settings?.buyingWebsite || {};
   const sales = Array.isArray(current.sales) ? current.sales : [];
   const now = new Date().toISOString();
-  const unitPrice = Math.max(0, Number(buying.price || 0));
+  const unitPrice = Math.max(0, Number(current.settings?.defaultPrice || 0));
   const sale = {
     id: crypto.randomUUID(),
     ticketId: ticketId(sales),

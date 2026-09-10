@@ -516,6 +516,7 @@
       letter-spacing: 0;
     }
     .sale-name-content { display:inline-flex; align-items:center; gap:7px; max-width:100%; }
+    .online-sale-badge[hidden] { display:none; }
     .online-sale-badge {
       display:inline-flex;
       align-items:center;
@@ -2430,7 +2431,7 @@
   <div class="modal-backdrop" id="saleModal" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="saleModalTitle">
       <div class="modal-head">
-        <h2 id="saleModalTitle">Add Sale</h2>
+        <div style="display:flex;align-items:center;gap:10px"><h2 id="saleModalTitle">Add Sale</h2><span id="saleOnlineBadge" class="online-sale-badge" hidden>Online</span></div>
         <button class="close-btn" id="closeModalBtn" aria-label="Close">×</button>
       </div>
 
@@ -4721,7 +4722,7 @@
             : '';
           return `${divider}
             <tr class="sale-row" data-sale-id="${escapeHtml(sale.id)}" tabindex="0" title="Click to open this sale">
-              <td class="sale-name"><span class="sale-name-content"><span>${escapeHtml(sale.fullName)}</span>${sale.isOnlineSale ? '<span class="online-sale-badge">Online</span>' : ''}</span></td>
+              <td class="sale-name"><span class="sale-name-content"><span>${escapeHtml(sale.fullName)}</span></span></td>
               <td><span class="sale-contact"><span>${escapeHtml(sale.phone || '')}</span>${sale.email ? `<span class="sale-contact-email" title="${escapeHtml(sale.email)}">${escapeHtml(sale.email)}</span>` : ''}</span></td>
               <td><span class="status-pill ${escapeHtml(sale.status || 'paid')}">${getStatusLabel(sale.status || 'paid')}</span></td>
               <td><span class="kapparah-pill">${sale.quantity}</span></td>
@@ -5478,6 +5479,7 @@
 
     function showSaleView() {
       saleModalTitle.textContent = 'Sale';
+      document.getElementById('saleOnlineBadge').hidden = !state.sales.find(item => item.id === state.editingSaleId)?.isOnlineSale;
       setSaleFormMode(true);
       deleteSaleBtn.hidden = true;
       const sale = state.sales.find(item => item.id === state.editingSaleId);
@@ -5497,6 +5499,7 @@
 
     function showSaleEditor(existingSale = null) {
       saleModalTitle.textContent = existingSale ? 'Edit Sale' : 'Add Sale';
+      document.getElementById('saleOnlineBadge').hidden = !existingSale?.isOnlineSale;
       setSaleFormMode(false);
       if (geschlagenControl) geschlagenControl.hidden = false;
       updatePaymentFieldsForStatus();

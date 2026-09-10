@@ -14,7 +14,7 @@ const DEFAULTS = {
   price: 18,
   inventory: 100,
   pickupTimes: ['Tuesday evening', 'Wednesday morning'],
-  paymentChoices: ['Credit card', 'Pay later'],
+  paymentChoices: ['Credit card'],
   confirmationText: 'Your ticket will be sent by text and email after the order is completed.'
 };
 

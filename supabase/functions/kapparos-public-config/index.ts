@@ -33,17 +33,17 @@ function cleanLines(value: unknown, fallback: string[]) {
   const cleaned = source.map(item => String(item || '').trim()).filter(Boolean).slice(0, 30);
   return cleaned.length ? cleaned : fallback;
 }
-function sanitize(value: any, sales: any[] = []) {
+function sanitize(value: any, sales: any[] = [], admin: any = {}) {
   const source = value && typeof value === 'object' ? value : {};
   return {
     orderingEnabled: source.orderingEnabled !== false,
     title: String(source.title || DEFAULTS.title).trim().slice(0, 120),
     subtitle: String(source.subtitle || DEFAULTS.subtitle).trim().slice(0, 120),
     buttonText: String(source.buttonText || DEFAULTS.buttonText).trim().slice(0, 160),
-    price: Number.isFinite(Number(source.price)) ? Math.max(0, Number(source.price)) : DEFAULTS.price,
+    price: Number.isFinite(Number(admin.defaultPrice)) ? Math.max(0, Number(admin.defaultPrice)) : 0,
     inventory: (() => {
-      const allocation = Number.isFinite(Number(source.inventory)) ? Math.max(0, Math.floor(Number(source.inventory))) : DEFAULTS.inventory;
-      const sold = sales.reduce((sum, sale) => sale?.isOnlineSale && String(sale.status || 'paid') !== 'expired'
+      const allocation = Number.isFinite(Number(admin.inventory)) ? Math.max(0, Math.floor(Number(admin.inventory))) : 0;
+      const sold = sales.reduce((sum, sale) => String(sale.status || 'paid') === 'paid'
         ? sum + Math.max(0, Number(sale.quantity || 0)) : sum, 0);
       return Math.max(0, allocation - sold);
     })(),
@@ -74,7 +74,7 @@ Deno.serve(async (req: Request) => {
     if (!result.ok) throw new Error('Database unavailable');
     const rows = await result.json();
     if (!rows?.[0]) return new Response(JSON.stringify({error: 'No data found'}), {status: 404, headers});
-    return new Response(JSON.stringify({settings: sanitize(rows[0].settings?.buyingWebsite, Array.isArray(rows[0].sales) ? rows[0].sales : [])}), {status: 200, headers});
+    return new Response(JSON.stringify({settings: sanitize(rows[0].settings?.buyingWebsite, Array.isArray(rows[0].sales) ? rows[0].sales : [], rows[0].settings)}), {status: 200, headers});
   } catch {
     return new Response(JSON.stringify({error: 'Settings unavailable'}), {status: 500, headers});
   }

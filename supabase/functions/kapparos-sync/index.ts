@@ -333,6 +333,21 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
   return payload;
 }
 
+function mergeConcurrentSales(currentValue: unknown, incomingValue: unknown, knownValue: unknown) {
+  const current = Array.isArray(currentValue) ? currentValue : [];
+  if (!Array.isArray(incomingValue)) return current;
+  const incoming = incomingValue;
+  const hasKnownList = Array.isArray(knownValue);
+  const known = new Set(hasKnownList ? knownValue.map(String) : []);
+  const incomingIds = new Set(incoming.map((sale: any) => String(sale?.id || '')).filter(Boolean));
+  const unseen = current.filter((sale: any) => {
+    const id = String(sale?.id || '');
+    if (!id || incomingIds.has(id)) return false;
+    return hasKnownList ? !known.has(id) : sale?.isOnlineSale === true;
+  });
+  return [...incoming, ...unseen];
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(req) });
   if (req.method !== 'POST') return json(req, { error: 'Method not allowed' }, 405);
@@ -411,7 +426,7 @@ Deno.serve(async (req: Request) => {
     if (action === 'save') {
       const current = await getState();
       if (!current) return json(req, { error: 'No data found' }, 404);
-      const sales = Array.isArray(body.sales) ? body.sales : current.sales;
+      const sales = mergeConcurrentSales(current.sales, body.sales, body.knownSaleIds);
       const settings = sanitizeIncomingSettings(body.settings, current.settings || defaultSettings());
       const row = await saveState(sales, settings);
       return json(req, publicState(row));

@@ -33,7 +33,7 @@ function cleanLines(value: unknown, fallback: string[]) {
   const cleaned = source.map(item => String(item || '').trim()).filter(Boolean).slice(0, 30);
   return cleaned.length ? cleaned : fallback;
 }
-function sanitize(value: any) {
+function sanitize(value: any, sales: any[] = []) {
   const source = value && typeof value === 'object' ? value : {};
   return {
     orderingEnabled: source.orderingEnabled !== false,
@@ -41,7 +41,12 @@ function sanitize(value: any) {
     subtitle: String(source.subtitle || DEFAULTS.subtitle).trim().slice(0, 120),
     buttonText: String(source.buttonText || DEFAULTS.buttonText).trim().slice(0, 160),
     price: Number.isFinite(Number(source.price)) ? Math.max(0, Number(source.price)) : DEFAULTS.price,
-    inventory: Number.isFinite(Number(source.inventory)) ? Math.max(0, Math.floor(Number(source.inventory))) : DEFAULTS.inventory,
+    inventory: (() => {
+      const allocation = Number.isFinite(Number(source.inventory)) ? Math.max(0, Math.floor(Number(source.inventory))) : DEFAULTS.inventory;
+      const sold = sales.reduce((sum, sale) => sale?.isOnlineSale && String(sale.status || 'paid') !== 'expired'
+        ? sum + Math.max(0, Number(sale.quantity || 0)) : sum, 0);
+      return Math.max(0, allocation - sold);
+    })(),
     pickupTimes: cleanLines(source.pickupTimes, DEFAULTS.pickupTimes),
     paymentChoices: cleanLines(source.paymentChoices, DEFAULTS.paymentChoices),
     confirmationText: String(source.confirmationText || DEFAULTS.confirmationText).trim().slice(0, 1200)
@@ -63,13 +68,13 @@ Deno.serve(async (req: Request) => {
   }
   try {
     const result = await fetch(
-      `${SUPABASE_URL}/rest/v1/kapparos_app_state?id=eq.main&select=settings`,
+      `${SUPABASE_URL}/rest/v1/kapparos_app_state?id=eq.main&select=settings,sales`,
       {headers: {apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`}}
     );
     if (!result.ok) throw new Error('Database unavailable');
     const rows = await result.json();
     if (!rows?.[0]) return new Response(JSON.stringify({error: 'No data found'}), {status: 404, headers});
-    return new Response(JSON.stringify({settings: sanitize(rows[0].settings?.buyingWebsite)}), {status: 200, headers});
+    return new Response(JSON.stringify({settings: sanitize(rows[0].settings?.buyingWebsite, Array.isArray(rows[0].sales) ? rows[0].sales : [])}), {status: 200, headers});
   } catch {
     return new Response(JSON.stringify({error: 'Settings unavailable'}), {status: 500, headers});
   }

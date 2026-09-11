@@ -178,11 +178,11 @@ async function deliver(body: any, action: 'send-ticket' | 'send-ticket-text') {
   });
   const sessionToken = randomToken();
   const tokenHash = await hash(sessionToken);
-  await db('kapparos_sessions', {
-    method: 'POST',
-    body: JSON.stringify({ token_hash: tokenHash, expires_at: new Date(Date.now() + 120000).toISOString() })
-  });
   try {
+    await db('kapparos_sessions', {
+      method: 'POST',
+      body: JSON.stringify({ token_hash: tokenHash, expires_at: new Date(Date.now() + 120000).toISOString() })
+    });
     const isEmail = action === 'send-ticket';
     const recipient = isEmail ? String(sale.email || '') : String(sale.phone || '');
     const functionName = isEmail ? 'kapparos-sync' : 'kapparos-sms';

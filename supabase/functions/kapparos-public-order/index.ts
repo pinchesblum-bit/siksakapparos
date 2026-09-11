@@ -1,3 +1,4 @@
+import { hasBuyingAccess } from './preview-access.ts';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ADMIN_ORIGIN = 'https://pinchesblum-bit.github.io';
@@ -11,7 +12,7 @@ const ALLOWED_ORIGINS = new Set([
 function cors(origin: string) {
   return {
     'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : 'https://siksakapparos.org',
-    'Access-Control-Allow-Headers': 'content-type',
+    'Access-Control-Allow-Headers': 'authorization, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Content-Type': 'application/json',
     'Cache-Control': 'no-store',
@@ -220,6 +221,8 @@ Deno.serve(async (req: Request) => {
   if (!ALLOWED_ORIGINS.has(origin)) return json(origin, { error: 'Origin not allowed' }, 403);
   try {
     const body = await req.json();
+    const current = await stateRow();
+    if (!(await hasBuyingAccess(req, current?.settings || {}, SERVICE_KEY))) return json(origin, {error:'Log in to preview the website.',code:'PREVIEW_LOGIN_REQUIRED'}, 401);
     const action = String(body.action || '');
     if (action === 'create-demo-order') return json(origin, { ok: true, sale: await createOrder(body) });
     if (action === 'send-ticket') return json(origin, { ok: true, ...(await deliver(body, 'send-ticket')) });

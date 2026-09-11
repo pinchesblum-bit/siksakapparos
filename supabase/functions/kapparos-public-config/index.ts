@@ -1,3 +1,4 @@
+import { OPENING_NOTICE, hasBuyingAccess, previewLogin } from './preview-access.ts';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ALLOWED_ORIGINS = new Set([
@@ -21,7 +22,7 @@ const DEFAULTS = {
 function responseHeaders(origin: string) {
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Headers': 'content-type',
+    'Access-Control-Allow-Headers': 'authorization, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Content-Type': 'application/json',
     'Cache-Control': 'no-store',
@@ -37,6 +38,7 @@ function sanitize(value: any, sales: any[] = [], admin: any = {}) {
   const source = value && typeof value === 'object' ? value : {};
   return {
     orderingEnabled: source.orderingEnabled !== false,
+    publicAccessEnabled: source.publicAccessEnabled === true,
     title: String(source.title || DEFAULTS.title).trim().slice(0, 120),
     subtitle: String(source.subtitle || DEFAULTS.subtitle).trim().slice(0, 120),
     buttonText: String(source.buttonText || DEFAULTS.buttonText).trim().slice(0, 160),
@@ -69,6 +71,7 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({error: 'Method not allowed'}), {status: 405, headers});
   }
   try {
+    const body = await req.json();
     const result = await fetch(
       `${SUPABASE_URL}/rest/v1/kapparos_app_state?id=eq.main&select=settings,sales`,
       {headers: {apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`}}
@@ -76,8 +79,18 @@ Deno.serve(async (req: Request) => {
     if (!result.ok) throw new Error('Database unavailable');
     const rows = await result.json();
     if (!rows?.[0]) return new Response(JSON.stringify({error: 'No data found'}), {status: 404, headers});
-    return new Response(JSON.stringify({settings: sanitize(rows[0].settings?.buyingWebsite, Array.isArray(rows[0].sales) ? rows[0].sales : [], rows[0].settings)}), {status: 200, headers});
-  } catch {
-    return new Response(JSON.stringify({error: 'Settings unavailable'}), {status: 500, headers});
+    const admin = rows[0].settings || {};
+    if (body.action === 'preview-login') {
+      const token = await previewLogin(req, body, admin, SERVICE_KEY);
+      return new Response(JSON.stringify({token,settings:sanitize(admin.buyingWebsite, rows[0].sales || [], admin)}), {status:200,headers});
+    }
+    if (!(await hasBuyingAccess(req, admin, SERVICE_KEY))) {
+      return new Response(JSON.stringify({locked:true,notice:OPENING_NOTICE}), {status:200,headers});
+    }
+    return new Response(JSON.stringify({settings:sanitize(admin.buyingWebsite, rows[0].sales || [], admin)}), {status:200,headers});
+  } catch (error) {
+    const status = Number((error as any)?.status) || 500;
+    return new Response(JSON.stringify({error: status < 500 ? (error as Error).message : 'Settings unavailable'}), {status,headers});
   }
 });
+

@@ -39,7 +39,7 @@ settings.inventory = 120;
 normalize(settings, date, now);
 assert.equal(settings.accountingExpenses[1].amount, 1500);
 assert.deepEqual(settings.chickenPurchaseBatches.map(b => [b.quantity, b.unitCost, b.date]), [[100,12.5,'2026-08-31'],[20,12.5,date]]);
-const env = vm.createContext({ state: { settings, sales: [] }, CHICKEN_EXPENSE_ID: id,
+const env = vm.createContext({ sessionStorage:{getItem:()=>null,setItem(){}}, state: { settings, sales: [] }, CHICKEN_EXPENSE_ID: id,
   getLocalDateValue: () => date,
   money: n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
   settingChickenPurchaseCost: { value: '10' }, chickenPurchaseSummary: {}, chickenPurchaseTotal: {} });
@@ -63,12 +63,12 @@ env.state.settings.inventory = 0;
 vm.runInContext('syncChickenPurchaseExpense()', env);
 assert.equal(env.state.settings.accountingExpenses[1].amount, 0);
 
-const field = () => ({ value: '', disabled: false, focus() {} });
-for (const name of ['expenseName','expenseAmount','expenseDate','expenseCategory','expenseNote','expensePaid','expenseModalTitle','deleteExpenseBtn','cancelExpenseBtn','editExpenseBtn','saveExpenseBtn']) env[name] = field();
-Object.assign(env, { expenseForm: { classList: { toggle() {} }, reportValidity: () => true }, setTimeout: fn => fn(),
+const field = () => ({ value: '', disabled: false, focus() {}, setCustomValidity() {} });
+for (const name of ['expensePaymentType','expensePaymentDetails','expensePaymentDetailsField','expensePaymentDetailsLabel','expenseName','expenseAmount','expenseDate','expenseCategory','expenseNote','expensePaid','expenseModalTitle','deleteExpenseBtn','cancelExpenseBtn','editExpenseBtn','saveExpenseBtn']) env[name] = field();
+Object.assign(env, { expenseForm: { classList: { toggle() {}, contains() { return false; } }, reportValidity: () => true }, setTimeout: fn => fn(),
   askConfirmation: async () => true, CHANGE_CONFIRMATION: 'Confirm', closeExpenseModal() {}, showToast() {},
   saveSettings() { env.syncChickenPurchaseExpense(); }, renderAccounting() {}, accountingMonth: {} });
-vm.runInContext(source('setExpenseFieldMode') + source('showExpenseEditor'), env);
+vm.runInContext(source('updateExpensePaymentFields') + source('setExpenseFieldMode') + source('showExpenseEditor'), env);
 vm.runInContext('showExpenseEditor({id: CHICKEN_EXPENSE_ID})', env);
 assert.equal(env.expenseName.disabled, true);
 assert.equal(env.expenseAmount.disabled, true);
@@ -90,7 +90,7 @@ async function checkSubmit() {
   env.expenseDate.value = '2020-01-01';
   env.expenseCategory.value = 'Inventory';
   env.expenseNote.value = 'A permitted note';
-  env.expensePaid.checked = false;
+  env.expensePaid.checked = false; env.expensePaymentType.value='cash';
   await env.submitExpense({ preventDefault() {} });
   const saved = env.state.settings.accountingExpenses[1];
   assert.equal(saved.name, 'Chickens');
@@ -103,9 +103,9 @@ async function checkPassword() {
   const views = [{ dataset: { settingsView: 'accounting' }, hidden: true }, { dataset: { settingsView: 'sales' }, hidden: true }];
   const storage = new Map();
   const auth = vm.createContext({ state: { page: 'settings' }, accountingSettingsUnlocked: false, pendingSecurityAction: null,
-    LAST_SETTINGS_VIEW_KEY: 'last', VALID_SETTINGS_VIEWS: new Set(['accounting','sales']), settingsHome: { hidden: false }, settingsViews: views,
+    LAST_SETTINGS_VIEW_KEY: 'last', LAST_TICKET_VIEW_KEY:'ticket', VALID_SETTINGS_VIEWS: new Set(['accounting','sales']), settingsHome: { hidden: false }, settingsViews: views,
     renderTicketDeliverySettings() {}, resetSettingsSection() {}, setSettingsEditMode() {}, settingsEditMode: {},
-    sessionStorage: { setItem: (k,v) => storage.set(k,v), removeItem: k => storage.delete(k) },
+    sessionStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v), removeItem: k => storage.delete(k) },
     openSecurityDialog(action) { auth.pendingSecurityAction = action; }, closeSecurityDialog() { auth.pendingSecurityAction = null; } });
   vm.runInContext(['showSettingsHome','openSettingsView','completeSecurityAction'].map(source).join('\n'), auth);
   vm.runInContext("openSettingsView('accounting')", auth);
@@ -124,7 +124,7 @@ async function checkPassword() {
 function checkSummary() {
   Object.assign(env, { getPaymentMethod: () => null, accountingRange: {}, accountingMonthWrap: {}, accountingCalendarSection: {},
     accountingIncome: {}, accountingExpenseTotal: {}, accountingNetLabel: {}, accountingNet: {},
-    accountingNetCard: { classList: { toggle() {} } }, accountingCalendar: {}, renderExpenseList() {}, setAccountingTab() {} });
+    accountingNetCard: { classList: { toggle() {}, contains() { return false; } } }, accountingCalendar: {}, renderExpenseList() {}, setAccountingTab() {} });
   vm.runInContext(['isBanshakPayment','getAccountingMonth','getAccountingSaleDate','renderAccounting'].map(source).join('\n'), env);
   env.state.settings = fixture();
   env.state.settings.accountingExpenses[0].amount = 1500;

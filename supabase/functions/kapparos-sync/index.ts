@@ -426,10 +426,16 @@ Deno.serve(async (req: Request) => {
     if (action === 'save') {
       const current = await getState();
       if (!current) return json(req, { error: 'No data found' }, 404);
-      const sales = mergeConcurrentSales(current.sales, body.sales, body.knownSaleIds);
       const settings = sanitizeIncomingSettings(body.settings, current.settings || defaultSettings());
-      const row = await saveState(sales, settings);
-      return json(req, publicState(row));
+      const saved = await db('rpc/kapparos_save_admin_state', {
+        method: 'POST',
+        body: JSON.stringify({
+          p_sales: Array.isArray(body.sales) ? body.sales : [],
+          p_settings: settings,
+          p_deleted_sale_ids: Array.isArray(body.deletedSaleIds) ? body.deletedSaleIds : []
+        })
+      });
+      return json(req, publicState(saved));
     }
 
     if (action === 'credentials') {

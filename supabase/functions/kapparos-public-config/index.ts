@@ -48,7 +48,7 @@ function sanitize(value: any, sales: any[] = [], admin: any = {}) {
       return Math.max(0, allocation - sold);
     })(),
     pickupTimes: cleanLines(source.pickupTimes, DEFAULTS.pickupTimes),
-    paymentChoices: cleanLines(source.paymentChoices, DEFAULTS.paymentChoices),
+    paymentChoices: ['Credit card'],
     confirmationText: String(source.confirmationText || DEFAULTS.confirmationText).trim().slice(0, 1200),
     printTicketsEnabled: admin.printTicketsEnabled !== false,
     ticketDelivery: admin.ticketDelivery && typeof admin.ticketDelivery === 'object' ? admin.ticketDelivery : {}

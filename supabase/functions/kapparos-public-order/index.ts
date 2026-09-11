@@ -32,10 +32,10 @@ function randomToken() {
 function ticketId(sales: any[]) {
   const used = new Set(sales.map(sale => String(sale?.ticketId || '')));
   for (let attempt = 0; attempt < 30; attempt += 1) {
-    const digits = Array.from(crypto.getRandomValues(new Uint8Array(10)), byte => String(byte % 10)).join('');
+    const digits = Array.from(crypto.getRandomValues(new Uint8Array(6)), byte => String(byte % 10)).join('');
     if (!used.has(digits)) return digits;
   }
-  return String(Date.now()).slice(-10).padStart(10, '0');
+  return String(Date.now()).slice(-6).padStart(6, '0');
 }
 async function db(path: string, init: RequestInit = {}) {
   const response = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
@@ -49,7 +49,7 @@ async function db(path: string, init: RequestInit = {}) {
     }
   });
   const text = await response.text();
-  if (!response.ok) throw new Error('Database request failed');
+  if (!response.ok) throw Object.assign(new Error('Database request failed'), { status: response.status });
   return text ? JSON.parse(text) : null;
 }
 async function stateRow() {
@@ -94,15 +94,18 @@ async function createOrder(body: any) {
   const tokenHash = await hash(orderToken);
   const current = await stateRow();
   if (!current) throw Object.assign(new Error('The order system is unavailable.'), { status: 503 });
-  const buying = current.settings?.buyingWebsite || {};
   const sales = Array.isArray(current.sales) ? current.sales : [];
   const now = new Date().toISOString();
+  const paidOn = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(new Date());
   const unitPrice = Math.max(0, Number(current.settings?.defaultPrice || 0));
+  const submittedPrice = Number(body.expectedPrice);
   const sale = {
     id: crypto.randomUUID(),
     ticketId: ticketId(sales),
     paidAt: now,
-    paidOn: now.slice(0, 10),
+    paidOn,
     createdAt: now,
     updatedAt: now,
     fullName,
@@ -110,7 +113,7 @@ async function createOrder(body: any) {
     email,
     status: 'paid',
     quantity,
-    price: Number((quantity * unitPrice).toFixed(2)),
+    price: Number.isFinite(submittedPrice) ? Number(submittedPrice.toFixed(2)) : Number((quantity * unitPrice).toFixed(2)),
     paymentType: 'credit',
     otherDetails: '',
     plannedPaymentType: '',
@@ -135,6 +138,7 @@ async function createOrder(body: any) {
   if (!result?.ok) {
     if (result?.code === 'invalid_session') throw Object.assign(new Error('This checkout session is not valid.'), { status: 403 });
     if (result?.code === 'closed') throw Object.assign(new Error('Online ordering is currently closed.'), { status: 409 });
+    if (result?.code === 'price_changed') throw Object.assign(new Error('The price changed. Please review the updated total and try again.'), { status: 409 });
     if (result?.code === 'inventory') {
       const remaining = Math.max(0, Number(result.remaining || 0));
       throw Object.assign(new Error(remaining ? 'Only ' + remaining + ' are still available online.' : 'Online orders are sold out.'), { status: 409 });
@@ -156,7 +160,22 @@ async function verifiedOnlineSale(body: any) {
   return sale;
 }
 async function deliver(body: any, action: 'send-ticket' | 'send-ticket-text') {
+  const current = await stateRow();
+  if (current?.settings?.printTicketsEnabled === false) {
+    throw Object.assign(new Error('Ticket delivery is currently unavailable.'), { status: 409 });
+  }
   const sale = await verifiedOnlineSale(body);
+  const channel = action === 'send-ticket' ? 'email' : 'text';
+  const prior = await db('kapparos_ticket_deliveries?sale_id=eq.' + encodeURIComponent(String(sale.id)) + '&channel=eq.' + channel + '&select=sale_id');
+  if (Array.isArray(prior) && prior.length) {
+    throw Object.assign(new Error('This ticket was already sent by ' + channel + '.'), { status: 409 });
+  }
+  await db('kapparos_ticket_deliveries', {
+    method: 'POST',
+    body: JSON.stringify({ sale_id: String(sale.id), channel })
+  }).catch((error: any) => {
+    throw Object.assign(new Error('This ticket was already sent by ' + channel + '.'), { status: error?.status === 409 ? 409 : 503 });
+  });
   const sessionToken = randomToken();
   const tokenHash = await hash(sessionToken);
   await db('kapparos_sessions', {
@@ -186,6 +205,9 @@ async function deliver(body: any, action: 'send-ticket' | 'send-ticket-text') {
       throw Object.assign(new Error(String(result.error || 'The ticket could not be sent.')), { status: downstream.status });
     }
     return result;
+  } catch (error) {
+    await db('kapparos_ticket_deliveries?sale_id=eq.' + encodeURIComponent(String(sale.id)) + '&channel=eq.' + channel, { method: 'DELETE' }).catch(() => {});
+    throw error;
   } finally {
     await db('kapparos_sessions?token_hash=eq.' + tokenHash, { method: 'DELETE' }).catch(() => {});
   }

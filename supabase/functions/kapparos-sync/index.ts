@@ -427,12 +427,17 @@ Deno.serve(async (req: Request) => {
       const current = await getState();
       if (!current) return json(req, { error: 'No data found' }, 404);
       const settings = sanitizeIncomingSettings(body.settings, current.settings || defaultSettings());
+      const incomingSales = Array.isArray(body.sales) ? body.sales : [];
+      const incomingIds = new Set(incomingSales.map((sale: any) => String(sale?.id || '')).filter(Boolean));
+      const legacyDeletedIds = Array.isArray(body.knownSaleIds)
+        ? body.knownSaleIds.map(String).filter((id: string) => id && !incomingIds.has(id))
+        : [];
       const saved = await db('rpc/kapparos_save_admin_state', {
         method: 'POST',
         body: JSON.stringify({
-          p_sales: Array.isArray(body.sales) ? body.sales : [],
+          p_sales: incomingSales,
           p_settings: settings,
-          p_deleted_sale_ids: Array.isArray(body.deletedSaleIds) ? body.deletedSaleIds : []
+          p_deleted_sale_ids: Array.isArray(body.deletedSaleIds) ? body.deletedSaleIds : legacyDeletedIds
         })
       });
       return json(req, publicState(saved));

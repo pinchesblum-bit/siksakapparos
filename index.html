@@ -2433,7 +2433,7 @@
                 <p id="chickenPurchaseSummary" class="settings-card-note"></p>
                 <strong id="chickenPurchaseTotal" style="font-size:22px;font-variant-numeric:tabular-nums">$0.00</strong>
               </div>
-              <p class="settings-card-note">The first save records your current inventory as a purchase. Later inventory increases add purchase costs at the rate set here. Past purchase costs stay recorded, even after chickens are sold or inventory is reduced. Changing this rate affects additional chickens only. Each paid sale adds its full selling amount to income.</p>
+              <p class="settings-card-note">Total inventory from Sales Settings × your cost per chicken. The calculation updates as you type; select Save to apply it. Selling chickens does not reduce this expense. Each paid sale adds its full selling amount to income.</p>
             </div>
             <p class="settings-message" id="accountingSettingsMessage" role="alert"></p>
             <div class="settings-actions" data-settings-actions="accounting" hidden>
@@ -2610,6 +2610,7 @@
         <button type="button" class="close-btn" id="closeExpenseModalBtn" aria-label="Close">×</button>
       </div>
       <form id="expenseForm">
+        <p id="chickenExpenseSettingsNote" class="small-note" hidden>The chicken expense name and amount are managed in Accounting Settings.</p>
         <label class="geschlagen-check" for="expensePaid">
           <span>באצאלט</span>
           <input id="expensePaid" name="expensePaid" type="checkbox" />
@@ -3120,6 +3121,7 @@
     }
 
     function lockWebsite() {
+      accountingSettingsUnlocked = false;
       cloudReady = false;
       cloudSessionToken = '';
       sessionStorage.removeItem(LOGIN_SESSION_KEY);
@@ -3167,6 +3169,7 @@
     }
 
     let pendingSecurityAction = null;
+    let accountingSettingsUnlocked = false;
 
     function openSecurityDialog(action) {
       pendingSecurityAction = action;
@@ -3182,6 +3185,10 @@
         'login-settings': {
           title: 'Verify Your Identity',
           description: 'Enter your current password before changing the username or password.'
+        },
+        'accounting-settings': {
+          title: 'Accounting Settings',
+          description: 'Enter your website password to open Accounting Settings.'
         },
         'reopen-tasks': {
           title: 'Confirm This Action',
@@ -3226,6 +3233,13 @@
     async function completeSecurityAction(password) {
       const action = pendingSecurityAction;
       closeSecurityDialog();
+
+      if (action === 'accounting-settings') {
+        if (state.page !== 'settings') return;
+        accountingSettingsUnlocked = true;
+        openSettingsView('accounting');
+        return;
+      }
 
       if (action === 'export-data') {
         exportAllData();
@@ -4065,62 +4079,69 @@
     }
 
     function getChickenPurchaseTotal() {
-      const cents = (state.settings.chickenPurchaseBatches || []).reduce((sum, batch) =>
-        sum + Math.max(0, Math.floor(Number(batch.quantity || 0))) * Math.max(0, Math.round(Number(batch.unitCost || 0) * 100)), 0);
-      return cents / 100;
+      const inventory = Math.max(0, Math.floor(Number(state.settings.inventory) || 0));
+      const costCents = Math.max(0, Math.round((Number(state.settings.chickenPurchaseCost) || 0) * 100));
+      return inventory * costCents / 100;
     }
 
-    function syncChickenPurchaseExpense(recordPurchase = false) {
-      const inventory = Math.max(0, Math.floor(Number(state.settings.inventory || 0)));
-      const cost = Math.max(0, Math.round(Number(state.settings.chickenPurchaseCost || 0) * 100) / 100);
-      const batches = state.settings.chickenPurchaseBatches || [];
-      if (recordPurchase && cost > 0) {
-        const baseline = state.settings.chickenInventoryRecorded;
-        const added = Math.max(0, inventory - (baseline == null ? 0 : Number(baseline)));
-        if (added > 0) batches.push({
-          quantity: added, unitCost: cost, date: getLocalDateValue(), createdAt: new Date().toISOString()
-        });
-        state.settings.chickenInventoryRecorded = inventory;
-        state.settings.chickenPurchaseBatches = batches;
+    function normalizeChickenPurchaseSettings(settings, date, now) {
+      const expenseId = 'auto-chicken-inventory-cost';
+      const inventory = Math.max(0, Math.floor(Number(settings.inventory) || 0));
+      const costCents = Math.max(0, Math.round((Number(settings.chickenPurchaseCost) || 0) * 100));
+      const cost = costCents / 100;
+      const amount = inventory * costCents / 100;
+      const expenses = Array.isArray(settings.accountingExpenses) ? settings.accountingExpenses : [];
+      const existing = expenses.find(expense => expense.id === expenseId);
+      if (!existing && !(amount > 0)) return settings;
+
+      // Dates remain available for the calendar; quantities and rates match Settings.
+      let remaining = inventory;
+      const batches = [];
+      for (const batch of (Array.isArray(settings.chickenPurchaseBatches) ? settings.chickenPurchaseBatches : [])) {
+        if (!batch) continue;
+        const quantity = Math.min(remaining, Math.max(0, Math.floor(Number(batch.quantity) || 0)));
+        if (!quantity) continue;
+        batches.push({ ...batch, quantity, unitCost: cost });
+        remaining -= quantity;
       }
-      const expenses = state.settings.accountingExpenses || [];
-      const existing = expenses.find(expense => expense.id === CHICKEN_EXPENSE_ID);
-      const amount = getChickenPurchaseTotal();
-      if (!(amount > 0)) return;
-      const name = String(state.settings.chickenExpenseName || 'Chickens').trim() || 'Chickens';
+      if (remaining > 0) batches.push({ quantity: remaining, unitCost: cost, date, createdAt: now });
+      settings.chickenPurchaseBatches = batches;
+      settings.chickenInventoryRecorded = inventory;
+      const name = String(settings.chickenExpenseName || 'Chickens').trim() || 'Chickens';
       if (existing) {
         if (existing.name !== name || existing.amount !== amount) {
           existing.name = name;
           existing.amount = amount;
-          existing.updatedAt = new Date().toISOString();
+          existing.updatedAt = now;
         }
       } else {
         expenses.push({
-          id: CHICKEN_EXPENSE_ID, name, amount,
-          date: batches[0]?.date || getLocalDateValue(), category: 'Inventory', note: '',
+          id: expenseId, name, amount,
+          date: batches[0]?.date || date, category: 'Inventory', note: '',
           paid: false,
           order: expenses.reduce((maximum, item) => Math.max(maximum, Number(item.order || 0)), -1) + 1,
-          createdAt: batches[0]?.createdAt || new Date().toISOString(), updatedAt: ''
+          createdAt: batches[0]?.createdAt || now, updatedAt: ''
         });
       }
-      state.settings.accountingExpenses = expenses;
+      settings.accountingExpenses = expenses;
+      return settings;
+    }
+
+    function syncChickenPurchaseExpense() {
+      normalizeChickenPurchaseSettings(state.settings, getLocalDateValue(), new Date().toISOString());
     }
 
     function updateChickenPurchasePreview() {
-      const cost = Number(settingChickenPurchaseCost.value || 0);
+      const enteredCost = Number(settingChickenPurchaseCost.value || 0);
+      const costCents = Number.isFinite(enteredCost) ? Math.max(0, Math.round(enteredCost * 100)) : 0;
       const inventory = Math.max(0, Math.floor(Number(state.settings.inventory || 0)));
-      const baseline = state.settings.chickenInventoryRecorded;
-      const added = Math.max(0, inventory - (baseline == null ? 0 : Number(baseline)));
-      const recorded = getChickenPurchaseTotal();
-      const nextPurchase = Number.isFinite(cost) ? Math.max(0, Math.round(cost * 100)) * added / 100 : 0;
-      chickenPurchaseSummary.textContent = recorded > 0
-        ? money(recorded) + ' already recorded. ' + (added > 0 ? added.toLocaleString() + ' additional chickens × ' + money(cost) + '.' : 'Future inventory increases use ' + money(cost) + ' per chicken.')
-        : inventory.toLocaleString() + ' chickens × ' + money(cost) + ' each';
-      chickenPurchaseTotal.textContent = money(recorded + nextPurchase);
+      const total = inventory * costCents / 100;
+      chickenPurchaseSummary.textContent = inventory.toLocaleString() + ' chickens × ' + money(costCents / 100) + ' = ' + money(total);
+      chickenPurchaseTotal.textContent = money(total);
     }
 
     function saveSettings() {
-      syncChickenPurchaseExpense(true);
+      syncChickenPurchaseExpense();
       const { _legacyPassword, ...safeSettings } = state.settings;
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(safeSettings));
       queueCloudSave();
@@ -4761,6 +4782,7 @@
     }
 
     function showSettingsHome() {
+      accountingSettingsUnlocked = false;
       renderTicketDeliverySettings();
       sessionStorage.removeItem(LAST_SETTINGS_VIEW_KEY);
       settingsHome.hidden = false;
@@ -4768,6 +4790,12 @@
     }
 
     function openSettingsView(viewName) {
+      if (viewName === 'accounting' && !accountingSettingsUnlocked) {
+        showSettingsHome();
+        openSecurityDialog('accounting-settings');
+        return;
+      }
+      if (viewName !== 'accounting') accountingSettingsUnlocked = false;
       renderTicketDeliverySettings();
       if (!VALID_SETTINGS_VIEWS.has(viewName)) {
         showSettingsHome();
@@ -5370,18 +5398,21 @@
       expenseNote.value = expense?.note || '';
       expensePaid.checked = Boolean(expense?.paid);
       setExpenseFieldMode(false);
+      expenseName.disabled = expense?.id === CHICKEN_EXPENSE_ID;
+      expenseName.title = expense?.id === CHICKEN_EXPENSE_ID ? 'Change the name in Accounting Settings.' : '';
       expenseAmount.disabled = expense?.id === CHICKEN_EXPENSE_ID;
-      expenseAmount.title = expense?.id === CHICKEN_EXPENSE_ID ? 'Total recorded chicken purchases; sales never reduce this expense' : '';
+      expenseAmount.title = expense?.id === CHICKEN_EXPENSE_ID ? 'Calculated from inventory and your cost in Accounting Settings.' : '';
       if (expense?.id === CHICKEN_EXPENSE_ID) expenseDate.disabled = true;
       deleteExpenseBtn.hidden = !expense || expense.id === CHICKEN_EXPENSE_ID;
       cancelExpenseBtn.textContent = 'Cancel';
       editExpenseBtn.hidden = true;
       saveExpenseBtn.hidden = false;
-      setTimeout(() => expenseName.focus(), 0);
+      setTimeout(() => (expense?.id === CHICKEN_EXPENSE_ID ? expenseCategory : expenseName).focus(), 0);
     }
 
     function openExpenseModal(expenseId = null) {
       expenseForm.reset();
+      document.getElementById('chickenExpenseSettingsNote').hidden = expenseId !== CHICKEN_EXPENSE_ID;
       state.editingExpenseId = expenseId;
       const expense = expenseId
         ? (state.settings.accountingExpenses || []).find(item => item.id === expenseId)
@@ -5403,7 +5434,7 @@
 
     async function deleteExpense(expenseId) {
       if (expenseId === CHICKEN_EXPENSE_ID) {
-        showToast('Chicken purchase expenses stay recorded. Edit the name or payment status here; set the rate in Accounting Settings.', 'error');
+        showToast('The chicken expense is managed in Accounting Settings. You can change its payment status here.', 'error');
         return;
       }
       const expense = (state.settings.accountingExpenses || []).find(item => item.id === expenseId);
@@ -5601,6 +5632,10 @@
     function showPage(page) {
       page = VALID_PAGES.has(page) ? page : 'sales';
       const previousPage = state.page;
+      if (page !== 'settings') {
+        accountingSettingsUnlocked = false;
+        if (pendingSecurityAction === 'accounting-settings') closeSecurityDialog();
+      }
       if (previousPage === 'settings' && page !== 'settings') renderTicketDeliverySettings();
       if (state.page === 'accounting' && page !== 'accounting') {
         sessionStorage.removeItem(ACCOUNTING_ACCESS_KEY);
@@ -5952,18 +5987,19 @@
     expenseForm.addEventListener('submit', async event => {
       event.preventDefault();
       if (!expenseForm.reportValidity()) return;
-      const amount = Number(expenseAmount.value);
-      if (!Number.isFinite(amount) || amount <= 0) return;
 
       const expenses = state.settings.accountingExpenses || [];
       const existingExpense = state.editingExpenseId
         ? expenses.find(item => item.id === state.editingExpenseId)
         : null;
+      const isChickenExpense = existingExpense?.id === CHICKEN_EXPENSE_ID;
+      const amount = isChickenExpense ? getChickenPurchaseTotal() : Number(expenseAmount.value);
+      if (!Number.isFinite(amount) || (isChickenExpense ? amount < 0 : amount <= 0)) return;
 
       const values = {
-        name: expenseName.value.trim(),
+        name: isChickenExpense ? (String(state.settings.chickenExpenseName || 'Chickens').trim() || 'Chickens') : expenseName.value.trim(),
         amount,
-        date: expenseDate.value,
+        date: isChickenExpense ? existingExpense.date : expenseDate.value,
         category: expenseCategory.value.trim(),
         note: expenseNote.value.trim(),
         paid: expensePaid.checked
@@ -5982,7 +6018,6 @@
         }
         if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
         Object.assign(existingExpense, values, { updatedAt: new Date().toISOString() });
-        if (existingExpense.id === CHICKEN_EXPENSE_ID) state.settings.chickenExpenseName = values.name;
       } else {
         expenses.push({
           id: crypto.randomUUID ? crypto.randomUUID() : `expense-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -7353,7 +7388,6 @@
   </script>
 </body>
 </html>
-
 
 
 

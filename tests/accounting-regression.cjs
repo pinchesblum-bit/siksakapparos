@@ -39,7 +39,7 @@ settings.inventory = 120;
 normalize(settings, date, now);
 assert.equal(settings.accountingExpenses[1].amount, 1500);
 assert.deepEqual(settings.chickenPurchaseBatches.map(b => [b.quantity, b.unitCost, b.date]), [[100,12.5,'2026-08-31'],[20,12.5,date]]);
-const env = vm.createContext({ sessionStorage:{getItem:()=>null,setItem(){}}, state: { settings, sales: [] }, CHICKEN_EXPENSE_ID: id,
+const env = vm.createContext({ expensePaymentEntryPending:false, document:{getElementById:()=>({hidden:false})}, sessionStorage:{getItem:()=>null,setItem(){}}, state: { settings, sales: [] }, CHICKEN_EXPENSE_ID: id,
   getLocalDateValue: () => date,
   money: n => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
   settingChickenPurchaseCost: { value: '10' }, chickenPurchaseSummary: {}, chickenPurchaseTotal: {} });

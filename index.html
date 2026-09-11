@@ -2650,9 +2650,9 @@
             <label for="expenseDate">Pay Date <span class="required-mark">*</span></label>
             <input id="expenseDate" type="date" required />
           </div>
-          <div class="field full">
+          <div class="field full" id="expensePaymentTypeField" hidden>
             <label for="expensePaymentType">Payment type <span class="required-mark">*</span></label>
-            <select id="expensePaymentType" required>
+            <select id="expensePaymentType">
               <option value="">Choose payment type</option>
               <option value="cash">Cash</option>
               <option value="check">Check</option>
@@ -2663,6 +2663,7 @@
             <label for="expensePaymentDetails" id="expensePaymentDetailsLabel">Payment details <span class="required-mark">*</span></label>
             <input id="expensePaymentDetails" maxlength="120" autocomplete="off" />
           </div>
+          <p class="field full small-note" id="expensePaymentNotice" role="status" hidden>Choose the payment type and fill in any required details. Save to confirm this expense as paid.</p>
           <div class="field full">
             <label for="expenseCategory">Category <span class="small-note">(Optional)</span></label>
             <input id="expenseCategory" maxlength="100" autocomplete="off" placeholder="For example: Supplies" />
@@ -3003,6 +3004,7 @@
     const expenseCategory = document.getElementById('expenseCategory');
     const expenseNote = document.getElementById('expenseNote');
     const expensePaid = document.getElementById('expensePaid');
+    let expensePaymentEntryPending = false;
     const expensePaymentType = document.getElementById('expensePaymentType');
     const expensePaymentDetails = document.getElementById('expensePaymentDetails');
     const expensePaymentDetailsField = document.getElementById('expensePaymentDetailsField');
@@ -5236,7 +5238,7 @@
             <td>${canReorder && !dueSoon
               ? `<button type="button" class="expense-drag-handle" data-expense-drag="${escapeHtml(expense.id)}" aria-label="Move expense" title="Press and hold to move">⠿</button>`
               : ''}</td>
-            <td><strong>${escapeHtml(expense.name)}</strong><div class="small-note">${expensePaymentComplete(expense) ? escapeHtml(({cash:'Cash',check:'Check',credit:'Credit card'})[expense.paymentType] + (expense.paymentType === 'cash' ? '' : ' · ' + expense.paymentDetails)) : '<span style="color:#a23939">Payment details needed</span>'}</div></td>
+            <td><strong>${escapeHtml(expense.name)}</strong><div class="small-note">${expense.paid ? (expensePaymentComplete(expense) ? escapeHtml(({cash:'Cash',check:'Check',credit:'Credit card'})[expense.paymentType] + (expense.paymentType === 'cash' ? '' : ' · ' + expense.paymentDetails)) : '<span style="color:#a23939">Payment details needed</span>') : ''}</div></td>
             <td>${escapeHtml(expense.category || '—')}</td>
             <td class="note-cell" title="${escapeHtml(expense.note)}"><span class="note-preview" dir="auto">${escapeHtml(previewText(expense.note, 120))}</span></td>
             <td>${escapeHtml(formatTodoDate(expense.date))}</td>
@@ -5332,11 +5334,16 @@
     }
 
     function updateExpensePaymentFields() {
+      const paid = expensePaid.checked;
       const type = expensePaymentType.value;
-      const needsDetails = type === 'check' || type === 'credit';
+      const readOnly = expenseForm.classList.contains('expense-readonly') && !expensePaymentEntryPending;
+      const needsDetails = paid && (type === 'check' || type === 'credit');
+      document.getElementById('expensePaymentTypeField').hidden = !paid;
+      expensePaymentType.required = paid;
+      expensePaymentType.disabled = readOnly || !paid;
       expensePaymentDetailsField.hidden = !needsDetails;
       expensePaymentDetails.required = needsDetails;
-      expensePaymentDetails.disabled = expenseForm.classList.contains('expense-readonly') || !needsDetails;
+      expensePaymentDetails.disabled = readOnly || !needsDetails;
       expensePaymentDetailsLabel.innerHTML = (type === 'check' ? 'Check number / details' : 'Which credit card') + ' <span class="required-mark">*</span>';
       expensePaymentDetails.placeholder = type === 'check' ? 'For example: Check #1042' : 'For example: Visa ending 1234';
       expensePaymentDetails.setCustomValidity(needsDetails && !expensePaymentDetails.value.trim() ? 'Enter the payment details.' : '');
@@ -5352,6 +5359,8 @@
     }
 
     function showExpenseView(expense) {
+      expensePaymentEntryPending = false;
+      document.getElementById('expensePaymentNotice').hidden = true;
       expenseModalTitle.textContent = 'Expense';
       expenseName.value = expense?.name || '';
       expenseAmount.value = expense ? Number(expense.amount || 0).toFixed(2) : '';
@@ -5369,6 +5378,8 @@
     }
 
     function showExpenseEditor(expense = null) {
+      expensePaymentEntryPending = false;
+      document.getElementById('expensePaymentNotice').hidden = true;
       expenseModalTitle.textContent = expense ? 'Edit Expense' : 'Add Expense';
       expenseName.value = expense?.name || '';
       expenseAmount.value = expense ? Number(expense.amount || 0).toFixed(2) : '';
@@ -5407,6 +5418,8 @@
     }
 
     function closeExpenseModal() {
+      expensePaymentEntryPending = false;
+      document.getElementById('expensePaymentNotice').hidden = true;
       expenseModal.classList.remove('open');
       expenseModal.setAttribute('aria-hidden', 'true');
       expenseForm.reset();
@@ -5933,24 +5946,31 @@
       if (expense) showExpenseEditor(expense);
     });
     expensePaid.addEventListener('change', async () => {
+      updateExpensePaymentFields();
       if (!expenseForm.classList.contains('expense-readonly') || !state.editingExpenseId) return;
       const expense = (state.settings.accountingExpenses || []).find(item => item.id === state.editingExpenseId);
       if (!expense) return;
       const previousValue = Boolean(expense.paid);
       const nextValue = expensePaid.checked;
-      if (nextValue && !expensePaymentComplete(expense)) {
-        expensePaid.checked = previousValue;
-        showExpenseEditor(expense);
-        expensePaid.checked = nextValue;
-        expensePaymentType.focus();
-        showToast('Add the payment type and details, then Save.');
+      if (expensePaymentEntryPending) {
+        showExpenseView(expense);
         return;
       }
       if (previousValue === nextValue) return;
-      if (!(await askConfirmation(CHANGE_CONFIRMATION))) {
-        expensePaid.checked = previousValue;
+      if (nextValue && !expensePaymentComplete(expense)) {
+        expensePaymentEntryPending = true;
+        updateExpensePaymentFields();
+        document.getElementById('expensePaymentNotice').hidden = false;
+        editExpenseBtn.hidden = true;
+        saveExpenseBtn.hidden = false;
+        cancelExpenseBtn.textContent = 'Cancel';
+        expensePaymentType.focus();
         return;
       }
+      expensePaid.checked = previousValue;
+      updateExpensePaymentFields();
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+      if (state.editingExpenseId !== expense.id) return;
       expense.paid = nextValue;
       expense.updatedAt = new Date().toISOString();
       saveSettings();
@@ -5987,6 +6007,25 @@
       const existingExpense = state.editingExpenseId
         ? expenses.find(item => item.id === state.editingExpenseId)
         : null;
+      const payment = {
+        paymentType: expensePaymentType.value,
+        paymentDetails: expensePaymentType.value === 'cash' ? '' : expensePaymentDetails.value.trim()
+      };
+      if (expensePaid.checked && !expensePaymentComplete(payment)) {
+        showToast('Complete the payment information before marking this expense paid.');
+        return;
+      }
+      if (expensePaymentEntryPending) {
+        if (!existingExpense || !expensePaid.checked) return;
+        if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+        if (state.editingExpenseId !== existingExpense.id || !expensePaymentEntryPending) return;
+        Object.assign(existingExpense, payment, { paid:true, updatedAt:new Date().toISOString() });
+        saveSettings();
+        renderAccounting();
+        showExpenseView(existingExpense);
+        showToast('Expense marked באצאלט');
+        return;
+      }
       const isChickenExpense = existingExpense?.id === CHICKEN_EXPENSE_ID;
       const amount = isChickenExpense ? getChickenPurchaseTotal() : Number(expenseAmount.value);
       if (!Number.isFinite(amount) || (isChickenExpense ? amount < 0 : amount <= 0)) return;

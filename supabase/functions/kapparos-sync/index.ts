@@ -376,7 +376,9 @@ Deno.serve(async (req: Request) => {
       }
       if (body.importLocal && Array.isArray(body.localSales) && body.localSales.length) {
         const merged = mergeSales(Array.isArray(row.sales) ? row.sales : [], body.localSales);
-        if (merged.length !== (row.sales || []).length) row = await saveState(merged, settings);
+        if (merged.length !== (row.sales || []).length) row = await db('rpc/kapparos_save_admin_state', {
+          method: 'POST', body: JSON.stringify({ p_sales: merged, p_settings: settings, p_deleted_sale_ids: [] })
+        });
       }
       const token = randomToken();
       const tokenHash = await sha256(token);
@@ -410,6 +412,7 @@ Deno.serve(async (req: Request) => {
       if (String(sale.status || 'paid') !== 'paid') {
         return json(req, { error: 'Tickets are available only after a sale is paid.' }, 400);
       }
+      if (current.settings?.printTicketsEnabled === false) return json(req, { error: 'Tickets are currently disabled.' }, 409);
       try {
         const email = await deliverTicketEmail(sale, current.settings || {}, String(body.pdfBase64 || ''), String(body.recipient || ''));
         return json(req, { ok: true, emailId: email?.id || '' });
@@ -455,7 +458,9 @@ Deno.serve(async (req: Request) => {
       settings.username = nextUsername;
       if (body.newPassword) settings.passwordHash = await sha256(String(body.newPassword));
       delete settings._legacyPassword;
-      const row = await saveState(current.sales || [], settings);
+      const row = await db('rpc/kapparos_save_admin_state', {
+        method: 'POST', body: JSON.stringify({ p_sales: current.sales || [], p_settings: settings, p_deleted_sale_ids: [] })
+      });
       await db(`kapparos_sessions?token_hash=neq.${session.hash}`, { method: 'DELETE' });
       return json(req, publicState(row));
     }

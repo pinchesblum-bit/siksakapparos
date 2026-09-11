@@ -516,8 +516,8 @@
       letter-spacing: 0;
     }
     .sale-name-content { display:inline-flex; align-items:center; gap:7px; max-width:100%; }
-    .online-sale-badge[hidden] { display:none; }
-    .online-sale-badge {
+    .online-sale-badge[hidden], .demo-sale-badge[hidden] { display:none; }
+    .online-sale-badge, .demo-sale-badge {
       display:inline-flex;
       align-items:center;
       min-height:21px;
@@ -530,6 +530,11 @@
       letter-spacing:.04em;
       text-transform:uppercase;
       white-space:nowrap;
+    }
+    .demo-sale-badge {
+      border-color:#e1c99a;
+      background:#fff3d8;
+      color:#7a5515;
     }
     .status-pill {
       display: inline-flex;
@@ -1559,6 +1564,7 @@
       z-index: 100;
     }
     .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { background: #a23939; }
 
     @media (max-width: 760px) {
       .app-shell { padding: 18px 14px 36px; }
@@ -2014,11 +2020,11 @@
             </button>
             <button type="button" class="settings-card" data-settings-open="accounting">
               <span class="settings-card-title">Accounting</span>
-              <span class="settings-card-note">Manage expense payment statuses.</span>
+              <span class="settings-card-note">Set chicken purchase cost and manage expense payment statuses.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="buying">
               <span class="settings-card-title">Buying Website</span>
-              <span class="settings-card-note">Control public ordering, page text, pricing, inventory, pickup times, payment choices, and confirmation text.</span>
+              <span class="settings-card-note">Control online ordering and the customer-facing page text.</span>
             </button>
             <button type="button" class="settings-card" data-settings-open="login">
               <span class="settings-card-title">Login</span>
@@ -2050,13 +2056,17 @@
               <div class="field"><label for="settingBuyingSubtitle">Page Subtitle</label><input id="settingBuyingSubtitle" required /></div>
               <div class="field full"><label for="settingBuyingButtonText">Order Button Text</label><input id="settingBuyingButtonText" required /></div>
             </div>
-            <div class="settings-grid sales-basics-grid">
-              <div class="field"><label for="settingBuyingPrice">Price per כפרה</label><div class="price-wrap"><span>$</span><input id="settingBuyingPrice" type="number" min="0" step="0.01" required /></div><div class="helper">Shown in the order summary.</div></div>
-              <div class="field"><label for="settingBuyingInventory">Online Inventory</label><input id="settingBuyingInventory" type="number" min="0" step="1" required /><div class="helper">At zero, the order button is disabled.</div></div>
+            <div class="settings-section">
+              <h3>Sales connection</h3>
+              <p class="settings-card-note">The online price and available inventory come directly from Sales Settings. Online checkout uses credit card payment.</p>
+            </div>
+            <div hidden>
+              <input id="settingBuyingPrice" type="number" />
+              <input id="settingBuyingInventory" type="number" />
+              <textarea id="settingBuyingPickupTimes"></textarea>
+              <textarea id="settingBuyingPaymentChoices"></textarea>
             </div>
             <div class="settings-grid buying-options-grid">
-              <div class="field"><label for="settingBuyingPickupTimes">Pickup Times</label><textarea id="settingBuyingPickupTimes" rows="5" required></textarea><div class="helper">Enter one pickup time per line.</div></div>
-              <div class="field"><label for="settingBuyingPaymentChoices">Payment Choices</label><textarea id="settingBuyingPaymentChoices" rows="5" required></textarea><div class="helper">Enter one payment choice per line.</div></div>
               <div class="field full"><label for="settingBuyingConfirmationText">Customer Confirmation Text</label><textarea id="settingBuyingConfirmationText" rows="4" required></textarea><div class="helper">Shown beside the order summary.</div></div>
             </div>
             <p class="settings-message" id="buyingWebsiteSettingsMessage" role="alert"></p>
@@ -2335,14 +2345,12 @@
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
             <h3>Login</h3>
           </div>
-          <label class="settings-switch-row field full">
-            <span>Private Access<span class="settings-card-note">Require a username and password when opening the website. Protected pages and actions always require your password.</span></span>
-            <span class="toggle-switch">
-              <input type="checkbox" id="settingPrivateAccessEnabled" checked />
-              <span class="toggle-slider" aria-hidden="true"></span>
-            </span>
-          </label>
-          <p class="settings-message" id="privateAccessMessage" role="alert"></p>
+          <div class="settings-section">
+            <h3>Private Access</h3>
+            <p class="settings-card-note">The admin website always requires your username and password to protect customer information.</p>
+          </div>
+          <input type="checkbox" id="settingPrivateAccessEnabled" checked hidden />
+          <p class="settings-message" id="privateAccessMessage" role="alert" hidden></p>
           <button type="button" class="secondary-btn" id="openLoginSettingsBtn">Change Username and Password</button>
           <form id="loginSettingsForm" hidden>
             <input id="settingCurrentPassword" type="password" autocomplete="current-password" hidden />
@@ -2404,7 +2412,35 @@
           <div class="settings-view-head">
             <button type="button" class="back-settings-btn" data-settings-back>← Back</button>
             <h3>Accounting</h3>
+            <button type="button" class="secondary-btn edit-settings-btn" data-edit-settings="accounting">Edit</button>
           </div>
+          <form id="accountingSettingsForm">
+            <div class="settings-section">
+              <h3>Chicken Purchase Cost</h3>
+              <p class="settings-card-note">What you pay for each chicken. The selling price is separate, in Sales Settings.</p>
+              <div class="settings-grid sales-basics-grid">
+                <div class="field">
+                  <label for="settingChickenPurchaseCost">Your cost per chicken</label>
+                  <div class="price-wrap"><span>$</span><input id="settingChickenPurchaseCost" type="number" min="0" step="0.01" required /></div>
+                </div>
+                <div class="field">
+                  <label for="settingChickenExpenseName">Expense name</label>
+                  <input id="settingChickenExpenseName" maxlength="120" placeholder="Chickens" required />
+                </div>
+              </div>
+              <div class="settings-section" style="margin-top:16px" aria-live="polite">
+                <div class="settings-card-title">Total chicken expense</div>
+                <p id="chickenPurchaseSummary" class="settings-card-note"></p>
+                <strong id="chickenPurchaseTotal" style="font-size:22px;font-variant-numeric:tabular-nums">$0.00</strong>
+              </div>
+              <p class="settings-card-note">The first save records your current inventory as a purchase. Later inventory increases add purchase costs at the rate set here. Past purchase costs stay recorded, even after chickens are sold or inventory is reduced. Changing this rate affects additional chickens only. Each paid sale adds its full selling amount to income.</p>
+            </div>
+            <p class="settings-message" id="accountingSettingsMessage" role="alert"></p>
+            <div class="settings-actions" data-settings-actions="accounting" hidden>
+              <button type="button" class="secondary-btn" data-cancel-settings="accounting">Cancel</button>
+              <button type="submit" class="primary-btn">Save</button>
+            </div>
+          </form>
           <div class="settings-section">
             <div class="payment-method-row">
               <div>
@@ -2431,7 +2467,7 @@
   <div class="modal-backdrop" id="saleModal" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="saleModalTitle">
       <div class="modal-head">
-        <div style="display:flex;align-items:center;gap:10px"><h2 id="saleModalTitle">Add Sale</h2><span id="saleOnlineBadge" class="online-sale-badge" hidden>Online</span></div>
+        <div style="display:flex;align-items:center;gap:10px"><h2 id="saleModalTitle">Add Sale</h2><span id="saleOnlineBadge" class="online-sale-badge" hidden>Online</span><span id="saleDemoBadge" class="demo-sale-badge" hidden>Demo</span></div>
         <button class="close-btn" id="closeModalBtn" aria-label="Close">×</button>
       </div>
 
@@ -2708,6 +2744,8 @@
     let cloudSaveDirty = false;
     let cloudReady = false;
     let cloudKnownSaleIds = new Set();
+    let cloudDeletedSaleIds = new Set();
+    let cloudRefreshInFlight = false;
     const PENDING_SAVE_KEY = 'kapparosPendingSaveV2';
     const CHANGE_CONFIRMATION = 'ביסטו זיכער אז דו ווילסט מאכן דעם טויש?';
     const DELETE_CONFIRMATION = 'דו ביסט באקאנט אז די נאמען גייט יעצט ווערן אינגאנצן אויסגעמעקט?';
@@ -2775,6 +2813,10 @@
       todoSortMode: 'manual',
       todoTasks: [],
       accountingExpenses: [],
+      chickenPurchaseCost: 0,
+      chickenExpenseName: 'Chickens',
+      chickenPurchaseBatches: [],
+      chickenInventoryRecorded: null,
       defaultPrice: 23,
       inventory: 100,
       buyingWebsite: DEFAULT_BUYING_WEBSITE,
@@ -2800,6 +2842,8 @@
         { id: 'erev-yom-kippur', label: 'Erev Yom Kippur', needsDate: false }
       ]
     };
+
+    const CHICKEN_EXPENSE_ID = 'auto-chicken-inventory-cost';
 
     const state = {
       sales: loadSales(),
@@ -2939,6 +2983,12 @@
     const websiteSettingsForm = document.getElementById('websiteSettingsForm');
     const buyingWebsiteSettingsForm = document.getElementById('buyingWebsiteSettingsForm');
     const salesSettingsForm = document.getElementById('salesSettingsForm');
+    const accountingSettingsForm = document.getElementById('accountingSettingsForm');
+    const settingChickenPurchaseCost = document.getElementById('settingChickenPurchaseCost');
+    const settingChickenExpenseName = document.getElementById('settingChickenExpenseName');
+    const accountingSettingsMessage = document.getElementById('accountingSettingsMessage');
+    const chickenPurchaseSummary = document.getElementById('chickenPurchaseSummary');
+    const chickenPurchaseTotal = document.getElementById('chickenPurchaseTotal');
     const loginSettingsForm = document.getElementById('loginSettingsForm');
     const openLoginSettingsBtn = document.getElementById('openLoginSettingsBtn');
     const settingPrivateAccessEnabled = document.getElementById('settingPrivateAccessEnabled');
@@ -3177,29 +3227,6 @@
       const action = pendingSecurityAction;
       closeSecurityDialog();
 
-      if (action === 'private-access') {
-        const enabled = pendingPrivateAccessMode;
-        pendingPrivateAccessMode = null;
-        if (typeof enabled !== 'boolean' || !(await askConfirmation(CHANGE_CONFIRMATION))) return;
-        try {
-          await flushCloudSave();
-          const result = await cloudRequest('private-access', { enabled, password });
-          state.settings.privateAccessEnabled = result.privateAccessEnabled;
-          state.settings.accessModeVersion = result.accessModeVersion;
-          localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
-          settingPrivateAccessEnabled.checked = result.privateAccessEnabled;
-          privateAccessMessage.style.color = '#426447';
-          privateAccessMessage.textContent = enabled
-            ? 'Private Access is on. Visitors must log in.'
-            : 'Private Access is off. Visitors can enter without logging in; protected pages and actions still require the password.';
-          showToast(enabled ? 'Private Access turned on' : 'Private Access turned off');
-        } catch (error) {
-          settingPrivateAccessEnabled.checked = state.settings.privateAccessEnabled !== false;
-          privateAccessMessage.style.color = '#9d2f25';
-          privateAccessMessage.textContent = error.message;
-        }
-        return;
-      }
       if (action === 'export-data') {
         exportAllData();
         return;
@@ -3318,6 +3345,15 @@
           phoneRequired: saved.phoneRequired !== false,
           emailRequired: Boolean(saved.emailRequired),
           todoSortMode: ['manual', 'name', 'due'].includes(saved.todoSortMode) ? saved.todoSortMode : DEFAULT_SETTINGS.todoSortMode,
+          chickenPurchaseCost: Number.isFinite(Number(saved.chickenPurchaseCost)) ? Math.max(0, Math.round(Number(saved.chickenPurchaseCost) * 100) / 100) : 0,
+          chickenExpenseName: String(saved.chickenExpenseName || 'Chickens').trim().slice(0, 120) || 'Chickens',
+          chickenInventoryRecorded: saved.chickenInventoryRecorded != null && Number.isFinite(Number(saved.chickenInventoryRecorded)) ? Math.max(0, Math.floor(Number(saved.chickenInventoryRecorded))) : null,
+          chickenPurchaseBatches: Array.isArray(saved.chickenPurchaseBatches) ? saved.chickenPurchaseBatches.filter(batch => batch && Number(batch.quantity) > 0 && Number(batch.unitCost) >= 0).map(batch => ({
+            quantity: Math.floor(Number(batch.quantity)),
+            unitCost: Math.round(Number(batch.unitCost) * 100) / 100,
+            date: String(batch.date || ''),
+            createdAt: String(batch.createdAt || '')
+          })) : [],
           accountingExpenses: savedExpenses.map((expense, index) => ({
             id: String(expense.id),
             name: String(expense.name).trim(),
@@ -3390,13 +3426,13 @@
         hash ^= character.charCodeAt(0);
         hash = Math.imul(hash, 16777619);
       }
-      let number = hash >>> 0;
+      let number = (hash >>> 0) % 1000000;
       if (!number) number = 1;
-      let ticketId = String(number).padStart(10, '0');
+      let ticketId = String(number).padStart(6, '0');
       while (usedIds.has(ticketId)) {
-        number = (number + 1) >>> 0;
+        number = (number + 1) % 1000000;
         if (!number) number = 1;
-        ticketId = String(number).padStart(10, '0');
+        ticketId = String(number).padStart(6, '0');
       }
       return ticketId;
     }
@@ -3406,7 +3442,7 @@
       let changed = false;
       state.sales.forEach(sale => {
         const digits = String(sale.ticketId || '').replace(/\D/g, '');
-        const normalized = digits ? digits.padStart(10, '0').slice(-10) : '';
+        const normalized = /^(?:\d{6}|\d{10})$/.test(digits) ? digits : '';
         if (normalized && !usedIds.has(normalized)) {
           if (sale.ticketId !== normalized) {
             sale.ticketId = normalized;
@@ -3424,7 +3460,7 @@
 
     function getSaleTicketId(sale) {
       if (!sale) return '';
-      if (!/^\d{10}$/.test(String(sale.ticketId || ''))) {
+      if (!/^(?:\d{6}|\d{10})$/.test(String(sale.ticketId || ''))) {
         if (ensureSaleTicketIds()) {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sales));
           pendingTicketIdSave = true;
@@ -3901,6 +3937,7 @@
     function applyCloudState(data) {
       const knownSales = Array.isArray(data._knownSaleIds) ? data._knownSaleIds : (Array.isArray(data.sales) ? data.sales.map(item => item.id) : []);
       cloudKnownSaleIds = new Set(knownSales.map(String));
+      cloudDeletedSaleIds = new Set((data._deletedSaleIds || []).map(String));
       state.sales = Array.isArray(data.sales) ? data.sales : [];
       if (ensureSaleTicketIds()) pendingTicketIdSave = true;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sales));
@@ -3923,7 +3960,8 @@
       cloudSaveDirty = true;
       cloudSaveRevision++;
       sessionStorage.setItem(PENDING_SAVE_KEY, JSON.stringify({
-        sales: state.sales, settings: state.settings, username: state.settings.username
+        sales: state.sales, settings: state.settings, username: state.settings.username,
+        deletedSaleIds: Array.from(cloudDeletedSaleIds)
       }));
       clearTimeout(cloudSaveTimer);
       cloudSaveTimer = setTimeout(() => { flushCloudSave().catch(() => {}); }, 150);
@@ -3941,11 +3979,19 @@
       cloudSaveInFlight = (async () => {
         while (cloudSaveDirty) {
           const revision = cloudSaveRevision;
-          const snapshot = JSON.parse(JSON.stringify({ sales: state.sales, settings: state.settings, knownSaleIds: Array.from(cloudKnownSaleIds) }));
+          const snapshot = JSON.parse(JSON.stringify({ sales: state.sales, settings: state.settings, deletedSaleIds: Array.from(cloudDeletedSaleIds) }));
           try {
             const saved = await cloudRequest('save', snapshot);
             if (revision === cloudSaveRevision) {
-              if (Array.isArray(saved.sales)) cloudKnownSaleIds = new Set(saved.sales.map(item => String(item.id)));
+              if (Array.isArray(saved.sales)) {
+                state.sales = saved.sales;
+                cloudKnownSaleIds = new Set(saved.sales.map(item => String(item.id)));
+                cloudDeletedSaleIds.clear();
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sales));
+                renderSales();
+                renderReports();
+                renderAccounting();
+              }
               cloudSaveDirty = false;
               sessionStorage.removeItem(PENDING_SAVE_KEY);
             }
@@ -3967,13 +4013,46 @@
       try {
         const pending = JSON.parse(raw);
         if (pending.username !== data.settings?.username) return data;
+        const deletedIds = new Set((pending.deletedSaleIds || []).map(String));
+        cloudDeletedSaleIds = deletedIds;
+        const pendingSales = Array.isArray(pending.sales) ? pending.sales : [];
+        const pendingIds = new Set(pendingSales.map(item => String(item.id)));
+        const remoteOnly = (Array.isArray(data.sales) ? data.sales : []).filter(item =>
+          !deletedIds.has(String(item.id)) && !pendingIds.has(String(item.id)));
         cloudSaveDirty = true;
         cloudSaveRevision++;
-        return { ...data, sales: pending.sales, settings: pending.settings, _knownSaleIds: (data.sales || []).map(item => item.id) };
+        return { ...data, sales: [...pendingSales, ...remoteOnly], settings: pending.settings, _knownSaleIds: (data.sales || []).map(item => item.id), _deletedSaleIds: Array.from(deletedIds) };
       } catch { return data; }
     }
 
-    window.addEventListener('online', () => { flushCloudSave().catch(() => {}); });
+    function canRefreshCloudState() {
+      return state.page !== 'settings'
+        && !Object.values(settingsEditMode).some(Boolean)
+        && !document.querySelector('.open[aria-hidden="false"]');
+    }
+
+    async function refreshCloudStateSilently() {
+      if (!cloudReady || !cloudSessionToken || cloudSaveDirty || cloudSaveInFlight || cloudRefreshInFlight || !canRefreshCloudState()) return;
+      cloudRefreshInFlight = true;
+      const revision = cloudSaveRevision;
+      try {
+        const data = await cloudRequest('get');
+        if (revision === cloudSaveRevision && !cloudSaveDirty && canRefreshCloudState()) applyCloudState(data);
+      } catch (error) {
+        if (error.status === 401) lockWebsite();
+      } finally {
+        cloudRefreshInFlight = false;
+      }
+    }
+
+    window.addEventListener('online', () => {
+      flushCloudSave().catch(() => {});
+      refreshCloudStateSilently();
+    });
+    window.addEventListener('focus', refreshCloudStateSilently);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') refreshCloudStateSilently();
+    });
     window.addEventListener('beforeunload', event => {
       if (!cloudSaveDirty) return;
       event.preventDefault();
@@ -3985,7 +4064,63 @@
       queueCloudSave();
     }
 
+    function getChickenPurchaseTotal() {
+      const cents = (state.settings.chickenPurchaseBatches || []).reduce((sum, batch) =>
+        sum + Math.max(0, Math.floor(Number(batch.quantity || 0))) * Math.max(0, Math.round(Number(batch.unitCost || 0) * 100)), 0);
+      return cents / 100;
+    }
+
+    function syncChickenPurchaseExpense(recordPurchase = false) {
+      const inventory = Math.max(0, Math.floor(Number(state.settings.inventory || 0)));
+      const cost = Math.max(0, Math.round(Number(state.settings.chickenPurchaseCost || 0) * 100) / 100);
+      const batches = state.settings.chickenPurchaseBatches || [];
+      if (recordPurchase && cost > 0) {
+        const baseline = state.settings.chickenInventoryRecorded;
+        const added = Math.max(0, inventory - (baseline == null ? 0 : Number(baseline)));
+        if (added > 0) batches.push({
+          quantity: added, unitCost: cost, date: getLocalDateValue(), createdAt: new Date().toISOString()
+        });
+        state.settings.chickenInventoryRecorded = inventory;
+        state.settings.chickenPurchaseBatches = batches;
+      }
+      const expenses = state.settings.accountingExpenses || [];
+      const existing = expenses.find(expense => expense.id === CHICKEN_EXPENSE_ID);
+      const amount = getChickenPurchaseTotal();
+      if (!(amount > 0)) return;
+      const name = String(state.settings.chickenExpenseName || 'Chickens').trim() || 'Chickens';
+      if (existing) {
+        if (existing.name !== name || existing.amount !== amount) {
+          existing.name = name;
+          existing.amount = amount;
+          existing.updatedAt = new Date().toISOString();
+        }
+      } else {
+        expenses.push({
+          id: CHICKEN_EXPENSE_ID, name, amount,
+          date: batches[0]?.date || getLocalDateValue(), category: 'Inventory', note: '',
+          paid: false,
+          order: expenses.reduce((maximum, item) => Math.max(maximum, Number(item.order || 0)), -1) + 1,
+          createdAt: batches[0]?.createdAt || new Date().toISOString(), updatedAt: ''
+        });
+      }
+      state.settings.accountingExpenses = expenses;
+    }
+
+    function updateChickenPurchasePreview() {
+      const cost = Number(settingChickenPurchaseCost.value || 0);
+      const inventory = Math.max(0, Math.floor(Number(state.settings.inventory || 0)));
+      const baseline = state.settings.chickenInventoryRecorded;
+      const added = Math.max(0, inventory - (baseline == null ? 0 : Number(baseline)));
+      const recorded = getChickenPurchaseTotal();
+      const nextPurchase = Number.isFinite(cost) ? Math.max(0, Math.round(cost * 100)) * added / 100 : 0;
+      chickenPurchaseSummary.textContent = recorded > 0
+        ? money(recorded) + ' already recorded. ' + (added > 0 ? added.toLocaleString() + ' additional chickens × ' + money(cost) + '.' : 'Future inventory increases use ' + money(cost) + ' per chicken.')
+        : inventory.toLocaleString() + ' chickens × ' + money(cost) + ' each';
+      chickenPurchaseTotal.textContent = money(recorded + nextPurchase);
+    }
+
     function saveSettings() {
+      syncChickenPurchaseExpense(true);
       const { _legacyPassword, ...safeSettings } = state.settings;
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(safeSettings));
       queueCloudSave();
@@ -3999,7 +4134,7 @@
 
     function getKapparosSold(excludeSaleId = null) {
       return state.sales.reduce((sum, sale) => {
-        if (sale.id === excludeSaleId || sale.status === 'expired') return sum;
+        if (sale.id === excludeSaleId || (sale.status || 'paid') !== 'paid') return sum;
         return sum + Number(sale.quantity || 0);
       }, 0);
     }
@@ -4213,7 +4348,7 @@
     let settingsDraftMethods = [];
     let settingsDraftPlans = [];
     let settingsDraftFields = [];
-    const settingsEditMode = { website: false, buying: false, sales: false, ticket: false, login: false, reports: false };
+    const settingsEditMode = { website: false, buying: false, sales: false, accounting: false, ticket: false, login: false, reports: false };
 
     function renderPaymentMethodsEditor() {
       paymentMethodsList.innerHTML = settingsDraftMethods.map((method, index) => {
@@ -4467,6 +4602,7 @@
 
     function renderSettings() {
       renderTicketDeliverySettings();
+      resetSettingsSection('accounting');
       settingPrivateAccessEnabled.checked = state.settings.privateAccessEnabled !== false;
       privateAccessMessage.textContent = '';
       settingTitle.value = state.settings.title;
@@ -4522,6 +4658,7 @@
         website: websiteSettingsForm,
         buying: buyingWebsiteSettingsForm,
         sales: salesSettingsForm,
+        accounting: accountingSettingsForm,
         ticket: ticketSettingsForm,
         login: loginSettingsForm,
         reports: reportSettingsForm
@@ -4535,6 +4672,9 @@
       if (section === 'website') {
         settingShowNeedsSaved.disabled = false;
         settingSalesTableRtl.disabled = false;
+      }
+      if (section === 'buying') {
+        settingBuyingEnabled.disabled = false;
       }
       document.querySelector(`[data-settings-actions="${section}"]`).hidden = !editing;
       const editButton = document.querySelector(`[data-edit-settings="${section}"]`);
@@ -4560,6 +4700,12 @@
     }
 
     function resetSettingsSection(section) {
+      if (section === 'accounting') {
+        settingChickenPurchaseCost.value = Number(state.settings.chickenPurchaseCost || 0).toFixed(2);
+        settingChickenExpenseName.value = state.settings.chickenExpenseName || 'Chickens';
+        accountingSettingsMessage.textContent = '';
+        updateChickenPurchasePreview();
+      }
       if (section === 'website') {
         settingTitle.value = state.settings.title;
         settingSubtitle.value = state.settings.subtitle;
@@ -5112,7 +5258,19 @@
         }).join('');
     }
 
+    function getAccountingExpenses(period = '') {
+      return (state.settings.accountingExpenses || []).flatMap(expense => {
+        if (expense.id !== CHICKEN_EXPENSE_ID || !period) {
+          return !period || String(expense.date || '').startsWith(period) ? [expense] : [];
+        }
+        const purchases = (state.settings.chickenPurchaseBatches || []).filter(batch => String(batch.date || '').startsWith(period));
+        const cents = purchases.reduce((sum, batch) => sum + batch.quantity * Math.round(batch.unitCost * 100), 0);
+        return cents > 0 ? [{ ...expense, amount: cents / 100, date: purchases[0].date }] : [];
+      });
+    }
+
     function renderAccounting() {
+      syncChickenPurchaseExpense();
       const month = getAccountingMonth();
       const isAllTime = state.accountingRange !== 'month';
       accountingRange.value = isAllTime ? 'all' : 'month';
@@ -5123,9 +5281,7 @@
         && !isBanshakPayment(sale.paymentType)
         && (isAllTime || getAccountingSaleDate(sale).startsWith(month))
       );
-      const expenses = (state.settings.accountingExpenses || []).filter(expense =>
-        isAllTime || String(expense.date || '').startsWith(month)
-      );
+      const expenses = getAccountingExpenses(isAllTime ? '' : month);
       const incomeTotal = paidSales.reduce((sum, sale) => sum + Number(sale.price || 0), 0);
       const expensesTotal = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
       const netTotal = incomeTotal - expensesTotal;
@@ -5145,8 +5301,13 @@
         dailyTotals[date].income += Number(sale.price || 0);
       });
       expenses.forEach(expense => {
-        dailyTotals[expense.date] ||= { income: 0, expenses: 0 };
-        dailyTotals[expense.date].expenses += Number(expense.amount || 0);
+        const entries = expense.id === CHICKEN_EXPENSE_ID
+          ? (state.settings.chickenPurchaseBatches || []).filter(batch => isAllTime || String(batch.date || '').startsWith(month)).map(batch => ({ date: batch.date, amount: batch.quantity * Math.round(batch.unitCost * 100) / 100 }))
+          : [expense];
+        entries.forEach(entry => {
+          dailyTotals[entry.date] ||= { income: 0, expenses: 0 };
+          dailyTotals[entry.date].expenses += Number(entry.amount || 0);
+        });
       });
 
       if (isAllTime) accountingCalendar.innerHTML = '';
@@ -5156,8 +5317,7 @@
     }
 
     function openCalendarExpenseDetails(date) {
-      const expenses = (state.settings.accountingExpenses || [])
-        .filter(expense => expense.date === date)
+      const expenses = getAccountingExpenses(date)
         .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
       calendarExpenseModalTitle.textContent = `Expenses — ${formatTodoDate(date)}`;
       calendarExpenseDetails.innerHTML = expenses.length
@@ -5195,7 +5355,7 @@
       expenseNote.value = expense?.note || '';
       expensePaid.checked = Boolean(expense?.paid);
       setExpenseFieldMode(true);
-      deleteExpenseBtn.hidden = false;
+      deleteExpenseBtn.hidden = expense?.id === CHICKEN_EXPENSE_ID;
       cancelExpenseBtn.textContent = 'Close';
       editExpenseBtn.hidden = false;
       saveExpenseBtn.hidden = true;
@@ -5210,7 +5370,10 @@
       expenseNote.value = expense?.note || '';
       expensePaid.checked = Boolean(expense?.paid);
       setExpenseFieldMode(false);
-      deleteExpenseBtn.hidden = !expense;
+      expenseAmount.disabled = expense?.id === CHICKEN_EXPENSE_ID;
+      expenseAmount.title = expense?.id === CHICKEN_EXPENSE_ID ? 'Total recorded chicken purchases; sales never reduce this expense' : '';
+      if (expense?.id === CHICKEN_EXPENSE_ID) expenseDate.disabled = true;
+      deleteExpenseBtn.hidden = !expense || expense.id === CHICKEN_EXPENSE_ID;
       cancelExpenseBtn.textContent = 'Cancel';
       editExpenseBtn.hidden = true;
       saveExpenseBtn.hidden = false;
@@ -5239,6 +5402,10 @@
     }
 
     async function deleteExpense(expenseId) {
+      if (expenseId === CHICKEN_EXPENSE_ID) {
+        showToast('Chicken purchase expenses stay recorded. Edit the name or payment status here; set the rate in Accounting Settings.', 'error');
+        return;
+      }
       const expense = (state.settings.accountingExpenses || []).find(item => item.id === expenseId);
       if (!expense) return;
       if (!(await askConfirmation(DELETE_CONFIRMATION))) return;
@@ -5273,6 +5440,7 @@
 
     function exportAllData() {
       expirePastReservations();
+      syncChickenPurchaseExpense();
       const groups = {};
       state.settings.paymentMethods.forEach(method => {
         groups[method.id] = { id: method.id, label: method.label, count: 0, money: 0 };
@@ -5282,13 +5450,14 @@
         if (!groups[sale.paymentType]) {
           groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
         }
-        groups[sale.paymentType].count += 1;
+        if (sale.isOnlineSale !== true) groups[sale.paymentType].count += 1;
         if ((sale.status || 'paid') === 'paid' && !isBanshakPayment(sale.paymentType)) groups[sale.paymentType].money += Number(sale.price || 0);
       });
 
       const sold = getKapparosSold();
       const paidSales = state.sales.filter(sale => (sale.status || 'paid') === 'paid');
       const reservedSales = state.sales.filter(sale => sale.status === 'reserved');
+      const onlineSalesCount = state.sales.filter(sale => sale.isOnlineSale && (sale.status || 'paid') === 'paid').length;
       const needsReserved = getNeedsReservedTotal();
       const needsSaved = getNeedsSavedTotal();
       const banshakUnpaid = state.sales.reduce((sum, sale) => (sale.status || 'paid') === 'paid' && isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
@@ -5318,14 +5487,9 @@
         excelRow([{ value: 'Metric', style: 'Header' }, { value: 'Value', style: 'Header' }]),
         excelRow([state.settings.reportLabels.chickens, { value: state.settings.inventory, type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.paid, { value: getHomeSummaryTotal(), type: 'Number', style: 'Integer' }]),
-        excelRow([state.settings.reportLabels.reserved, { value: reservedSales.length, type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.needsReserved, { value: needsReserved, type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.needsSaved, { value: needsSaved, type: 'Number', style: 'Integer' }]),
-        excelRow(['בנש״ק unpaid', { value: banshakUnpaid, type: 'Number', style: 'Currency' }]),
-        excelRow(['Total sales', { value: state.sales.filter(sale => sale.status !== 'expired').length, type: 'Number', style: 'Integer' }]),
-        excelRow(['כפרות sold', { value: sold, type: 'Number', style: 'Integer' }]),
-        excelRow(['Total כפרות inventory', { value: state.settings.inventory, type: 'Number', style: 'Integer' }]),
-        excelRow(['כפרות available', { value: Math.max(0, state.settings.inventory - sold), type: 'Number', style: 'Integer' }]),
+        excelRow(['Total online sales', { value: onlineSalesCount, type: 'Number', style: 'Integer' }]),
         excelRow(['Subtotal (excluding בנש״ק)', { value: totalMoney, type: 'Number', style: 'Currency' }]),
         excelRow(['Exported', new Date().toLocaleString('en-US')]),
         '<Row/>',
@@ -5334,7 +5498,8 @@
           group.label,
           { value: group.count, type: 'Number', style: 'Integer' },
           { value: group.money, type: 'Number', style: 'Currency' }
-        ]))
+        ])),
+        excelRow(['Online', { value: onlineSalesCount, type: 'Number', style: 'Integer' }, { value: 0, type: 'Number', style: 'Currency' }])
       ].join('');
 
       const taskRows = [
@@ -5496,6 +5661,7 @@
     function showSaleEditor(existingSale = null) {
       saleModalTitle.textContent = existingSale ? 'Edit Sale' : 'Add Sale';
       document.getElementById('saleOnlineBadge').hidden = !existingSale?.isOnlineSale;
+      document.getElementById('saleDemoBadge').hidden = !existingSale?.isDemoSale;
       setSaleFormMode(false);
       if (geschlagenControl) geschlagenControl.hidden = false;
       updatePaymentFieldsForStatus();
@@ -5581,10 +5747,17 @@
       emailSaleTicketBtn.hidden = true;
     }
 
-    function showToast(message) {
+    let toastTimer = null;
+    function showToast(message, type = '') {
+      clearTimeout(toastTimer);
+      toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
       toast.textContent = message;
+      toast.classList.toggle('error', type === 'error');
       toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 1700);
+      toastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+        toast.classList.remove('error');
+      }, 2200);
     }
 
     let ticketScanTimer = null;
@@ -5603,7 +5776,7 @@
         return;
       }
       if (sale.geschlagen) {
-        showToast('This sale is already געשלאגן');
+        showToast('This sale is already געשלאגן', 'error');
         ticketScanner.value = '';
         ticketScanner.focus();
         return;
@@ -5654,11 +5827,6 @@
         else showSettingsHome();
       });
     });
-    settingPrivateAccessEnabled.addEventListener('change', () => {
-      pendingPrivateAccessMode = settingPrivateAccessEnabled.checked;
-      settingPrivateAccessEnabled.checked = state.settings.privateAccessEnabled !== false;
-      openSecurityDialog('private-access');
-    });
     openLoginSettingsBtn.addEventListener('click', () => {
       openSecurityDialog('login-settings');
     });
@@ -5668,7 +5836,7 @@
         const section = btn.dataset.editSettings;
         resetSettingsSection(section);
         setSettingsEditMode(section, true);
-        ({ website: settingTitle, buying: settingBuyingTitle, sales: settingDefaultPrice, login: settingCurrentPassword, reports: settingReportChickensLabel }[section])?.focus();
+        ({ website: settingTitle, buying: settingBuyingTitle, sales: settingDefaultPrice, accounting: settingChickenPurchaseCost, login: settingCurrentPassword, reports: settingReportChickensLabel }[section])?.focus();
       });
     });
     document.querySelectorAll('[data-cancel-settings]').forEach(btn => {
@@ -5814,6 +5982,7 @@
         }
         if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
         Object.assign(existingExpense, values, { updatedAt: new Date().toISOString() });
+        if (existingExpense.id === CHICKEN_EXPENSE_ID) state.settings.chickenExpenseName = values.name;
       } else {
         expenses.push({
           id: crypto.randomUUID ? crypto.randomUUID() : `expense-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -6306,7 +6475,7 @@
     ticketScanner.addEventListener('input', () => {
       ticketScanner.value = ticketScanner.value.replace(/\D/g, '').slice(0, 10);
       clearTimeout(ticketScanTimer);
-      if (ticketScanner.value.length === 10) ticketScanTimer = setTimeout(scanTicket, 180);
+      if ([6, 10].includes(ticketScanner.value.length)) ticketScanTimer = setTimeout(scanTicket, 180);
     });
     ticketScanner.addEventListener('keydown', event => {
       if (event.key !== 'Enter') return;
@@ -6570,6 +6739,7 @@
       const confirmed = await askConfirmation(DELETE_CONFIRMATION);
       if (!confirmed) return;
 
+      cloudDeletedSaleIds.add(String(state.editingSaleId));
       state.sales = state.sales.filter(item => item.id !== state.editingSaleId);
       saveSales();
       renderSales();
@@ -6665,23 +6835,48 @@
       customFieldsList.querySelector('.custom-field-row:last-child input')?.select();
     });
 
+    settingChickenPurchaseCost.addEventListener('input', updateChickenPurchasePreview);
+    accountingSettingsForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!accountingSettingsForm.reportValidity()) return;
+      const cost = Number(settingChickenPurchaseCost.value);
+      if (!Number.isFinite(cost) || cost < 0) return;
+      const name = settingChickenExpenseName.value.trim() || 'Chickens';
+      if (cost === Number(state.settings.chickenPurchaseCost || 0) && name === state.settings.chickenExpenseName) {
+        accountingSettingsMessage.textContent = 'No changes to save.';
+        setSettingsEditMode('accounting', false);
+        return;
+      }
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+      state.settings.chickenPurchaseCost = Math.round(cost * 100) / 100;
+      state.settings.chickenExpenseName = name;
+      saveSettings();
+      renderAccounting();
+      updateChickenPurchasePreview();
+      try {
+        await flushCloudSave();
+        accountingSettingsMessage.style.color = '#426447';
+        accountingSettingsMessage.textContent = 'Purchase cost and linked expense saved.';
+        setSettingsEditMode('accounting', false);
+        showToast('Chicken purchase cost saved');
+      } catch (error) {
+        accountingSettingsMessage.style.color = '#a23939';
+        accountingSettingsMessage.textContent = error.message || 'The settings are waiting to save.';
+      }
+    });
+
     buyingWebsiteSettingsForm.addEventListener('submit', async event => {
       event.preventDefault();
       if (!buyingWebsiteSettingsForm.reportValidity()) return;
-      const pickupTimes = settingBuyingPickupTimes.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
-      const paymentChoices = settingBuyingPaymentChoices.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
-      if (!pickupTimes.length || !paymentChoices.length) {
-        buyingWebsiteSettingsMessage.style.color = '#a23939';
-        buyingWebsiteSettingsMessage.textContent = 'Enter at least one pickup time and one payment choice.';
-        return;
-      }
+      const pickupTimes = Array.isArray(state.settings.buyingWebsite.pickupTimes) ? state.settings.buyingWebsite.pickupTimes : [];
+      const paymentChoices = ['Credit card'];
       const next = {
         orderingEnabled: settingBuyingEnabled.checked,
         title: settingBuyingTitle.value.trim(),
         subtitle: settingBuyingSubtitle.value.trim(),
         buttonText: settingBuyingButtonText.value.trim(),
-        price: Math.max(0, Number(settingBuyingPrice.value)),
-        inventory: Math.max(0, Math.floor(Number(settingBuyingInventory.value))),
+        price: Math.max(0, Number(state.settings.defaultPrice)),
+        inventory: Math.max(0, Math.floor(Number(state.settings.inventory))),
         pickupTimes,
         paymentChoices,
         confirmationText: settingBuyingConfirmationText.value.trim()
@@ -6731,6 +6926,26 @@
       websiteSettingsMessage.textContent = 'Home Screen settings saved.';
       setSettingsEditMode('website', false);
       showToast('Home Screen settings saved');
+    });
+
+    settingBuyingEnabled.addEventListener('change', async () => {
+      const previousValue = state.settings.buyingWebsite.orderingEnabled !== false;
+      const nextValue = settingBuyingEnabled.checked;
+      if (nextValue === previousValue) return;
+      settingBuyingEnabled.checked = previousValue;
+      if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+      state.settings.buyingWebsite.orderingEnabled = nextValue;
+      settingBuyingEnabled.checked = nextValue;
+      saveSettings();
+      try {
+        await flushCloudSave();
+        buyingWebsiteSettingsMessage.style.color = '#426447';
+        buyingWebsiteSettingsMessage.textContent = nextValue ? 'Online ordering is open.' : 'Online ordering is closed.';
+        showToast(nextValue ? 'Online ordering opened' : 'Online ordering closed');
+      } catch (error) {
+        buyingWebsiteSettingsMessage.style.color = '#a23939';
+        buyingWebsiteSettingsMessage.textContent = error.message || 'The setting is waiting to save.';
+      }
     });
 
     settingReservationsEnabled.addEventListener('change', async () => {
@@ -7112,7 +7327,8 @@
         renderSales();
         renderReports();
       }
-    }, 60000);
+      refreshCloudStateSilently();
+    }, 15000);
 
     async function initializeCloudSession() {
       try {
@@ -7128,16 +7344,7 @@
             lockWebsite();
           }
         }
-        const entry = await cloudRequest('entry', {}, '');
-        if (entry.privateAccessEnabled !== false || !entry.token) {
-          lockWebsite();
-          return;
-        }
-        // A fresh visitor session never restores password-gated Accounting access.
-        sessionStorage.removeItem(ACCOUNTING_ACCESS_KEY);
-        applyCloudState(restorePendingSave(entry));
-        unlockWebsite(entry.token);
-        flushCloudSave().catch(() => {});
+        lockWebsite();
       } catch {
         lockWebsite();
       }

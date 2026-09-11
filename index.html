@@ -3582,11 +3582,11 @@
       showPage('ticket');
     }
 
-    async function renderTicketToJpeg(saleOverride = null) {
+    async function renderTicketToJpeg(saleOverride = null, designOverride = null) {
       const sale = saleOverride || state.sales.find(item => item.id === state.ticketSaleId);
       if (!sale) throw new Error('Ticket is not ready.');
       const ticketId = getSaleTicketId(sale);
-      const design = getTicketDeliverySettings();
+      const design = designOverride || getTicketDeliverySettings();
       const priceNumber = Number(sale.price);
       const values = {
         title: state.settings.title || 'Kapparos',
@@ -3792,7 +3792,10 @@
       button.disabled = true;
       button.textContent = 'Sending…';
       try {
-        const image = await renderTicketToJpeg(sale);
+        await flushCloudSave();
+        const latest = await cloudRequest('get');
+        const design = getTicketDeliverySettings(latest.settings?.ticketDelivery || {});
+        const image = await renderTicketToJpeg(sale, design);
         const pdf = createPdfFromJpeg(image.bytes, image.width, image.height);
         const pdfBase64 = await blobToBase64(pdf);
         await flushCloudSave();
@@ -4473,8 +4476,7 @@
       settingPdfValueSize: 'pdfValueSize'
     };
 
-    function getTicketDeliverySettings() {
-      const saved = state.settings.ticketDelivery || {};
+    function getTicketDeliverySettings(saved = state.settings.ticketDelivery || {}) {
       return Object.fromEntries(Object.entries(DEFAULT_TICKET_DELIVERY).map(([key, fallback]) => {
         if (typeof fallback === 'boolean') return [key, typeof saved[key] === 'boolean' ? saved[key] : fallback];
         if (typeof fallback === 'number') {

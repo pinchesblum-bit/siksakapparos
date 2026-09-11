@@ -2663,7 +2663,6 @@
             <label for="expensePaymentDetails" id="expensePaymentDetailsLabel">Payment details <span class="required-mark">*</span></label>
             <input id="expensePaymentDetails" maxlength="120" autocomplete="off" />
           </div>
-          <p class="field full small-note" id="expensePaymentNotice" role="status" hidden>Choose the payment type and fill in any required details. Save to confirm this expense as paid.</p>
           <div class="field full">
             <label for="expenseCategory">Category <span class="small-note">(Optional)</span></label>
             <input id="expenseCategory" maxlength="100" autocomplete="off" placeholder="For example: Supplies" />
@@ -3004,7 +3003,6 @@
     const expenseCategory = document.getElementById('expenseCategory');
     const expenseNote = document.getElementById('expenseNote');
     const expensePaid = document.getElementById('expensePaid');
-    let expensePaymentEntryPending = false;
     const expensePaymentType = document.getElementById('expensePaymentType');
     const expensePaymentDetails = document.getElementById('expensePaymentDetails');
     const expensePaymentDetailsField = document.getElementById('expensePaymentDetailsField');
@@ -5336,7 +5334,7 @@
     function updateExpensePaymentFields() {
       const paid = expensePaid.checked;
       const type = expensePaymentType.value;
-      const readOnly = expenseForm.classList.contains('expense-readonly') && !expensePaymentEntryPending;
+      const readOnly = expenseForm.classList.contains('expense-readonly');
       const needsDetails = paid && (type === 'check' || type === 'credit');
       document.getElementById('expensePaymentTypeField').hidden = !paid;
       expensePaymentType.required = paid;
@@ -5359,8 +5357,6 @@
     }
 
     function showExpenseView(expense) {
-      expensePaymentEntryPending = false;
-      document.getElementById('expensePaymentNotice').hidden = true;
       expenseModalTitle.textContent = 'Expense';
       expenseName.value = expense?.name || '';
       expenseAmount.value = expense ? Number(expense.amount || 0).toFixed(2) : '';
@@ -5378,8 +5374,6 @@
     }
 
     function showExpenseEditor(expense = null) {
-      expensePaymentEntryPending = false;
-      document.getElementById('expensePaymentNotice').hidden = true;
       expenseModalTitle.textContent = expense ? 'Edit Expense' : 'Add Expense';
       expenseName.value = expense?.name || '';
       expenseAmount.value = expense ? Number(expense.amount || 0).toFixed(2) : '';
@@ -5418,8 +5412,6 @@
     }
 
     function closeExpenseModal() {
-      expensePaymentEntryPending = false;
-      document.getElementById('expensePaymentNotice').hidden = true;
       expenseModal.classList.remove('open');
       expenseModal.setAttribute('aria-hidden', 'true');
       expenseForm.reset();
@@ -5952,19 +5944,12 @@
       if (!expense) return;
       const previousValue = Boolean(expense.paid);
       const nextValue = expensePaid.checked;
-      if (expensePaymentEntryPending) {
-        showExpenseView(expense);
-        return;
-      }
       if (previousValue === nextValue) return;
-      if (nextValue && !expensePaymentComplete(expense)) {
-        expensePaymentEntryPending = true;
+      if (nextValue) {
+        showExpenseEditor(expense);
+        expensePaid.checked = true;
         updateExpensePaymentFields();
-        document.getElementById('expensePaymentNotice').hidden = false;
-        editExpenseBtn.hidden = true;
-        saveExpenseBtn.hidden = false;
-        cancelExpenseBtn.textContent = 'Cancel';
-        expensePaymentType.focus();
+        setTimeout(() => expensePaymentType.focus(), 0);
         return;
       }
       expensePaid.checked = previousValue;
@@ -6013,17 +5998,6 @@
       };
       if (expensePaid.checked && !expensePaymentComplete(payment)) {
         showToast('Complete the payment information before marking this expense paid.');
-        return;
-      }
-      if (expensePaymentEntryPending) {
-        if (!existingExpense || !expensePaid.checked) return;
-        if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
-        if (state.editingExpenseId !== existingExpense.id || !expensePaymentEntryPending) return;
-        Object.assign(existingExpense, payment, { paid:true, updatedAt:new Date().toISOString() });
-        saveSettings();
-        renderAccounting();
-        showExpenseView(existingExpense);
-        showToast('Expense marked באצאלט');
         return;
       }
       const isChickenExpense = existingExpense?.id === CHICKEN_EXPENSE_ID;

@@ -74,7 +74,52 @@ function defaultSettings() {
 function sanitizeIncomingSettings(value: unknown, current: Record<string, unknown>) {
   const incoming = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const { password, passwordHash, _legacyPassword, ...safe } = incoming;
-  return { ...current, ...safe, username: current.username, passwordHash: current.passwordHash };
+  const settings = { ...current, ...safe, username: current.username, passwordHash: current.passwordHash };
+  const now = new Date().toISOString();
+  return normalizeChickenPurchaseSettings(settings, now.slice(0, 10), now);
+}
+
+function normalizeChickenPurchaseSettings(settings: any, date: string, now: string) {
+  const expenseId = 'auto-chicken-inventory-cost';
+  const inventory = Math.max(0, Math.floor(Number(settings.inventory) || 0));
+  const costCents = Math.max(0, Math.round((Number(settings.chickenPurchaseCost) || 0) * 100));
+  const cost = costCents / 100;
+  const amount = inventory * costCents / 100;
+  const expenses = Array.isArray(settings.accountingExpenses) ? settings.accountingExpenses : [];
+  const existing = expenses.find((expense: any) => expense.id === expenseId);
+  if (!existing && !(amount > 0)) return settings;
+
+  // Dates remain available for the calendar; quantities and rates match Settings.
+  let remaining = inventory;
+  const batches: any[] = [];
+  for (const batch of (Array.isArray(settings.chickenPurchaseBatches) ? settings.chickenPurchaseBatches : [])) {
+    if (!batch) continue;
+    const quantity = Math.min(remaining, Math.max(0, Math.floor(Number(batch.quantity) || 0)));
+    if (!quantity) continue;
+    batches.push({ ...batch, quantity, unitCost: cost });
+    remaining -= quantity;
+  }
+  if (remaining > 0) batches.push({ quantity: remaining, unitCost: cost, date, createdAt: now });
+  settings.chickenPurchaseBatches = batches;
+  settings.chickenInventoryRecorded = inventory;
+  const name = String(settings.chickenExpenseName || 'Chickens').trim() || 'Chickens';
+  if (existing) {
+    if (existing.name !== name || existing.amount !== amount) {
+      existing.name = name;
+      existing.amount = amount;
+      existing.updatedAt = now;
+    }
+  } else {
+    expenses.push({
+      id: expenseId, name, amount,
+      date: batches[0]?.date || date, category: 'Inventory', note: '',
+      paid: false,
+      order: expenses.reduce((maximum: number, item: any) => Math.max(maximum, Number(item.order || 0)), -1) + 1,
+      createdAt: batches[0]?.createdAt || now, updatedAt: ''
+    });
+  }
+  settings.accountingExpenses = expenses;
+  return settings;
 }
 
 function publicState(row: any) {

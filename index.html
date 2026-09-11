@@ -949,6 +949,10 @@
     .accounting-summary-card.net.profit small { color: #55735a; }
     .accounting-summary-card.net.deficit span,
     .accounting-summary-card.net.deficit small { color: #9d5149; }
+    .expense-payment-totals { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-bottom:18px; }
+    .expense-payment-totals .accounting-summary-card { min-height:110px; padding:18px; }
+    .expense-payment-totals strong { font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+    @media (max-width:520px) { .expense-payment-totals { grid-template-columns:1fr; } }
     .accounting-section-head {
       display: flex;
       align-items: end;
@@ -1966,6 +1970,16 @@
               <button type="button" class="primary-btn" id="addExpenseBtn">+ Add Expense</button>
             </div>
           </div>
+          <div class="expense-payment-totals" aria-label="Expense payment totals" aria-live="polite">
+            <div class="accounting-summary-card expenses">
+              <span>To be paid</span>
+              <strong id="expenseUnpaidTotal">$0.00</strong>
+            </div>
+            <div class="accounting-summary-card income">
+              <span>Already paid</span>
+              <strong id="expensePaidTotal">$0.00</strong>
+            </div>
+          </div>
           <div class="expense-list-wrap">
             <table class="expense-table">
               <colgroup><col style="width:5%"><col style="width:18%"><col style="width:14%"><col style="width:25%"><col style="width:14%"><col style="width:11%"><col style="width:13%"></colgroup>
@@ -2639,6 +2653,10 @@
             <label for="expenseName">Expense Name <span class="required-mark">*</span></label>
             <input id="expenseName" maxlength="160" autocomplete="off" required />
           </div>
+          <div class="field full">
+            <label for="expenseCategory">Category <span class="small-note">(Optional)</span></label>
+            <input id="expenseCategory" maxlength="100" autocomplete="off" placeholder="For example: Supplies" />
+          </div>
           <div class="field">
             <label for="expenseAmount">Amount <span class="required-mark">*</span></label>
             <div class="price-wrap">
@@ -2662,10 +2680,6 @@
           <div class="field full" id="expensePaymentDetailsField" hidden>
             <label for="expensePaymentDetails" id="expensePaymentDetailsLabel">Payment details <span class="required-mark">*</span></label>
             <input id="expensePaymentDetails" maxlength="120" autocomplete="off" />
-          </div>
-          <div class="field full">
-            <label for="expenseCategory">Category <span class="small-note">(Optional)</span></label>
-            <input id="expenseCategory" maxlength="100" autocomplete="off" placeholder="For example: Supplies" />
           </div>
           <div class="field full">
             <label for="expenseNote">Note <span class="small-note">(Optional)</span></label>
@@ -3329,6 +3343,8 @@
         if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
         paidExpenses.forEach(expense => {
           expense.paid = false;
+          expense.paymentType = '';
+          expense.paymentDetails = '';
           expense.updatedAt = new Date().toISOString();
         });
         saveSettings();
@@ -3420,8 +3436,8 @@
             category: String(expense.category || ''),
             note: String(expense.note || ''),
             paid: Boolean(expense.paid),
-            paymentType: ['cash', 'check', 'credit'].includes(expense.paymentType) ? expense.paymentType : '',
-            paymentDetails: String(expense.paymentDetails || '').trim().slice(0, 120),
+            paymentType: expense.paid && ['cash', 'check', 'credit'].includes(expense.paymentType) ? expense.paymentType : '',
+            paymentDetails: expense.paid && expense.paymentType !== 'cash' ? String(expense.paymentDetails || '').trim().slice(0, 120) : '',
             order: Number.isFinite(Number(expense.order)) ? Number(expense.order) : index,
             createdAt: String(expense.createdAt || ''),
             updatedAt: String(expense.updatedAt || '')
@@ -5193,7 +5209,19 @@
       return !expense.paid && days !== null && days <= 3;
     }
 
+    function getExpensePaymentTotals(expenses) {
+      const cents = { paid:0, unpaid:0 };
+      expenses.forEach(expense => {
+        const amount = Number(expense.amount || 0);
+        if (Number.isFinite(amount)) cents[expense.paid ? 'paid' : 'unpaid'] += Math.round(amount * 100);
+      });
+      return { paid:cents.paid / 100, unpaid:cents.unpaid / 100 };
+    }
+
     function renderExpenseList(expenses, month, isAllTime) {
+      const paymentTotals = getExpensePaymentTotals(expenses);
+      document.getElementById('expenseUnpaidTotal').textContent = money(paymentTotals.unpaid);
+      document.getElementById('expensePaidTotal').textContent = money(paymentTotals.paid);
       const query = state.expenseSearchQuery.trim().toLocaleLowerCase();
       const visibleExpenses = query
         ? expenses.filter(expense => [expense.name, expense.category, expense.note]
@@ -5364,8 +5392,8 @@
       expenseCategory.value = expense?.category || '';
       expenseNote.value = expense?.note || '';
       expensePaid.checked = Boolean(expense?.paid);
-      expensePaymentType.value = expense?.paymentType || '';
-      expensePaymentDetails.value = expense?.paymentDetails || '';
+      expensePaymentType.value = expense?.paid ? expense.paymentType || '' : '';
+      expensePaymentDetails.value = expense?.paid ? expense.paymentDetails || '' : '';
       setExpenseFieldMode(true);
       deleteExpenseBtn.hidden = expense?.id === CHICKEN_EXPENSE_ID;
       cancelExpenseBtn.textContent = 'Close';
@@ -5381,8 +5409,8 @@
       expenseCategory.value = expense?.category || '';
       expenseNote.value = expense?.note || '';
       expensePaid.checked = Boolean(expense?.paid);
-      expensePaymentType.value = expense?.paymentType || '';
-      expensePaymentDetails.value = expense?.paymentDetails || '';
+      expensePaymentType.value = expense?.paid ? expense.paymentType || '' : '';
+      expensePaymentDetails.value = expense?.paid ? expense.paymentDetails || '' : '';
       setExpenseFieldMode(false);
       expenseName.disabled = expense?.id === CHICKEN_EXPENSE_ID;
       expenseName.title = expense?.id === CHICKEN_EXPENSE_ID ? 'Change the name in Accounting Settings.' : '';
@@ -5938,6 +5966,10 @@
       if (expense) showExpenseEditor(expense);
     });
     expensePaid.addEventListener('change', async () => {
+      if (!expenseForm.classList.contains('expense-readonly') && !expensePaid.checked) {
+        expensePaymentType.value = '';
+        expensePaymentDetails.value = '';
+      }
       updateExpensePaymentFields();
       if (!expenseForm.classList.contains('expense-readonly') || !state.editingExpenseId) return;
       const expense = (state.settings.accountingExpenses || []).find(item => item.id === state.editingExpenseId);
@@ -5957,6 +5989,10 @@
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
       if (state.editingExpenseId !== expense.id) return;
       expense.paid = nextValue;
+      if (!nextValue) {
+        expense.paymentType = '';
+        expense.paymentDetails = '';
+      }
       expense.updatedAt = new Date().toISOString();
       saveSettings();
       renderAccounting();
@@ -5993,8 +6029,8 @@
         ? expenses.find(item => item.id === state.editingExpenseId)
         : null;
       const payment = {
-        paymentType: expensePaymentType.value,
-        paymentDetails: expensePaymentType.value === 'cash' ? '' : expensePaymentDetails.value.trim()
+        paymentType: expensePaid.checked ? expensePaymentType.value : '',
+        paymentDetails: expensePaid.checked && expensePaymentType.value !== 'cash' ? expensePaymentDetails.value.trim() : ''
       };
       if (expensePaid.checked && !expensePaymentComplete(payment)) {
         showToast('Complete the payment information before marking this expense paid.');
@@ -6011,8 +6047,8 @@
         category: expenseCategory.value.trim(),
         note: expenseNote.value.trim(),
         paid: expensePaid.checked,
-        paymentType: expensePaymentType.value,
-        paymentDetails: expensePaymentType.value === 'cash' ? '' : expensePaymentDetails.value.trim()
+        paymentType: expensePaid.checked ? expensePaymentType.value : '',
+        paymentDetails: expensePaid.checked && expensePaymentType.value !== 'cash' ? expensePaymentDetails.value.trim() : ''
       };
       if (existingExpense) {
         const expenseUnchanged = String(existingExpense.name || '').trim() === values.name

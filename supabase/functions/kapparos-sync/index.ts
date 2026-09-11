@@ -280,11 +280,11 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
   const subheading = fillTicketTemplate(ticketText(delivery, 'subheading', '{subtitle}', 160), values);
   const ticketLabel = fillTicketTemplate(ticketText(delivery, 'ticketNumberLabel', 'Ticket', 80), values);
   const emailMessage = fillTicketTemplate(ticketText(delivery, 'emailMessage', 'Scan the barcode above, or use the attached printable PDF.'), values);
-  const background = ticketColor(delivery, 'emailBackgroundColor', '#f7f2e7');
-  const card = ticketColor(delivery, 'emailCardColor', '#ffffff');
-  const accent = ticketColor(delivery, 'emailAccentColor', '#6f4b2f');
-  const textColor = ticketColor(delivery, 'emailTextColor', '#241f1a');
-  const muted = ticketColor(delivery, 'emailMutedColor', '#756c63');
+  const background = ticketColor(delivery, 'emailBackgroundColor', '#fcfaf5');
+  const card = ticketColor(delivery, 'emailCardColor', '#fffefb');
+  const accent = ticketColor(delivery, 'emailAccentColor', '#203c36');
+  const textColor = ticketColor(delivery, 'emailTextColor', '#203c36');
+  const muted = ticketColor(delivery, 'emailMutedColor', '#626b63');
   const fontSize = ticketSize(delivery, 'emailFontSize', 16, 12, 24);
   const headingSize = ticketSize(delivery, 'emailHeadingSize', 30, 20, 48);
   const showSubtitle = ticketBoolean(delivery, 'emailShowSubtitle', true);
@@ -305,7 +305,7 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
     [paymentLabel, payment],
   ];
   const detailsHtml = rows.map(([label, value], index) => {
-    const border = index === rows.length - 1 ? '' : 'border-bottom:1px solid #e5ddd1;';
+    const border = index === rows.length - 1 ? '' : 'border-bottom:1px solid #d4c6ac;';
     return `<tr><td style="padding:11px;${border}color:${muted}">${escapeEmailHtml(label)}</td><td style="padding:11px;${border}font-weight:700" dir="auto">${escapeEmailHtml(value)}</td></tr>`;
   }).join('');
   const html = `<!doctype html><html><body style="margin:0;background:${background};font-family:Arial,sans-serif;color:${textColor};font-size:${fontSize}px">

@@ -2785,17 +2785,17 @@
       pdfShowPrice: false,
       pdfShowBarcode: true,
       pdfShowFooter: true,
-      emailBackgroundColor: '#f7f2e7',
-      emailCardColor: '#ffffff',
-      emailAccentColor: '#6f4b2f',
-      emailTextColor: '#241f1a',
-      emailMutedColor: '#756c63',
+      emailBackgroundColor: '#fcfaf5',
+      emailCardColor: '#fffefb',
+      emailAccentColor: '#203c36',
+      emailTextColor: '#203c36',
+      emailMutedColor: '#626b63',
       emailFontSize: 16,
       emailHeadingSize: 30,
-      pdfBackgroundColor: '#ffffff',
-      pdfAccentColor: '#6f4b2f',
-      pdfTextColor: '#241f1a',
-      pdfMutedColor: '#756c63',
+      pdfBackgroundColor: '#fcfaf5',
+      pdfAccentColor: '#a6854f',
+      pdfTextColor: '#203c36',
+      pdfMutedColor: '#626b63',
       pdfHeadingSize: 64,
       pdfValueSize: 43,
       smsMessage: '{title}\n{subtitle}\n\nHello {name},\n\nThank you for choosing {brand} for your kapparos.\n\nOrder details:\nName: {name}\nPhone: {phone}\nNumber of kapparos: {quantity}\nPayment method: {payment_method}\n\nPlease present this ticket number when picking up your kapparos:\n#{ticket_id}\n\nגמר חתימה טובה'
@@ -3606,10 +3606,10 @@
       const context = canvas.getContext('2d');
       if (!context) throw new Error('This device could not prepare the PDF.');
 
-      const background = safeTicketColor(design.pdfBackgroundColor, '#ffffff');
-      const accent = safeTicketColor(design.pdfAccentColor, '#6f4b2f');
-      const textColor = safeTicketColor(design.pdfTextColor, '#241f1a');
-      const muted = safeTicketColor(design.pdfMutedColor, '#756c63');
+      const background = safeTicketColor(design.pdfBackgroundColor, '#fcfaf5');
+      const accent = safeTicketColor(design.pdfAccentColor, '#a6854f');
+      const textColor = safeTicketColor(design.pdfTextColor, '#203c36');
+      const muted = safeTicketColor(design.pdfMutedColor, '#626b63');
       const headingSize = safeTicketSize(design.pdfHeadingSize, 64, 38, 86);
       const valueSize = safeTicketSize(design.pdfValueSize, 43, 26, 56);
 
@@ -4529,17 +4529,17 @@
       if (ticketDeliveryView !== 'email') return;
       const draft = readTicketDesignerDraft();
       const sample = ticketDesignerSample();
-      const emailBackground = safeTicketColor(draft.emailBackgroundColor, '#f7f2e7');
-      const emailCard = safeTicketColor(draft.emailCardColor, '#ffffff');
-      const emailAccent = safeTicketColor(draft.emailAccentColor, '#6f4b2f');
-      const emailText = safeTicketColor(draft.emailTextColor, '#241f1a');
-      const emailMuted = safeTicketColor(draft.emailMutedColor, '#756c63');
+      const emailBackground = safeTicketColor(draft.emailBackgroundColor, '#fcfaf5');
+      const emailCard = safeTicketColor(draft.emailCardColor, '#fffefb');
+      const emailAccent = safeTicketColor(draft.emailAccentColor, '#203c36');
+      const emailText = safeTicketColor(draft.emailTextColor, '#203c36');
+      const emailMuted = safeTicketColor(draft.emailMutedColor, '#626b63');
       const emailFontSize = safeTicketSize(draft.emailFontSize, 16, 12, 24);
       const emailHeadingSize = safeTicketSize(draft.emailHeadingSize, 30, 20, 48);
-      const pdfBackground = safeTicketColor(draft.pdfBackgroundColor, '#ffffff');
-      const pdfAccent = safeTicketColor(draft.pdfAccentColor, '#6f4b2f');
-      const pdfText = safeTicketColor(draft.pdfTextColor, '#241f1a');
-      const pdfMuted = safeTicketColor(draft.pdfMutedColor, '#756c63');
+      const pdfBackground = safeTicketColor(draft.pdfBackgroundColor, '#fcfaf5');
+      const pdfAccent = safeTicketColor(draft.pdfAccentColor, '#a6854f');
+      const pdfText = safeTicketColor(draft.pdfTextColor, '#203c36');
+      const pdfMuted = safeTicketColor(draft.pdfMutedColor, '#626b63');
       const pdfHeadingSize = safeTicketSize(draft.pdfHeadingSize, 64, 38, 86);
       const pdfValueSize = safeTicketSize(draft.pdfValueSize, 43, 26, 56);
       const detailValues = [

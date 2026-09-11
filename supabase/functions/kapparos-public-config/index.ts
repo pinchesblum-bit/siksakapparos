@@ -49,7 +49,9 @@ function sanitize(value: any, sales: any[] = [], admin: any = {}) {
     })(),
     pickupTimes: cleanLines(source.pickupTimes, DEFAULTS.pickupTimes),
     paymentChoices: cleanLines(source.paymentChoices, DEFAULTS.paymentChoices),
-    confirmationText: String(source.confirmationText || DEFAULTS.confirmationText).trim().slice(0, 1200)
+    confirmationText: String(source.confirmationText || DEFAULTS.confirmationText).trim().slice(0, 1200),
+    printTicketsEnabled: admin.printTicketsEnabled !== false,
+    ticketDelivery: admin.ticketDelivery && typeof admin.ticketDelivery === 'object' ? admin.ticketDelivery : {}
   };
 }
 

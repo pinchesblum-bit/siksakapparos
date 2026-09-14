@@ -3,7 +3,7 @@
   'use strict';
   const copy = root.KapparosBuyingContent;
   const icons = Object.freeze([
-    Object.freeze({key: 'benefitOrderIcon', value: '🔪', label: 'Shoychet knife', path: 'icons/shoychet.svg'}),
+    Object.freeze({key: 'benefitOrderIcon', value: '🔪', label: 'Shoychet knife', path: 'icons/shoychet.svg?v=20260914-8'}),
     Object.freeze({key: 'benefitPaymentIcon', value: '📖', label: 'Prayer book', path: 'icons/prayer-book.svg'}),
     Object.freeze({key: 'benefitTicketIcon', value: '💧', label: 'Mikvah', path: 'icons/mikvah.svg'})
   ]);

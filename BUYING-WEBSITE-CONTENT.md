@@ -16,7 +16,9 @@ Both Venue inputs save into the existing `pageContent.venue` value, separated by
 
 The buying homepage remains `/`; the separate order form lives at `/order/` (`order/index.html`). The old `/order.html` address forwards to `/order/`, retaining query strings and fragments. Order-page assets use root-relative URLs. Back to home and Done return to `/`. Keep the existing order and ticket session storage keys so this address change does not lose retry or completed-ticket state.
 
-Both pages start with a neutral loading state and keep the login screen and buying content hidden until the existing public-config response arrives. A valid saved preview session opens the requested page directly. A confirmed locked response shows the existing English login screen. Network errors show a retry action without flashing the closed-page notice or revealing unverified content. Session scope, expiry, validation, and the manual public-access switch are unchanged.
+New visits and new logins start at the homepage. Direct entry into `/order/` and returning through browser history return to `/`. Logout clears the entered form, payment terminal and stored completed-ticket/checkout state. Reloading an active order page still validates access before restoring its completed ticket; it never restores entered card information. Switching apps or tabs alone does not discard a buyer’s work. Session scope, expiry, backend validation, and the manual public-access switch are unchanged.
+
+`buying-visit.js` transfers the most recently verified public configuration once between the two buying pages, only within 15 seconds and for the same preview session. It does not transfer customer or card data. Without that handoff, the page checks public-config again, showing a neutral loading indicator only if the request lasts over 300 ms. There is no artificial minimum loading delay. Confirmed locked responses show the English login screen; failures offer retry. Checkout still performs a fresh access, price, terms and stock check before payment, and the final server transaction remains atomic.
 
 `favicon.png` is the exact existing 256×256 chicken artwork, linked from the homepage and order page at a stable, crawlable URL. Google controls when and whether it appears in search results. The homepage canonical URL, robots rules, and sitemap remain unchanged.
 
@@ -28,9 +30,11 @@ Future custom Yiddish text uses the dedicated `kapparos-buying-translate` functi
 
 One-time connection:
 
-1. Enable Cloud Translation API in the owner's Google Cloud project, configure billing if required, and create an API key restricted to Cloud Translation API. Set a suitable daily quota.
+1. Enable Cloud Translation API in the owner's Google Cloud project, enable billing, and create an API key restricted to Cloud Translation API. Set a suitable daily quota.
 2. Add the key directly in Supabase project `tugsxxafeaqbqonrruqt` → Edge Functions → Secrets as **`KAPPAROS_TRANSLATE_API_KEY`**. Do not put the key in either repository, website fields, or chat.
 3. Open the editor, check the connection, then Edit and Save a section with new Yiddish wording. Review that section's saved English wording.
+
+Use a standard Cloud Translation Basic v2 API key. Google Cloud links: [project selector](https://console.cloud.google.com/projectselector2/home/dashboard), [enable Cloud Translation API](https://console.cloud.google.com/apis/library/translate.googleapis.com), and [Credentials](https://console.cloud.google.com/apis/credentials). Create credentials → API key; set API restrictions to Cloud Translation API only. This key is used by Supabase on the server, so do not apply a website/referrer restriction. Store it directly in [this project's Edge Function Secrets](https://supabase.com/dashboard/project/tugsxxafeaqbqonrruqt/functions/secrets). Adding this secret requires no function redeployment. Google requires billing for Cloud Translation; choose a daily character quota appropriate to your usage. See [Google's setup guide](https://docs.cloud.google.com/translate/docs/setup) and [API key restrictions](https://docs.cloud.google.com/docs/authentication/api-keys).
 
 When translation is unavailable, the Yiddish change still saves and the section reports English as pending. Built-in/current translations remain usable. The English option stays visible and selectable. Only a field missing a current English translation falls back to its current Yiddish text; stale English is never displayed. English checkout remains unavailable if required terms lack a current English translation. Saving that section again retries its translation.
 
@@ -86,3 +90,12 @@ The landing sold-out/closed notice replaces the order button at the same positio
 Quantity controls disable at one and at the server-reported available limit. Continue to payment performs a fresh authenticated, uncached public-config read before opening payment. If the requested quantity is no longer available, it updates the quantity/summary, leaves customer inputs intact, and requires the buyer to review the warning before continuing. A changed price or terms also requires review. A failed availability check leaves the form visible and permits retry; confirmed expired access shows the existing login gate. The final atomic database stock check and checkout idempotency remain unchanged, because availability can still change while payment details are entered. No backend deployment is needed for this UI change.
 
 The admin list shows Online (muted gold) in the Status column in place of Paid for paid online sales. Paid admin sales retain their green Paid label. Reserved/Expired remain visible when applicable. Demo appears alongside existing Notes, without displacing their contents. Sale data, payment status and accounting calculations are unchanged.
+
+
+## English terminal and September 14 presentation refinements
+
+The payment and ticket-action terminal stays English/LTR independently of the Yiddish/English page selection. It uses current saved English ticket-action labels when available and their English defaults while translation is pending; editable sources, actual ticket/PDF/email templates, and buyer-terms acceptance language remain unchanged. Switching language never resets customer or card inputs.
+
+The sold-out message is exactly `אלע כפרות זענען שוין פארקויפט`. The support footer is deep green with ivory text and gold contact links. The introduction has small gold ornaments inspired by the poster. The Shoychet SVG points upper-left in both the admin editor preview and the public website. Online and Paid share the same status-pill dimensions and border treatment, with their respective gold and green fills.
+
+The chicken favicon was confirmed to return HTTP 200 as a PNG, with no indexing-block header; robots.txt permits crawling. Keep its stable URL. Request a homepage recrawl in Google Search Console if needed. Google controls the eventual search favicon and does not guarantee its appearance.

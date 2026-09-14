@@ -44,14 +44,17 @@ function editor(settings=site,confirmValue=true) {
  return {d,w,get state(){return state},get confirmed(){return confirmed},saved};
 }
 async function settle(){await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));}
-function fullBuyingPage(page='index.html',completed=null) {
+function fullBuyingPage(page='index.html',completed=null,options={}) {
  const d=new JSDOM(read('siksakapparos-order/'+page),{url:'https://siksakapparos.org/'+(page==='index.html'?'':'order/'),runScripts:'outside-only'}),w=d.window,requests=[],navigations=[];
  w.AbortSignal=AbortSignal;w.scrollTo=()=>{};w.__navigate=path=>navigations.push(path);
+ Object.defineProperty(w.performance,'getEntriesByType',{value:()=>[{type:options.navigationType||'reload'}]});
+ w.sessionStorage.setItem('kapparosBuyingVisitV1','1');
+ if(options.handoff)w.sessionStorage.setItem('kapparosBuyingHandoffV1',JSON.stringify(options.handoff));
  w.sessionStorage.setItem('kapparosBuyingPreviewV1','local-preview-fixture');
  if(completed)w.sessionStorage.setItem('kapparosCompletedTicketV1',JSON.stringify(completed));
  w.fetch=(url,init)=>new Promise((resolve,reject)=>{assert(url.endsWith('/kapparos-public-config'));requests.push({url,init,resolve,reject});});
  for(const el of w.document.querySelectorAll('script')){
-  if(el.src){const name=new URL(el.src).pathname.split('/').pop();if(name!=='ticket-design.js')script(w,'siksakapparos-order/'+name);}
+  if(el.src){const name=new URL(el.src).pathname.split('/').pop();if(name!=='ticket-design.js')w.eval(read('siksakapparos-order/'+name).replaceAll('root.location.assign','root.__navigate').replaceAll('root.location.replace','root.__navigate'));}
   else w.eval(el.textContent.replaceAll('window.location.assign','window.__navigate'));
  }
  return {d,w,requests,navigations};
@@ -191,7 +194,7 @@ function fullBuyingPage(page='index.html',completed=null) {
   const button=doc.getElementById('openOrderButton'),notice=doc.getElementById('availabilityMessage');
   // Load the external style used by the real page into this isolated DOM fixture.
   const style=doc.createElement('style');style.textContent=read('siksakapparos-order/buying-languages.css');doc.head.append(style);
-  assert.equal(w.getComputedStyle(button).display,'none');assert.equal(button.disabled,true);assert.equal(notice.hidden,false);
+  assert.equal(w.getComputedStyle(button).display,'none');assert.equal(button.disabled,true);assert.equal(notice.hidden,false);assert.equal(notice.textContent,'אלע כפרות זענען שוין פארקויפט');
   assert.equal(notice.previousElementSibling,button);assert(notice.nextElementSibling.classList.contains('event-contact'));
   doc.querySelector('[data-language="en"]').click();assert.equal(w.getComputedStyle(button).display,'none');assert.equal(notice.textContent,'Online orders are currently sold out.');
   w.applyConfig({...site,inventory:3});assert.notEqual(w.getComputedStyle(button).display,'none');assert.equal(button.disabled,false);assert.equal(notice.hidden,true);w.close();
@@ -257,7 +260,7 @@ function fullBuyingPage(page='index.html',completed=null) {
  await test('The clean order route restores an existing ticket only after access validation and Done returns home',async()=>{
   const e=fullBuyingPage('order/index.html',{id:'fixture-only',ticketId:'123456',orderToken:'fixture-only-token',fullName:'Local fixture',phone:'2125550100',quantity:2,price:40,remainingInventory:98}),{w}=e,doc=w.document;
   assert(!doc.getElementById('demoCheckoutModal').classList.contains('open'));e.requests[0].resolve(Response.json({settings:site}));await settle();
-  assert(doc.getElementById('demoCheckoutModal').classList.contains('open'));assert.equal(doc.getElementById('demoTicketNumber').textContent,'123456');assert.equal(e.requests.length,1);
+  assert(doc.getElementById('demoCheckoutModal').classList.contains('open'));assert.equal(doc.getElementById('demoTicketNumber').textContent,'123456');assert.equal(e.requests.length,1);doc.getElementById('demoDoneButton').click();assert.equal(JSON.parse(w.sessionStorage.getItem('kapparosBuyingHandoffV1')).settings.inventory,100);
   assert.equal(doc.querySelector('.order-back').href,'https://siksakapparos.org/');doc.getElementById('demoDoneButton').click();assert.equal(e.navigations.at(-1),'/');
   assert.equal(w.sessionStorage.getItem('kapparosCompletedTicketV1'),null);assert.equal(w.sessionStorage.getItem('kapparosBuyingPreviewV1'),'local-preview-fixture');w.close();
  });
@@ -271,6 +274,51 @@ function fullBuyingPage(page='index.html',completed=null) {
   assert(png.equals(Buffer.from(doc.querySelector('.hero-chicken').src.split(',')[1],'base64')));assert.equal(doc.querySelector('link[rel="icon"]').href,'https://siksakapparos.org/favicon.png');
   for(const file of ['index.html','order/index.html'])assert(!read('siksakapparos-order/'+file).includes('Demo payments do not charge a card. Successful tests are saved as paid online sales.'));
   e.w.close();
+ });
+ await test('New visits to the order route return home and discard a previous checkout',()=>{
+  const e=fullBuyingPage('order/index.html',{id:'old',ticketId:'123456',orderToken:'old-token'},{navigationType:'navigate'});
+  assert.equal(e.navigations.at(-1),'/');assert.equal(e.requests.length,0);assert.equal(e.w.sessionStorage.getItem('kapparosCompletedTicketV1'),null);e.w.close();
+ });
+ await test('A new homepage visit cannot reopen a completed terminal',async()=>{
+  const e=fullBuyingPage('index.html',{id:'old',ticketId:'123456',orderToken:'old-token'},{navigationType:'navigate'});e.requests[0].resolve(Response.json({settings:site}));await settle();
+  assert.equal(e.w.sessionStorage.getItem('kapparosCompletedTicketV1'),null);assert(!e.w.document.getElementById('demoCheckoutModal').classList.contains('open'));e.w.close();
+ });
+ await test('Logout clears the terminal and next login from the order route goes home',async()=>{
+  const e=fullBuyingPage('order/index.html'),{w}=e,d=w.document;e.requests[0].resolve(Response.json({settings:site}));await settle();buyer(e,1);
+  d.getElementById('checkoutButton').click();e.requests[1].resolve(Response.json({settings:site}));await settle();d.getElementById('demoCardName').value='Fixture card';
+  w.sessionStorage.setItem('kapparosCompletedTicketV1','old');w.sessionStorage.setItem('kapparosCheckoutSessionV1','old');d.getElementById('previewExit').click();
+  assert.equal(e.navigations.at(-1),'/');assert.equal(w.sessionStorage.getItem('kapparosCompletedTicketV1'),null);assert.equal(w.sessionStorage.getItem('kapparosCheckoutSessionV1'),null);
+  assert.equal(d.getElementById('demoCardName').value,'');assert(!d.getElementById('demoCheckoutModal').classList.contains('open'));
+  d.getElementById('previewUsername').value='fixture';d.getElementById('previewPassword').value='fixture';d.getElementById('previewLoginForm').dispatchEvent(new w.Event('submit',{cancelable:true}));
+  e.requests[2].resolve(Response.json({token:'new-fixture-token',settings:site}));await settle();assert.equal(e.navigations.at(-1),'/');
+  assert(!d.getElementById('demoCheckoutModal').classList.contains('open'));assert.equal(JSON.parse(w.sessionStorage.getItem('kapparosBuyingHandoffV1')).path,'/');w.close();
+ });
+ await test('Internal navigation uses a single-use recent configuration; expired or changed-session copies are rejected',async()=>{
+  const a=fullBuyingPage(),{w}=a;a.requests[0].resolve(Response.json({settings:site}));await settle();w.document.getElementById('openOrderButton').click();
+  const handoff=JSON.parse(w.sessionStorage.getItem('kapparosBuyingHandoffV1'));
+  const b=fullBuyingPage('order/index.html',null,{navigationType:'navigate',handoff});assert.equal(b.requests.length,0);assert(!b.w.document.body.classList.contains('preview-locked'));assert.equal(b.w.sessionStorage.getItem('kapparosBuyingHandoffV1'),null);b.w.BuyingVisit.go('/');assert.equal(JSON.parse(b.w.sessionStorage.getItem('kapparosBuyingHandoffV1')).verifiedAt,handoff.verifiedAt);buyer(b,1);b.w.document.getElementById('checkoutButton').click();assert.equal(b.requests.length,1);b.requests[0].resolve(Response.json({settings:site}));await settle();assert(b.w.document.getElementById('demoCheckoutModal').classList.contains('open'));
+  for(const value of [{...handoff,at:Date.now()-60001},{...handoff,token:'different-session'}]){const c=fullBuyingPage('order/index.html',null,{navigationType:'navigate',handoff:value});assert.equal(c.navigations.at(-1),'/');assert.equal(c.requests.length,0);c.w.close();}
+  w.close();b.w.close();
+ });
+ await test('Returning through browser history closes the terminal and returns home',async()=>{
+  const e=fullBuyingPage('order/index.html'),{w}=e,d=w.document;e.requests[0].resolve(Response.json({settings:site}));await settle();buyer(e,1);d.getElementById('checkoutButton').click();e.requests[1].resolve(Response.json({settings:site}));await settle();
+  d.getElementById('demoCardName').value='Private fixture';w.dispatchEvent(new w.PageTransitionEvent('pagehide',{persisted:true}));assert.equal(d.getElementById('demoCardName').value,'');assert(!d.getElementById('demoCheckoutModal').classList.contains('open'));
+  w.sessionStorage.setItem('kapparosCompletedTicketV1','old');w.dispatchEvent(new w.PageTransitionEvent('pageshow',{persisted:true}));assert.equal(e.navigations.at(-1),'/');assert.equal(w.sessionStorage.getItem('kapparosCompletedTicketV1'),null);w.close();
+ });
+ await test('Payment stays English during Yiddish ordering and language switches',async()=>{
+  const e=fullBuyingPage('order/index.html'),{w}=e,d=w.document;e.requests[0].resolve(Response.json({settings:site}));await settle();buyer(e,1);d.getElementById('checkoutButton').click();e.requests[1].resolve(Response.json({settings:site}));await settle();
+  assert.equal(d.documentElement.lang,'yi');assert.equal(d.getElementById('demoCheckoutModal').dir,'ltr');assert.equal(d.querySelector('[for="demoCardName"]').textContent,'Name on card');assert.equal(d.getElementById('demoCheckoutTitle').textContent,'Secure card payment');
+  d.getElementById('demoCardName').value='Untouched fixture';d.querySelector('[data-language="en"]').click();d.querySelector('[data-language="yi"]').click();assert.equal(d.getElementById('demoCardName').value,'Untouched fixture');assert.equal(d.getElementById('demoCheckoutTitle').textContent,'Secure card payment');
+  d.getElementById('demoPaymentForm').dispatchEvent(new w.Event('submit',{cancelable:true}));await settle();assert.equal(d.getElementById('demoPaymentError').textContent,'This demo accepts only the test card shown above.');assert.equal(e.requests.length,2);w.close();
+ });
+ await test('A quick load never shows a spinner; a genuinely slow access check does',async()=>{
+  const e=fullBuyingPage(),d=e.w.document;assert.equal(d.getElementById('previewLoading').hidden,true);e.requests[0].resolve(Response.json({settings:site}));await settle();assert.equal(d.getElementById('previewLoading').hidden,true);e.w.close();
+  const slow=fullBuyingPage();await new Promise(r=>setTimeout(r,330));assert.equal(slow.w.document.getElementById('previewLoading').hidden,false);assert.equal(slow.w.document.getElementById('previewGate').hidden,true);slow.requests[0].resolve(Response.json({settings:site}));await settle();assert.equal(slow.w.document.getElementById('previewLoading').hidden,true);slow.w.close();
+ });
+
+ await test('A stock response arriving after logout cannot reopen payment',async()=>{
+  const e=fullBuyingPage('order/index.html'),{w}=e,d=w.document;e.requests[0].resolve(Response.json({settings:site}));await settle();buyer(e,1);d.getElementById('checkoutButton').click();d.getElementById('previewExit').click();
+  e.requests[1].resolve(Response.json({settings:site}));await settle();assert(!d.getElementById('demoCheckoutModal').classList.contains('open'));assert(!d.getElementById('previewGate').hidden);assert.equal(w.sessionStorage.getItem('kapparosBuyingPreviewV1'),null);w.close();
  });
  console.log(count+' regression checks passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

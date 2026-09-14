@@ -1,9 +1,34 @@
-#buyingWebsiteSettingsForm input[dir="auto"], #buyingWebsiteSettingsForm textarea[dir="auto"] { font-size: 17px; line-height: 1.5; }
-#buyingWebsiteSettingsForm textarea { resize: vertical; }
-.buying-language-note { line-height: 1.6; }
-.buying-english-details { margin-top: 12px; }
+.buying-editor-intro { margin: 0 0 22px; color: #626b63; font-size: 16px; line-height: 1.6; }
+.buying-editor-card { margin: 0 0 22px; padding: 22px; background: #fffefb; border: 1px solid #ded5c4; border-radius: 12px; }
+.buying-editor-card-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 16px; margin-bottom: 18px; border-bottom: 1px solid #e2d8c8; }
+.buying-editor-card-head h3 { margin: 0; font-size: 20px; line-height: 1.3; }
+.buying-editor-card button { min-height: 42px; }
+.settings-view form.buying-editor-form { display: block; }
+.buying-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; }
+.buying-editor-field { min-width: 0; }
+.buying-editor-field > label { display: block; margin: 0 0 7px; color: #626b63; font-size: 14px; font-weight: 600; }
+.buying-editor-wide { grid-column: 1 / -1; }
+.buying-editor-value { margin: 0; font-size: 18px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.buying-editor-field input, .buying-editor-field textarea { box-sizing: border-box; width: 100%; min-height: 46px; padding: 10px 12px; border: 1px solid #cfc5b5; border-radius: 8px; background: #fff; font: inherit; font-size: 17px; line-height: 1.5; }
+.buying-editor-field textarea { resize: vertical; }
+.buying-editor-field input:focus, .buying-editor-field textarea:focus { outline: 2px solid #a6854f; outline-offset: 2px; }
+.buying-editor-field input.buying-icon-input { max-width: 110px; font-size: 24px; text-align: center; }
+.buying-editor-icon-field .buying-editor-value { font-size: 26px; }
+.buying-english-details { margin-top: 18px; }
 .buying-english-details summary { cursor: pointer; color: #203c36; font-weight: 600; padding: 8px 0; }
-.buying-translation-row { display: grid; grid-template-columns: minmax(140px, 1fr) 3fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e2d8c8; }
-.buying-translation-row dt { color: #6c675f; }
-.buying-translation-row dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-@media (max-width:600px) { .buying-translation-row { grid-template-columns: 1fr; gap: 5px; } }
+.buying-translation-row { display: grid; grid-template-columns: minmax(140px, 1fr) 3fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid #e2d8c8; }
+.buying-translation-row dt { color: #626b63; font-size: 14px; }
+.buying-translation-row dd { margin: 0; font-size: 16px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.buying-editor-message.is-error { color: #a23939; }
+.buying-terms-switch { margin: 0 0 12px; }
+.buying-editor-card [hidden], .buying-editor-field [hidden] { display: none !important; }
+.buying-translation-connection { margin-bottom: 24px; }
+.buying-translation-connection .settings-card-note { font-size: 15px; line-height: 1.6; }
+@media (max-width: 650px) {
+ .buying-editor-card { padding: 18px 16px; }
+ .buying-editor-card-head h3 { font-size: 19px; }
+ .buying-editor-grid, .buying-translation-row { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+ .buying-translation-row { gap: 4px; }
+ .buying-editor-wide { grid-column: auto; }
+ .buying-editor-value { font-size: 17px; }
+}

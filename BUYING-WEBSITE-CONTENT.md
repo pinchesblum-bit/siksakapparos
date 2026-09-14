@@ -1,40 +1,56 @@
-# Buying website wording and languages
+# Buying website editor
 
-The buying website stays on its existing GitHub Pages domain. Settings → Buying Website controls its page wording, time, location, phone number, notices, and closed-page copy. Sales Settings remains the source of selling price and inventory. Public access remains manual.
+Open **Settings → Buying Website → Edit Website**. The separate editor has nine sections and 48 editable wording/icon fields. Each section has its own Edit, Cancel, Save, and saved English preview. Saving one section preserves drafts in other sections. Refresh keeps the editor page selected.
 
-## Automatic English translation
+The sections are Heading, Time and location, Highlights and icons, Notices and ordering phone, Order form, Order summary, Ticket actions, Buyer terms, and Support footer. Empty optional fields stay hidden. Selling price and inventory still come from Sales Settings.
 
-The initial page copy includes English translations. New Yiddish wording is translated on Save by the dedicated `kapparos-buying-translate` Edge Function. Only changed, allowlisted public copy is sent to Google Cloud Translation Basic (Yiddish `yi` to English `en`, plain text). Cached translations are used only when their source exactly matches the saved wording. The visitor's language choice persists across both pages and refreshes.
+The private-access page is fixed English and is not editable in this editor. Public opening remains manual. Demo-payment notices and editable ticket/PDF/email templates retain their existing behavior; this editor does not convert demo payments into real payments or rewrite ticket templates.
+
+## English translation
+
+The current saved wording has English translations, including **Punim Meiros Siksa** and **Shoyched on site**. The admin's confirmed Yiddish label is **שוחט אויפן פלאץ**. Translations are matched to their exact source; stale English is not displayed after a wording change.
+
+Future custom Yiddish text uses the dedicated `kapparos-buying-translate` function. The editor's **Check translation connection** action checks whether its server-side key is configured. A configured key still needs a successful translation request to verify provider access.
 
 One-time connection:
 
-1. In the owner's Google Cloud project, enable **Cloud Translation API**, configure billing if required, and create an API key restricted to Cloud Translation API. Set a suitable daily translation quota in Google Cloud.
-2. Add that key directly in Supabase → Project `tugsxxafeaqbqonrruqt` → Edge Functions → Secrets under the name **`KAPPAROS_TRANSLATE_API_KEY`**. Do not put it in either repository, website settings, or chat.
-3. In Settings → Buying Website, click Edit and Save. Existing change confirmation applies once. Verify that English is up to date and review the saved English preview.
+1. Enable Cloud Translation API in the owner's Google Cloud project, configure billing if required, and create an API key restricted to Cloud Translation API. Set a suitable daily quota.
+2. Add the key directly in Supabase project `tugsxxafeaqbqonrruqt` → Edge Functions → Secrets as **`KAPPAROS_TRANSLATE_API_KEY`**. Do not put the key in either repository, website fields, or chat.
+3. Open the editor, check the connection, then Edit and Save a section with new Yiddish wording. Review that section's saved English wording.
 
-The translation endpoint validates the existing, unexpired admin session before making a provider request. It reads the session table but does not write state, change credentials, create orders, charge cards, or send messages. Gateway JWT verification is disabled because these are existing opaque admin session tokens; the endpoint implements explicit custom authentication. Configure provider quota as the durable spending limit; the endpoint's burst throttle is per running instance only.
+When translation is unavailable, the Yiddish change still saves and the section reports English as pending. Built-in/current translations remain usable. English is withheld if visible page content lacks a current translation. Hidden support text or disabled terms do not unnecessarily remove the English option. Saving that section again retries its translation.
 
-If the provider is missing or unavailable, the Yiddish save still succeeds and Settings displays the translation error. The English choice is withheld wherever required copy lacks a current translation; stale English event details are never displayed. After reconnecting, Edit → Save retries missing translations. Built-in translations do not require a provider call.
+Only changed, allowlisted public copy is sent to Google Cloud Translation Basic (`yi` → `en`, plain text). The endpoint validates the existing unexpired admin session first. It does not write website state, change credentials, create sales, charge cards, or send messages. Provider quotas are the durable spending limit; the endpoint also has a per-instance burst throttle.
 
-## Shared code and deployment
+## Buyer terms
 
-`buying-content.js` is the shared schema used by both frontends and the two narrowly scoped Edge Functions. Keep its four copies identical:
+Enter the exact terms in **Buyer terms**, save them, and turn on **Require buyers to accept the terms**. The switch works before Edit. It opens the editor if no terms have been saved yet. The requirement is off until the owner supplies and enables their terms.
 
-- Admin root
+Buyers must check an initially unchecked acceptance box before continuing to payment. Changing the displayed language or the terms revision resets acceptance. Checkout verifies acceptance again on the server before creating a new order. It records the accepted text, heading, checkbox label, language, revision, and server timestamp with the sale. Existing order retries continue through the same atomic order RPC; this change does not duplicate sales or inventory deductions.
+
+The revision identifies the saved Yiddish terms and their current English translation. Terms are validated against the server state read for the new order. Existing completed orders retain the terms accepted at that time. Terms do not appear in ticket/PDF/email templates unless separately requested.
+
+## Support footer and phones
+
+Add a support phone number and/or email address in **Support footer**. The help line appears at the bottom of both buying pages when a contact is supplied. Phone and email links use `tel:` and `mailto:`. US phone numbers display consistently in either language and stay on one line. The buyer's phone field accepts a leading US country code from mobile autofill and submits the validated ten-digit number.
+
+## Files and deployment
+
+`buying-content.js` is shared by both frontends and three functions; keep all five copies identical:
+
+- Admin repository root
 - Buying repository root
 - `supabase/functions/kapparos-public-config/buying-content.js`
 - `supabase/functions/kapparos-buying-translate/buying-content.js`
+- `supabase/functions/kapparos-public-order/buying-content.js`
 
-Deploy `kapparos-public-config` with its unchanged `preview-access.ts` plus the shared schema, and deploy `kapparos-buying-translate` with its shared schema. Publish each frontend through its existing GitHub Pages workflow.
+Deploy those three functions with their matching shared schema. Both copies of `preview-access.ts` remain unchanged. Publish each frontend through its existing GitHub Pages workflow.
 
-**No deployment of `kapparos-sync` is part of this change.** Its existing settings storage already preserves these extra fields. The separately blocked validation deployment remains outstanding.
+**Do not deploy `kapparos-sync` as part of this work.** Its separately blocked validation deployment remains outstanding. No database migration is needed; the existing atomic order RPC already preserves the terms-acceptance metadata in the sale JSON.
 
-Ticket/PDF/email templates and customer records are not translated by this feature. Demo payment notices stay visible in either language. This change does not change the current $20 selling price to the poster's $23.
+## Verification
 
-## Regression checks
-
-Place the two repositories in sibling directories named `siksakapparos` and `siksakapparos-order`. Run `npm install` followed by `npm test` in `siksakapparos/tests/buying-content`. Tests use local fixtures and mocked authentication/provider responses. They create no real charges, sales, messages, or database changes.
+Keep `siksakapparos` and `siksakapparos-order` in sibling directories. In `siksakapparos/tests/buying-content`, run `npm install`, then `npm test`. The tests use local fixtures and mocked authentication/provider/database responses. They cover section-save isolation, confirmations, before-Edit switches, English access, current/stale translations, phone links, terms enforcement, retry behavior, and unchanged pricing/inventory behavior. They create no real charges, sales, emails, or texts.
 
 Provider documentation: https://docs.cloud.google.com/translate/docs/translate-text
-Supported languages: https://docs.cloud.google.com/translate/docs/languages
 Supabase secrets: https://supabase.com/docs/guides/functions/secrets

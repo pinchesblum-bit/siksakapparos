@@ -36,10 +36,12 @@ function cleanLines(value: unknown, fallback: string[]) {
   const cleaned = source.map(item => String(item || '').trim()).filter(Boolean).slice(0, 30);
   return cleaned.length ? cleaned : fallback;
 }
-function sanitize(value: any, sales: any[] = [], admin: any = {}) {
+async function sanitize(value: any, sales: any[] = [], admin: any = {}) {
   const source = value && typeof value === 'object' ? value : {};
   return {
     ...buyingCopy.publicCopy(source),
+    termsEnabled: source.termsEnabled === true,
+    termsRevision: source.termsEnabled === true ? await buyingCopy.termsRevision(source) : '',
     orderingEnabled: source.orderingEnabled !== false,
     publicAccessEnabled: source.publicAccessEnabled === true,
     title: String(source.title || DEFAULTS.title).trim().slice(0, 120),
@@ -54,7 +56,7 @@ function sanitize(value: any, sales: any[] = [], admin: any = {}) {
     })(),
     pickupTimes: cleanLines(source.pickupTimes, DEFAULTS.pickupTimes),
     paymentChoices: ['Credit card'],
-    confirmationText: String(source.confirmationText || DEFAULTS.confirmationText).trim().slice(0, 1200),
+    confirmationText: buyingCopy.source(source).confirmationText,
     printTicketsEnabled: admin.printTicketsEnabled !== false,
     ticketDelivery: admin.ticketDelivery && typeof admin.ticketDelivery === 'object' ? admin.ticketDelivery : {}
   };
@@ -85,12 +87,12 @@ Deno.serve(async (req: Request) => {
     const admin = rows[0].settings || {};
     if (body.action === 'preview-login') {
       const token = await previewLogin(req, body, admin, SERVICE_KEY);
-      return new Response(JSON.stringify({token,settings:sanitize(admin.buyingWebsite, rows[0].sales || [], admin)}), {status:200,headers});
+      return new Response(JSON.stringify({token,settings:await sanitize(admin.buyingWebsite, rows[0].sales || [], admin)}), {status:200,headers});
     }
     if (!(await hasBuyingAccess(req, admin, SERVICE_KEY))) {
-      return new Response(JSON.stringify({locked:true,notice:OPENING_NOTICE,copy:buyingCopy.publicCopy(admin.buyingWebsite, ['title', 'gateTitle', 'gateDescription'])}), {status:200,headers});
+      return new Response(JSON.stringify({locked:true,notice:OPENING_NOTICE}), {status:200,headers});
     }
-    return new Response(JSON.stringify({settings:sanitize(admin.buyingWebsite, rows[0].sales || [], admin)}), {status:200,headers});
+    return new Response(JSON.stringify({settings:await sanitize(admin.buyingWebsite, rows[0].sales || [], admin)}), {status:200,headers});
   } catch (error) {
     const status = Number((error as any)?.status) || 500;
     return new Response(JSON.stringify({error: status < 500 ? (error as Error).message : 'Settings unavailable'}), {status,headers});

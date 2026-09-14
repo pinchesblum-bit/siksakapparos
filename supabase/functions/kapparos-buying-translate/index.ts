@@ -42,6 +42,7 @@ export async function handleRequest(req: Request): Promise<Response> {
     if (raw.length > 25000) return reply({error: 'Too much text.'}, 413);
     let body;
     try { body = JSON.parse(raw); } catch { return reply({error: 'Invalid request.'}, 400); }
+    if (body?.action === 'status' && Object.keys(body).length === 1) return reply({configured: Boolean(Deno.env.get('KAPPAROS_TRANSLATE_API_KEY'))});
     const input = body?.texts;
     if (!input || typeof input !== 'object' || Array.isArray(input)
       || Object.keys(body).some(key => key !== 'texts')) return reply({error: 'Invalid public text.'}, 400);

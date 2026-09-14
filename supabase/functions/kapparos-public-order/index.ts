@@ -1,3 +1,5 @@
+import './buying-content.js';
+const buyingCopy = (globalThis as any).KapparosBuyingContent;
 import { hasBuyingAccess } from './preview-access.ts';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -96,6 +98,24 @@ async function createOrder(body: any) {
   const current = await stateRow();
   if (!current) throw Object.assign(new Error('The order system is unavailable.'), { status: 503 });
   const sales = Array.isArray(current.sales) ? current.sales : [];
+  const priorOrder = sales.find((item: any) => item.onlineOrderKey === orderKey);
+  if (priorOrder && priorOrder.onlineOrderTokenHash !== tokenHash) throw Object.assign(new Error('This checkout session is not valid.'), {status: 403});
+  let termsAcceptance: any = null;
+  // A valid retry returns the original sale through the existing atomic RPC.
+  // New orders must accept the exact current terms in the displayed language.
+  if (!priorOrder && current.settings?.buyingWebsite?.termsEnabled === true) {
+    const website = current.settings.buyingWebsite;
+    const accepted = body.termsAcceptance;
+    const language = accepted?.language;
+    if (!accepted || accepted.accepted !== true || !['yi', 'en'].includes(language)) {
+      throw Object.assign(new Error('Please read and accept the terms before continuing.'), {status: 400, code: 'TERMS_REQUIRED'});
+    }
+    const terms = buyingCopy.terms(website, language);
+    if (!terms.available) throw Object.assign(new Error('Ordering is unavailable while the terms are being updated.'), {status: 409, code: 'TERMS_UNAVAILABLE'});
+    const revision = await buyingCopy.termsRevision(website);
+    if (accepted.revision !== revision) throw Object.assign(new Error('The terms changed. Please review and accept them again.'), {status: 409, code: 'TERMS_CHANGED'});
+    termsAcceptance = {accepted: true, acceptedAt: new Date().toISOString(), revision, language, title: terms.title, text: terms.text, label: terms.label};
+  }
   const now = new Date().toISOString();
   const paidOn = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit'
@@ -125,7 +145,8 @@ async function createOrder(body: any) {
     isOnlineSale: true,
     isDemoSale: true,
     onlineOrderKey: orderKey,
-    onlineOrderTokenHash: tokenHash
+    onlineOrderTokenHash: tokenHash,
+    ...(termsAcceptance ? {termsAcceptance} : {})
   };
   const result = await db('rpc/kapparos_create_online_demo_order', {
     method: 'POST',
@@ -231,6 +252,6 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     const status = Number((error as any)?.status) || 500;
     const message = status >= 500 ? 'The order system is temporarily unavailable.' : String((error as Error)?.message || 'Request failed.');
-    return json(origin, { error: message }, status);
+    return json(origin, { error: message, ...((error as any)?.code ? {code: (error as any).code} : {}) }, status);
   }
 });

@@ -80,6 +80,39 @@ async function settle(){await new Promise(resolve=>setImmediate(resolve));await 
   assert.equal(e.confirmed,1);assert.equal(e.saved.length,1);assert(!Object.hasOwn(e.saved[0].values,'introText'));assert.equal(e.state.pageContent.introText,site.pageContent.introText);assert.equal(w.document.getElementById('buyingEdit-introText').value,'Unsaved heading draft');assert.equal(e.state.extra,'keep');assert.equal(e.state.price,20);assert.equal(e.state.publicAccessEnabled,false);
   w.document.querySelector('[data-buying-section="Heading"] .settings-actions button').click();assert.equal(w.document.getElementById('buyingEdit-introText').value,site.pageContent.introText);w.close();
  });
+ await test('Two Venue inputs preserve one stored field and translated line boundaries',async()=>{
+  const e=editor({...site,pageContent:{...site.pageContent,venue:'First venue line'}}),w=e.w;
+  w.BuyingSettingsEditor.editSection('Time and location');
+  assert.equal(w.document.getElementById('buyingEdit-venue').value,'First venue line');
+  assert.equal(w.document.getElementById('buyingEdit-venueLine2').value,'');
+  w.document.getElementById('buyingEdit-venueLine2').value='Second venue line';
+  w.document.querySelector('[data-buying-section="Time and location"] form').dispatchEvent(new w.Event('submit',{cancelable:true}));await settle();
+  assert.equal(e.confirmed,1);assert.equal(e.state.pageContent.venue,'First venue line\nSecond venue line');
+  assert.equal(e.state.englishContent.values.venue,'First venue line\nSecond venue line');assert(!Object.hasOwn(e.state.pageContent,'venueLine2'));
+  w.BuyingSettingsEditor.editSection('Time and location');assert.equal(w.document.getElementById('buyingEdit-venueLine2').value,'Second venue line');
+  w.document.getElementById('buyingEdit-venue').value='a'.repeat(200);w.document.getElementById('buyingEdit-venueLine2').value='b'.repeat(100);
+  w.document.querySelector('[data-buying-section="Time and location"] form').dispatchEvent(new w.Event('submit',{cancelable:true}));await settle();
+  assert.equal(e.saved.length,1);assert.equal(e.confirmed,1);w.close();
+ });
+ await test('A new Yiddish Venue line translates separately while preserving the unchanged saved line',async()=>{
+  const first='מנינים סליחות פון 5:20',second='נאך א שורה';
+  const e=editor({...site,pageContent:{...site.pageContent,venue:first},englishContent:{source:{venue:first},values:{venue:'Selichos minyanim from 5:20'}}}),w=e.w,requests=[];
+  w.fetch=async(url,init)=>{const body=JSON.parse(init.body);requests.push(body.texts);return Response.json({values:{venue:'Another line'}});};
+  w.BuyingSettingsEditor.editSection('Time and location');w.document.getElementById('buyingEdit-venueLine2').value=second;
+  w.document.querySelector('[data-buying-section="Time and location"] form').dispatchEvent(new w.Event('submit',{cancelable:true}));await settle();
+  assert.deepEqual(requests,[{venue:second}]);assert.equal(e.confirmed,1);
+  assert.equal(e.state.pageContent.venue,first+'\n'+second);assert.equal(e.state.englishContent.source.venue,first+'\n'+second);
+  assert.equal(e.state.englishContent.values.venue,'Selichos minyanim from 5:20\nAnother line');w.close();
+ });
+ await test('Buying page layout follows the introduction, Venue and phone positions',()=>{
+  for(const page of ['index.html','order.html']){
+   const {window:w}=loadPublic(page);w.BuyingLanguages.apply({...site,pageContent:{...site.pageContent,venue:'First venue line\nSecond venue line'}},false);
+   const doc=w.document,box=doc.querySelector('.event-details'),intro=doc.querySelector('.hero-copy'),phone=doc.querySelector('.event-contact');
+   assert(intro.compareDocumentPosition(box)&4);assert(doc.querySelector('.event-booking').compareDocumentPosition(phone)&4);assert.equal(phone.parentElement.className,'hero');
+   const pair=doc.querySelector('.event-venues');assert(pair.classList.contains('has-two-lines'));assert.equal(pair.querySelectorAll('.event-venue').length,2);assert.equal(pair.dir,'rtl');
+   doc.querySelector('[data-language="en"]').click();assert.equal(pair.dir,'ltr');assert.equal(pair.children[1].textContent,'Second venue line');w.close();
+  }
+ });
  await test('Declining section confirmation saves nothing and does not prompt twice',async()=>{
   const e=editor(site,false),w=e.w;w.BuyingSettingsEditor.editSection('Time and location');w.document.getElementById('buyingEdit-timeText').value='New time';w.document.querySelector('[data-buying-section="Time and location"] form').dispatchEvent(new w.Event('submit',{cancelable:true}));await settle();assert.equal(e.confirmed,1);assert.equal(e.saved.length,0);w.close();
  });

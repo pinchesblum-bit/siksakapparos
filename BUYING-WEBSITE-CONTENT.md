@@ -1,10 +1,16 @@
 # Buying website editor
 
-Open **Settings → Buying Website → Edit Website**. The separate editor has nine sections and 48 editable wording/icon fields. Each section has its own Edit, Cancel, Save, and saved English preview. Saving one section preserves drafts in other sections. Refresh keeps the editor page selected.
+Open **Settings → Buying Website → Edit Website**. The separate editor has nine sections and 48 stored wording/icon fields. Venue is edited using two text boxes. Each section has its own Edit, Cancel, Save, and saved English preview. Saving one section preserves drafts in other sections. Refresh keeps the editor page selected.
 
 The sections are Heading, Time and location, Highlights and icons, Notices and ordering phone, Order form, Order summary, Ticket actions, Buyer terms, and Support footer. The knife, prayer book, and mikvah icons use matching deep-green and gold SVGs in both the editor preview and the buying website. Select a suggested icon or paste another emoji; an empty icon stays hidden. Empty optional fields stay hidden. Selling price and inventory still come from Sales Settings.
 
 The private-access page is fixed English and is not editable in this editor. Public opening remains manual. Demo-payment notices and editable ticket/PDF/email templates retain their existing behavior; this editor does not convert demo payments into real payments or rewrite ticket templates.
+
+## Information layout
+
+The introduction appears above the time/address box. Venue line 1 and line 2 appear at the bottom of that box, side by side on desktop and stacked on mobile. A single populated line is centered. The ordering phone follows the reservation notice. Mobile highlight icons share a fixed-width column at the right edge in Yiddish and the left edge in English.
+
+Both Venue inputs save into the existing `pageContent.venue` value, separated by a newline, with the existing 240-character combined limit. Existing single-line Venue content stays in the first input. Translations preserve the two lines separately and reuse exact matching saved English. This requires no backend deployment or schema change.
 
 ## English translation
 

@@ -8,6 +8,10 @@
     Object.freeze({key: 'benefitTicketIcon', value: '💧', label: 'Mikvah', path: 'icons/mikvah.svg'})
   ]);
   function icon(value) { return icons.find(item => item.value === value) || null; }
+  function venueLines(value) {
+    const lines = String(value || '').replace(/\r\n?/g, '\n').split('\n');
+    return [lines.shift() || '', lines.join('\n')];
+  }
   function source(settings = {}) {
     const values = copy.source(settings);
     for (const item of icons) {
@@ -23,6 +27,6 @@
     }
     return translated;
   }
-  root.KapparosBuyingPresentation = Object.freeze({icons, icon, source, english});
+  root.KapparosBuyingPresentation = Object.freeze({icons, icon, source, english, venueLines});
   if (typeof module !== 'undefined' && module.exports) module.exports = root.KapparosBuyingPresentation;
 })(globalThis);

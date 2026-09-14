@@ -57,9 +57,10 @@
       const form = make('form', 'buying-editor-form');
       const grid = make('div', 'buying-editor-grid');
       const fields = copy.fields.filter(field => field.group === group), controls = new Map(), displays = new Map(), englishRows = new Map(), iconPreviews = new Map();
+      let venueExtra = null;
       for (const field of fields) {
         const wrap = make('div', 'buying-editor-field' + (field.max >= 500 ? ' buying-editor-wide' : ''));
-        const label = make('label', '', field.label); label.htmlFor = 'buyingEdit-' + field.key;
+        const label = make('label', '', field.key === 'venue' ? 'Venue — line 1' : field.label); label.htmlFor = 'buyingEdit-' + field.key;
         const display = make('p', 'buying-editor-value'); display.dir = field.type === 'tel' || field.type === 'email' ? 'ltr' : 'auto';
         const input = make(field.max >= 500 ? 'textarea' : 'input', field.type === 'icon' ? 'buying-icon-input' : '');
         input.id = label.htmlFor; input.maxLength = field.max; input.required = field.required === true; input.hidden = true; input.disabled = true;
@@ -74,6 +75,17 @@
           wrap.classList.add('buying-editor-icon-field');
         }
         wrap.append(label, display, input); grid.append(wrap); controls.set(field.key, input); displays.set(field.key, display);
+        if (field.key === 'venue') {
+          const extra = make('div', 'buying-editor-field');
+          const extraLabel = make('label', '', 'Venue — line 2'); extraLabel.htmlFor = 'buyingEdit-venueLine2';
+          const extraDisplay = make('p', 'buying-editor-value'); extraDisplay.dir = 'auto';
+          const extraInput = make('input'); extraInput.id = extraLabel.htmlFor; extraInput.type = 'text'; extraInput.dir = 'auto';
+          extraInput.maxLength = field.max; extraInput.hidden = true; extraInput.disabled = true;
+          extra.append(extraLabel, extraDisplay, extraInput); grid.append(extra);
+          venueExtra = {input: extraInput, display: extraDisplay, english: null};
+          const note = make('p', 'settings-card-note buying-editor-wide', 'These lines appear at the bottom of the information box: side by side on Windows and stacked on mobile. Leave the second line empty if you only need one.');
+          grid.append(note);
+        }
         if (field.type === 'icon') {
           const preview = make('div', 'buying-icon-preview'); preview.hidden = true;
           preview.setAttribute('aria-label', 'Icon preview');
@@ -84,14 +96,18 @@
       form.append(grid);
       const english = make('details', 'buying-english-details'); const summary = make('summary', '', 'View saved English wording'); const list = make('dl', 'buying-english-list');
       for (const field of fields.filter(field => field.translate !== false)) {
-        const row = make('div', 'buying-translation-row'); const dt = make('dt', '', field.label), dd = make('dd'); dd.dir = 'ltr'; row.append(dt, dd); list.append(row); englishRows.set(field.key, dd);
+        const row = make('div', 'buying-translation-row'); const dt = make('dt', '', field.key === 'venue' ? 'Venue — line 1' : field.label), dd = make('dd'); dd.dir = 'ltr'; row.append(dt, dd); list.append(row); englishRows.set(field.key, dd);
+        if (field.key === 'venue') {
+          const extraRow = make('div', 'buying-translation-row'), extraValue = make('dd'); extraValue.dir = 'ltr';
+          extraRow.append(make('dt', '', 'Venue — line 2'), extraValue); list.append(extraRow); venueExtra.english = extraValue;
+        }
       }
       english.append(summary, list); form.append(english);
       const notice = make('p', 'settings-message buying-editor-message'); notice.setAttribute('role', 'status'); form.append(notice);
       const actions = make('div', 'settings-actions'); actions.hidden = true;
       const cancel = make('button', 'secondary-btn', 'Cancel'); cancel.type = 'button';
       const save = make('button', 'primary-btn', 'Save'); save.type = 'submit'; actions.append(cancel, save); form.append(actions); section.append(form); container.append(section);
-      const card = {group, section, form, fields, controls, displays, englishRows, iconPreviews, edit, actions, message: notice, editing: false, busy: false}; cards.set(group, card);
+      const card = {group, section, form, fields, controls, displays, englishRows, iconPreviews, venueExtra, edit, actions, message: notice, editing: false, busy: false}; cards.set(group, card);
       edit.addEventListener('click', () => editSection(group)); cancel.addEventListener('click', () => { setEditing(card, false); fill(api.getSettings()); message(card, ''); });
       form.addEventListener('submit', event => { event.preventDefault(); saveSection(card); });
     });
@@ -100,6 +116,7 @@
     card.editing = editing; card.edit.hidden = editing; card.actions.hidden = !editing;
     card.controls.forEach((input, key) => { input.hidden = !editing; input.disabled = !editing || card.busy; card.displays.get(key).hidden = editing; });
     card.iconPreviews.forEach((preview, key) => { preview.hidden = !editing; showIcon(preview, card.controls.get(key).value); });
+    if (card.venueExtra) { card.venueExtra.input.hidden = !editing; card.venueExtra.input.disabled = !editing || card.busy; card.venueExtra.display.hidden = editing; }
   }
   function editSection(group) {
     if (!api || saving) return;
@@ -111,6 +128,15 @@
     mount(); const source = presentation.source(settings), translated = presentation.english(settings);
     cards.forEach(card => {
       card.fields.forEach(field => {
+        if (field.key === 'venue') {
+          const lines = presentation.venueLines(source.venue), englishLines = presentation.venueLines(translated.values.venue);
+          if (!card.editing) { card.controls.get('venue').value = lines[0]; card.venueExtra.input.value = lines[1]; }
+          card.displays.get('venue').textContent = lines[0] || 'Not shown'; card.venueExtra.display.textContent = lines[1] || 'Not shown';
+          const ready = Object.hasOwn(translated.values, 'venue');
+          card.englishRows.get('venue').textContent = ready ? englishLines[0] || 'Not shown' : lines[0] ? 'Translation pending' : 'Not shown';
+          card.venueExtra.english.textContent = ready ? englishLines[1] || 'Not shown' : lines[1] ? 'Translation pending' : 'Not shown';
+          return;
+        }
         if (!card.editing) card.controls.get(field.key).value = source[field.key];
         const value = field.type === 'tel' ? copy.phone(source[field.key]).label : source[field.key];
         if (field.type === 'icon') {
@@ -127,27 +153,51 @@
     saving = busy; card.busy = busy;
     cards.forEach(item => { item.edit.disabled = busy; item.actions.querySelectorAll('button').forEach(button => { button.disabled = busy; }); });
     card.controls.forEach(input => { input.disabled = busy || !card.editing; });
+    if (card.venueExtra) card.venueExtra.input.disabled = busy || !card.editing;
     const toggle = document.getElementById('buyingTermsEnabled'); if (toggle) toggle.disabled = busy;
+  }
+  let lastTranslationRequest = 0;
+  async function requestTranslations(texts, token) {
+    // Respect the existing endpoint's per-session burst limit between line requests.
+    const wait = 3100 - (Date.now() - lastTranslationRequest);
+    if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
+    lastTranslationRequest = Date.now();
+    const response = await fetch('https://tugsxxafeaqbqonrruqt.supabase.co/functions/v1/kapparos-buying-translate', {
+      method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + token},
+      body: JSON.stringify({texts}), signal: AbortSignal.timeout(30000)
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      if (data.code === 'translation_setup_required') connection = 'missing';
+      throw new Error(data.error || 'English translation is unavailable.');
+    }
+    connection = 'ready';
+    for (const key of Object.keys(texts)) {
+      const field = copy.fields.find(field => field.key === key), value = data.values?.[key];
+      if (typeof value !== 'string' || !value.trim() || value.length > field.max * 4) throw new Error('English translation was incomplete. Please save again.');
+    }
+    return data.values;
   }
   async function translate(settings, token, fields = copy.fields) {
     const result = presentation.english(settings), keys = new Set(fields.map(field => field.key));
     const missing = result.missing.filter(key => keys.has(key));
-    if (missing.length) {
-      const response = await fetch('https://tugsxxafeaqbqonrruqt.supabase.co/functions/v1/kapparos-buying-translate', {
-        method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + token},
-        body: JSON.stringify({texts: Object.fromEntries(missing.map(key => [key, result.source[key]]))}), signal: AbortSignal.timeout(30000)
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        if (data.code === 'translation_setup_required') connection = 'missing';
-        throw new Error(data.error || 'English translation is unavailable.');
+    const pairedVenue = missing.includes('venue') && result.source.venue.includes('\n');
+    const otherMissing = missing.filter(key => !pairedVenue || key !== 'venue');
+    if (otherMissing.length) {
+      const values = await requestTranslations(Object.fromEntries(otherMissing.map(key => [key, result.source[key]])), token);
+      otherMissing.forEach(key => { result.values[key] = values[key].trim(); });
+    }
+    if (pairedVenue) {
+      const lines = presentation.venueLines(result.source.venue), previous = settings.englishContent || {};
+      const oldSources = presentation.venueLines(previous.source?.venue), oldValues = presentation.venueLines(previous.values?.venue);
+      const englishLines = [];
+      for (let index = 0; index < lines.length; index++) {
+        const line = lines[index];
+        const cached = {source: {venue: oldSources[index]}, values: {venue: oldValues[index]}};
+        const known = presentation.english({pageContent: {venue: line}, englishContent: cached});
+        englishLines.push(Object.hasOwn(known.values, 'venue') ? known.values.venue : (await requestTranslations({venue: line}, token)).venue.trim());
       }
-      connection = 'ready';
-      for (const key of missing) {
-        const field = copy.fields.find(field => field.key === key), value = data.values?.[key];
-        if (typeof value !== 'string' || !value.trim() || value.length > field.max * 4) throw new Error('English translation was incomplete. Please save again.');
-        result.values[key] = value.trim();
-      }
+      result.values.venue = englishLines.join('\n').trim();
     }
     return {source: Object.fromEntries([...keys].map(key => [key, result.source[key]])), values: Object.fromEntries([...keys].filter(key => Object.hasOwn(result.values, key)).map(key => [key, result.values[key]]))};
   }
@@ -155,7 +205,11 @@
     if (!api || saving || !card.editing || !card.form.reportValidity()) return;
     const before = api.getSettings(), next = {...before, pageContent: {...before.pageContent}}, values = {};
     for (const field of card.fields) {
-      const text = card.controls.get(field.key).value.trim(); values[field.key] = text;
+      const text = field.key === 'venue'
+        ? [card.controls.get('venue').value.trim(), card.venueExtra.input.value.trim()].join('\n').trim()
+        : card.controls.get(field.key).value.trim();
+      if (text.length > field.max) { message(card, field.key === 'venue' ? 'Keep the two Venue lines within 240 characters in total.' : 'This text is too long.', true); return; }
+      values[field.key] = text;
       if (field.root) next[field.key] = text; else next.pageContent[field.key] = text;
     }
     if (card.group === 'Buyer terms' && before.termsEnabled === true && !values.termsText) { message(card, 'Turn off the terms requirement before removing the terms.', true); return; }

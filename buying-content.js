@@ -7,7 +7,7 @@
     "group": "Page wording",
     "label": "Page title",
     "yi": "פנים מאירות סיקסא",
-    "en": "Panim Meiros Siksa",
+    "en": "Punim Meiros Siksa",
     "max": 120,
     "root": "root"
   },

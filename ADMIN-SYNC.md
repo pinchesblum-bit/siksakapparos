@@ -1,0 +1,13 @@
+# Admin saves and shared inventory
+
+The September 14 stock fix updates `kapparos_save_admin_state(jsonb,jsonb,jsonb)` using `supabase/admin-save-stock.sql`. It does not deploy an Edge Function or include the separately blocked expense-payment validation.
+
+Admin saves and online checkout lock the same `kapparos_app_state` row with `FOR UPDATE`. The admin RPC checks the merged paid quantity against the current inventory while holding that lock, before writing. Paid/free and completed chickens consume stock; reserved and expired sales keep the existing separate counting rules. Online checkout retains its existing locked stock check and order-key idempotency.
+
+`admin-sync.js` builds changes from the last confirmed state. The admin sends only changed sales/settings plus original values in transient `_kapparosWrite` metadata. The RPC compares those originals inside the transaction and rejects conflicting updates or attempts to resurrect deleted sales. Retrying an accepted sale with the same ID is safe and preserves its assigned ticket. Credential fields are excluded from this partial-write protocol; existing protected credential actions remain separate.
+
+The live `kapparos-access` v8 and `kapparos-sync` v25 functions pass this payload through unchanged. To preserve that compatibility, a rejected RPC returns the unchanged state with a transient `settings._kapparosSaveError` response. The admin recognizes it, restores confirmed records, leaves open form inputs intact, and stops retrying the rejected transaction. Neither metadata nor errors are stored in the database. Network failures keep the existing pending-save/retry behavior. Sale success messages and ticket actions wait for server acceptance.
+
+Visible devices poll every 2.5 seconds, with overlapping requests prevented. While a form or settings editor is open, only sales and stock are refreshed; entered fields and payment selections are preserved. Actual delivery time still depends on the connection. Server stock enforcement does not depend on polling speed. Refresh already-open admin tabs after deployment to load the new save protocol.
+
+Verification uses synthetic local data only. PGlite tests the SQL function, competing submitted saves, admin/online ordering in both sequences, idempotent retries, stale edits/deletes, settings conflicts, free/completed/expired counts, and unchanged state on rejection. PGlite serializes requests and does not independently test multi-connection row-lock timing. The shared production row-lock definition is inspected separately. Full admin DOM fixtures check two devices, stock rejection, preserving open forms, delayed-save ticket gating, Online/Demo badges, and purchase-cost normalization. Existing accounting and buying regressions also run.

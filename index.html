@@ -515,7 +515,8 @@
       font-weight: 500;
       letter-spacing: 0;
     }
-    .sale-name-content { display:inline-flex; align-items:center; gap:7px; max-width:100%; }
+    .sale-name-content { display:inline-flex; align-items:center; flex-wrap:wrap; gap:5px 7px; max-width:100%; }
+    .sale-source-badges { display:inline-flex; flex-wrap:wrap; gap:4px; }
     .online-sale-badge[hidden], .demo-sale-badge[hidden] { display:none; }
     .online-sale-badge, .demo-sale-badge {
       display:inline-flex;
@@ -2772,7 +2773,8 @@
   <script src="ticket-design.js?v=20260911-1"></script>
   <script src="buying-content.js?v=20260914-2"></script>
   <script src="buying-presentation.js?v=20260914-4"></script>
-  <script src="buying-settings.js?v=20260914-4"></script>
+  <script src="buying-settings.js?v=20260914-6"></script>
+  <script src="admin-sync.js?v=20260914-1"></script>
   <script>
     const STORAGE_KEY = 'kapparosSalesV1';
     const SETTINGS_KEY = 'kapparosSettingsV1';
@@ -2788,6 +2790,8 @@
     let cloudKnownSaleIds = new Set();
     let cloudDeletedSaleIds = new Set();
     let cloudRefreshInFlight = false;
+    let cloudBaselineRaw = null, cloudBaselineUi = null, cloudInventory = null;
+    let cloudSaleBases = {}, saleEditBase = null, saleDraftId = null, saleSubmitting = false;
     const PENDING_SAVE_KEY = 'kapparosPendingSaveV2';
     const CHANGE_CONFIRMATION = 'ביסטו זיכער אז דו ווילסט מאכן דעם טויש?';
     const DELETE_CONFIRMATION = 'דו ביסט באקאנט אז די נאמען גייט יעצט ווערן אינגאנצן אויסגעמעקט?';
@@ -3580,6 +3584,7 @@
     }
 
     function canUseSaleTicket(sale) {
+      if (sale && cloudSaveDirty && !KapparosAdminSync.equal(sale, cloudBaselineUi?.sales.find(item => item.id === sale.id))) return false;
       return Boolean(sale && sale.status === 'paid' && state.settings.printTicketsEnabled !== false);
     }
 
@@ -3891,6 +3896,7 @@
       const endpoint = CLOUD_API;
       const response = await fetch(endpoint, {
         method: 'POST',
+        cache: 'no-store',
         headers,
         body: JSON.stringify({ action, ...payload })
       });
@@ -3903,39 +3909,54 @@
       return data;
     }
 
+    function cloudSnapshot() { return KapparosAdminSync.clone({sales: state.sales, settings: state.settings}); }
+    function normalizedCloudSettings(settings) {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      return loadSettings();
+    }
+    function rememberCloudState(data, normalized) {
+      cloudBaselineRaw = KapparosAdminSync.clone({sales: data.sales || [], settings: data.settings || {}});
+      cloudBaselineUi = KapparosAdminSync.clone({sales: data.sales || [], settings: normalized});
+      cloudInventory = Number(data.settings?.inventory) || 0;
+    }
+    function renderCloudSales() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sales));
+      renderSales(); renderReports(); renderAccounting();
+      if (saleModal.classList.contains('open') && !saleForm.classList.contains('sale-readonly')) validateQuantityAvailability();
+    }
     function applyCloudState(data) {
-      const knownSales = Array.isArray(data._knownSaleIds) ? data._knownSaleIds : (Array.isArray(data.sales) ? data.sales.map(item => item.id) : []);
-      cloudKnownSaleIds = new Set(knownSales.map(String));
+      const remote = data._remote || data;
+      const normalized = normalizedCloudSettings(remote.settings || {});
+      rememberCloudState(remote, normalized);
+      cloudKnownSaleIds = new Set((remote.sales || []).map(item => String(item.id)));
       cloudDeletedSaleIds = new Set((data._deletedSaleIds || []).map(String));
       state.sales = Array.isArray(data.sales) ? data.sales : [];
       if (ensureSaleTicketIds()) pendingTicketIdSave = true;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sales));
-      if (data.settings && typeof data.settings === 'object') {
-        localStorage.setItem(SETTINGS_KEY, JSON.stringify(data.settings));
-        state.settings = loadSettings();
+      state.settings = data._remote ? normalizedCloudSettings(data.settings || {}) : normalized;
+      if (data._pendingBaseline) {
+        cloudBaselineRaw = data._pendingBaseline.raw;
+        cloudBaselineUi = data._pendingBaseline.ui;
+        cloudSaleBases = data._pendingBaseline.saleBases || {};
       }
-      applySettingsToUi();
-      renderPaymentSelect();
-      renderPlannedPaymentSelect();
-      renderSales();
-      renderTodo();
-      renderReports();
-      renderAccounting();
+      applySettingsToUi(); renderPaymentSelect(); renderPlannedPaymentSelect();
+      renderSales(); renderTodo(); renderReports(); renderAccounting();
     }
-
+    function persistPendingSave() {
+      sessionStorage.setItem(PENDING_SAVE_KEY, JSON.stringify({
+        ...cloudSnapshot(), username: state.settings.username,
+        deletedSaleIds: Array.from(cloudDeletedSaleIds),
+        baseline: {raw: cloudBaselineRaw, ui: cloudBaselineUi, saleBases: cloudSaleBases}
+      }));
+    }
     function queueCloudSave() {
       if (!cloudReady) { pendingTicketIdSave = true; return; }
       if (!cloudSessionToken) return;
-      cloudSaveDirty = true;
-      cloudSaveRevision++;
-      sessionStorage.setItem(PENDING_SAVE_KEY, JSON.stringify({
-        sales: state.sales, settings: state.settings, username: state.settings.username,
-        deletedSaleIds: Array.from(cloudDeletedSaleIds)
-      }));
+      cloudSaveDirty = true; cloudSaveRevision++;
+      persistPendingSave();
       clearTimeout(cloudSaveTimer);
       cloudSaveTimer = setTimeout(() => { flushCloudSave().catch(() => {}); }, 150);
     }
-
     async function flushCloudSave() {
       clearTimeout(cloudSaveTimer);
       if (cloudSaveInFlight) {
@@ -3944,38 +3965,57 @@
         return;
       }
       if (!cloudSaveDirty) return;
-      if (!cloudSessionToken) throw new Error('Please log in to finish saving.');
+      if (!cloudSessionToken || !cloudBaselineRaw) throw new Error('Please log in to finish saving.');
       cloudSaveInFlight = (async () => {
         while (cloudSaveDirty) {
-          const revision = cloudSaveRevision;
-          const snapshot = JSON.parse(JSON.stringify({ sales: state.sales, settings: state.settings, deletedSaleIds: Array.from(cloudDeletedSaleIds) }));
+          const revision = cloudSaveRevision, snapshot = cloudSnapshot();
+          const deletedIds = Array.from(cloudDeletedSaleIds);
+          const payload = KapparosAdminSync.request(cloudBaselineUi, cloudBaselineRaw, snapshot, deletedIds, cloudSaleBases);
           try {
-            const saved = await cloudRequest('save', snapshot);
-            if (revision === cloudSaveRevision) {
-              if (Array.isArray(saved.sales)) {
-                state.sales = saved.sales;
-                cloudKnownSaleIds = new Set(saved.sales.map(item => String(item.id)));
-                cloudDeletedSaleIds.clear();
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sales));
-                renderSales();
-                renderReports();
-                renderAccounting();
-              }
-              cloudSaveDirty = false;
-              sessionStorage.removeItem(PENDING_SAVE_KEY);
+            const saved = await cloudRequest('save', payload);
+            const failure = saved.settings?._kapparosSaveError;
+            if (failure) {
+              delete saved.settings._kapparosSaveError;
+              const error = new Error(failure.message); error.status = 409; error.code = failure.code; error.currentState = saved;
+              throw error;
             }
+            const normalized = normalizedCloudSettings(saved.settings || {});
+            const laterDeleted = Array.from(cloudDeletedSaleIds).filter(id => !deletedIds.includes(id));
+            const next = revision === cloudSaveRevision
+              ? {sales: saved.sales, settings: normalized}
+              : KapparosAdminSync.rebase({sales: saved.sales, settings: normalized}, snapshot, cloudSnapshot(), laterDeleted);
+            rememberCloudState(saved, normalized);
+            cloudKnownSaleIds = new Set((saved.sales || []).map(item => String(item.id)));
+            cloudDeletedSaleIds = new Set(laterDeleted);
+            for (const id of [...payload.sales.map(sale => String(sale.id)), ...deletedIds]) delete cloudSaleBases[id];
+            state.sales = next.sales; state.settings = next.settings;
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+            renderCloudSales();
+            cloudSaveDirty = revision !== cloudSaveRevision;
+            if (cloudSaveDirty) persistPendingSave(); else sessionStorage.removeItem(PENDING_SAVE_KEY);
           } catch (error) {
-            showToast('Changes are waiting to save. ' + error.message);
-            if (error.status === 401) lockWebsite();
-            else cloudSaveTimer = setTimeout(() => { flushCloudSave().catch(() => {}); }, 5000);
+            if (error.status === 409 && error.currentState) {
+              // The server rejected this whole transaction. Keep open form inputs
+              // intact, but restore authoritative records and stop automatic retry.
+              const saved = error.currentState;
+              state.settings = normalizedCloudSettings(saved.settings || {});
+              state.sales = saved.sales || [];
+              rememberCloudState(saved, state.settings);
+              cloudKnownSaleIds = new Set(state.sales.map(item => String(item.id)));
+              cloudDeletedSaleIds.clear(); cloudSaleBases = {}; cloudSaveDirty = false;
+              sessionStorage.removeItem(PENDING_SAVE_KEY);
+              renderCloudSales(); showToast(error.message, 'error');
+            } else {
+              showToast('Changes are waiting to save. ' + error.message, 'error');
+              if (error.status === 401) lockWebsite();
+              else cloudSaveTimer = setTimeout(() => { flushCloudSave().catch(() => {}); }, 5000);
+            }
             throw error;
           }
         }
       })();
-      try { await cloudSaveInFlight; }
-      finally { cloudSaveInFlight = null; }
+      try { await cloudSaveInFlight; } finally { cloudSaveInFlight = null; }
     }
-
     function restorePendingSave(data) {
       const raw = sessionStorage.getItem(PENDING_SAVE_KEY);
       if (!raw) return data;
@@ -3983,35 +4023,39 @@
         const pending = JSON.parse(raw);
         if (pending.username !== data.settings?.username) return data;
         const deletedIds = new Set((pending.deletedSaleIds || []).map(String));
-        cloudDeletedSaleIds = deletedIds;
         const pendingSales = Array.isArray(pending.sales) ? pending.sales : [];
         const pendingIds = new Set(pendingSales.map(item => String(item.id)));
-        const remoteOnly = (Array.isArray(data.sales) ? data.sales : []).filter(item =>
-          !deletedIds.has(String(item.id)) && !pendingIds.has(String(item.id)));
-        cloudSaveDirty = true;
-        cloudSaveRevision++;
-        return { ...data, sales: [...pendingSales, ...remoteOnly], settings: pending.settings, _knownSaleIds: (data.sales || []).map(item => item.id), _deletedSaleIds: Array.from(deletedIds) };
+        const remoteOnly = (data.sales || []).filter(item => !deletedIds.has(String(item.id)) && !pendingIds.has(String(item.id)));
+        cloudSaveDirty = true; cloudSaveRevision++;
+        return {...data, sales: [...pendingSales, ...remoteOnly], settings: pending.settings, _remote: data,
+          _pendingBaseline: pending.baseline?.raw && pending.baseline?.ui ? pending.baseline : null,
+          _deletedSaleIds: Array.from(deletedIds)};
       } catch { return data; }
     }
-
     function canRefreshCloudState() {
-      return state.page !== 'settings'
-        && !Object.values(settingsEditMode).some(Boolean)
+      return state.page !== 'settings' && !Object.values(settingsEditMode).some(Boolean)
         && !document.querySelector('.open[aria-hidden="false"]');
     }
-
     async function refreshCloudStateSilently() {
-      if (!cloudReady || !cloudSessionToken || cloudSaveDirty || cloudSaveInFlight || cloudRefreshInFlight || !canRefreshCloudState()) return;
+      if (!cloudReady || !cloudSessionToken || cloudSaveDirty || cloudSaveInFlight || cloudRefreshInFlight || document.visibilityState === 'hidden') return;
       cloudRefreshInFlight = true;
       const revision = cloudSaveRevision;
       try {
         const data = await cloudRequest('get');
-        if (revision === cloudSaveRevision && !cloudSaveDirty && canRefreshCloudState()) applyCloudState(data);
-      } catch (error) {
-        if (error.status === 401) lockWebsite();
-      } finally {
-        cloudRefreshInFlight = false;
-      }
+        if (revision !== cloudSaveRevision || cloudSaveDirty) return;
+        if (canRefreshCloudState()) applyCloudState(data);
+        else {
+          // Refresh stock and the lists even while a form is open. Never replace
+          // its fields, selected payment method, password, or settings draft.
+          state.sales = data.sales || [];
+          cloudKnownSaleIds = new Set(state.sales.map(item => String(item.id)));
+          cloudBaselineRaw.sales = KapparosAdminSync.clone(state.sales);
+          cloudBaselineUi.sales = KapparosAdminSync.clone(state.sales);
+          cloudInventory = Number(data.settings?.inventory) || 0;
+          renderCloudSales();
+        }
+      } catch (error) { if (error.status === 401) lockWebsite(); }
+      finally { cloudRefreshInFlight = false; }
     }
 
     window.addEventListener('online', () => {
@@ -4117,7 +4161,7 @@
 
     function validateQuantityAvailability() {
       const quantity = Number(quantityInput.value);
-      const available = state.settings.inventory - getKapparosSold(state.editingSaleId);
+      const available = (cloudInventory ?? state.settings.inventory) - getKapparosSold(state.editingSaleId || saleDraftId);
       const insufficient = saleStatus.value !== 'expired' && Number.isFinite(quantity) && quantity >= 1 && quantity > available;
       quantityInput.setCustomValidity(insufficient ? 'עס איז נישט דא גענוג כפרות' : '');
       quantityInput.classList.toggle('inventory-invalid', insufficient);
@@ -4867,7 +4911,7 @@
             : '';
           return `${divider}
             <tr class="sale-row" data-sale-id="${escapeHtml(sale.id)}" tabindex="0" title="Click to open this sale">
-              <td class="sale-name"><span class="sale-name-content"><span>${escapeHtml(sale.fullName)}</span></span></td>
+              <td class="sale-name"><span class="sale-name-content"><span>${escapeHtml(sale.fullName)}</span><span class="sale-source-badges">${sale.isOnlineSale ? '<span class="online-sale-badge">Online</span>' : ''}${sale.isDemoSale ? '<span class="demo-sale-badge">Demo</span>' : ''}</span></span></td>
               <td><span class="sale-contact"><span>${escapeHtml(sale.phone || '')}</span>${sale.email ? `<span class="sale-contact-email" title="${escapeHtml(sale.email)}">${escapeHtml(sale.email)}</span>` : ''}</span></td>
               <td><span class="status-pill ${escapeHtml(sale.status || 'paid')}">${getStatusLabel(sale.status || 'paid')}</span></td>
               <td><span class="kapparah-pill">${sale.quantity}</span></td>
@@ -5688,6 +5732,7 @@
     function showSaleView() {
       saleModalTitle.textContent = 'Sale';
       document.getElementById('saleOnlineBadge').hidden = !state.sales.find(item => item.id === state.editingSaleId)?.isOnlineSale;
+      document.getElementById('saleDemoBadge').hidden = !state.sales.find(item => item.id === state.editingSaleId)?.isDemoSale;
       setSaleFormMode(true);
       deleteSaleBtn.hidden = true;
       const sale = state.sales.find(item => item.id === state.editingSaleId);
@@ -5706,6 +5751,7 @@
     }
 
     function showSaleEditor(existingSale = null) {
+      saleEditBase = existingSale ? KapparosAdminSync.clone(existingSale) : null;
       saleModalTitle.textContent = existingSale ? 'Edit Sale' : 'Add Sale';
       document.getElementById('saleOnlineBadge').hidden = !existingSale?.isOnlineSale;
       document.getElementById('saleDemoBadge').hidden = !existingSale?.isDemoSale;
@@ -5724,6 +5770,7 @@
     }
 
     function openModal(saleId = null) {
+      saleDraftId = null;
       saleForm.reset();
       setSaleFormMode(false);
       state.editingSaleId = saleId;
@@ -6570,7 +6617,7 @@
     cancelBtn.addEventListener('click', closeModal);
     editSaleBtn.addEventListener('click', () => {
       const sale = state.sales.find(item => item.id === state.editingSaleId);
-      if (sale) showSaleEditor(sale);
+      if (sale) { openModal(sale.id); showSaleEditor(sale); }
     });
     printSaleTicketBtn.addEventListener('click', () => openTicketForSale(state.editingSaleId));
     emailSaleTicketBtn.addEventListener('click', () => openSendTicketModal(state.editingSaleId));
@@ -6648,18 +6695,24 @@
         geschlagenInput.checked = previousValue;
         return;
       }
-      sale.geschlagen = nextValue;
-      sale.updatedAt = new Date().toISOString();
-      saveSales();
-      renderSales();
-      renderReports();
-      closeModal();
-      showPage('sales');
-      showToast(nextValue ? 'Sale marked געשלאגן' : 'געשלאגן removed');
+      geschlagenInput.disabled = true;
+      try {
+        cloudSaleBases[String(sale.id)] = KapparosAdminSync.clone(sale);
+        const index = state.sales.findIndex(item => item.id === sale.id);
+        if (index === -1) throw new Error('This sale was deleted on another device.');
+        state.sales[index] = {...sale, geschlagen: nextValue, updatedAt: new Date().toISOString()};
+        saveSales(); await flushCloudSave();
+        closeModal(); showPage('sales');
+        showToast(nextValue ? 'Sale marked געשלאגן' : 'געשלאגן removed');
+      } catch (error) {
+        geschlagenInput.checked = Boolean(state.sales.find(item => item.id === sale.id)?.geschlagen);
+        showToast(error.message, 'error');
+      } finally { geschlagenInput.disabled = false; }
     });
 
     saleForm.addEventListener('submit', async e => {
       e.preventDefault();
+      if (saleSubmitting) return;
       if (saleForm.classList.contains('sale-readonly')) { closeModal(); return; }
 
       if (!validateSaleCompletionStatus()) {
@@ -6713,10 +6766,17 @@
         customFieldValues[input.dataset.customSaleField] = input.value.trim();
       });
 
+      saleSubmitting = true; saveSaleBtn.disabled = true;
+      const saveLabel = saveSaleBtn.textContent; saveSaleBtn.textContent = 'Saving…';
+      try {
+      await flushCloudSave();
+      if (saleDraftId && cloudBaselineRaw.sales.some(item => item.id === saleDraftId)) {
+        openModal(saleDraftId); showToast('Sale saved'); return;
+      }
       if (state.editingSaleId) {
         const index = state.sales.findIndex(item => item.id === state.editingSaleId);
-        if (index === -1) return;
-        const currentSale = state.sales[index];
+        if (index === -1) throw new Error('This sale was deleted on another device.');
+        const currentSale = saleEditBase || state.sales[index];
         const normalizedOtherDetails = selectedMethodNeedsDetails ? otherPaymentDetails : '';
         const normalizedPaymentType = usesPlan ? '' : selectedPaymentType;
         const normalizedPaymentPlan = usesPlan ? selectedPaymentPlan : '';
@@ -6742,8 +6802,8 @@
           return;
         }
         if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
-        state.sales[index] = {
-          ...state.sales[index],
+        const changedSale = {
+          ...currentSale,
           paidAt: status === 'paid' ? ((currentSale.status || 'paid') === 'paid' ? currentSale.paidAt : new Date().toISOString()) : null,
           paidOn: status === 'paid' ? ((currentSale.status || 'paid') === 'paid' ? currentSale.paidOn : getLocalDateValue()) : null,
           fullName,
@@ -6760,15 +6820,19 @@
           customFields: customFieldValues,
           updatedAt: new Date().toISOString()
         };
+        const latestIndex = state.sales.findIndex(item => item.id === changedSale.id);
+        if (latestIndex === -1) throw new Error('This sale was deleted on another device.');
+        cloudSaleBases[String(changedSale.id)] = KapparosAdminSync.clone(currentSale);
+        state.sales[latestIndex] = changedSale;
         saveSales();
-        renderSales();
-        renderReports();
-        openModal(state.sales[index].id);
+        await flushCloudSave();
+        openModal(changedSale.id);
         showToast('Sale updated');
         return;
       }
 
-      const newSaleId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+      const newSaleId = saleDraftId || (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+      saleDraftId = newSaleId;
       const usedTicketIds = new Set(state.sales.map(item => getSaleTicketId(item)));
       const sale = {
         id: newSaleId,
@@ -6790,12 +6854,19 @@
         customFields: customFieldValues
       };
 
+      cloudSaleBases[String(sale.id)] = null;
       state.sales.push(sale);
       saveSales();
-      renderSales();
-      renderReports();
+      await flushCloudSave();
       openModal(sale.id);
       showToast('Sale saved');
+      } catch (error) {
+        showToast(error.message || 'The sale could not be saved. Your form is still open.', 'error');
+        if (error.code === 'inventory') validateQuantityAvailability();
+      } finally {
+        saleSubmitting = false; saveSaleBtn.disabled = false;
+        if (saveSaleBtn.textContent === 'Saving…') saveSaleBtn.textContent = saveLabel;
+      }
     });
 
     document.getElementById('salesTableWrap').addEventListener('click', e => {
@@ -6818,13 +6889,15 @@
       const confirmed = await askConfirmation(DELETE_CONFIRMATION);
       if (!confirmed) return;
 
-      cloudDeletedSaleIds.add(String(state.editingSaleId));
-      state.sales = state.sales.filter(item => item.id !== state.editingSaleId);
-      saveSales();
-      renderSales();
-      renderReports();
-      closeModal();
-      showToast('Sale deleted');
+      deleteSaleBtn.disabled = true;
+      try {
+        cloudSaleBases[String(sale.id)] = KapparosAdminSync.clone(sale);
+        cloudDeletedSaleIds.add(String(sale.id));
+        state.sales = state.sales.filter(item => item.id !== sale.id);
+        saveSales(); await flushCloudSave();
+        closeModal(); showToast('Sale deleted');
+      } catch (error) { showToast(error.message, 'error'); }
+      finally { deleteSaleBtn.disabled = false; }
     });
 
     paymentMethodsList.addEventListener('input', e => {
@@ -7418,7 +7491,7 @@
         renderReports();
       }
       refreshCloudStateSilently();
-    }, 15000);
+    }, 2500);
 
     async function initializeCloudSession() {
       try {

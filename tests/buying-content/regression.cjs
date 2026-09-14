@@ -74,10 +74,10 @@ function fullBuyingPage(page='index.html',completed=null) {
   const d=loadPublic(page),w=d.window,doc=w.document;
   assert.equal(doc.documentElement.lang,'en');assert(doc.querySelector('.language-switcher').hidden);
   w.BuyingLanguages.apply({...site,pageContent:{...site.pageContent,benefitOrderIcon:'📍',supportPhone:'2125550100',supportEmail:'help@example.invalid'}},false);
-  assert.equal(doc.documentElement.lang,'yi');assert.equal(doc.querySelector('[data-copy="benefitOrderIcon"]').textContent,'📍');assert.equal(doc.querySelector('[data-copy="benefitPaymentIcon"] img').getAttribute('src'),'/icons/prayer-book.svg');assert.equal(doc.querySelector('[data-copy="benefitTicketIcon"] img').getAttribute('src'),'/icons/mikvah.svg');assert(doc.querySelector('.event-venue').hidden);
+  assert.equal(doc.documentElement.lang,'yi');if(page==='index.html'){assert.equal(doc.querySelector('[data-copy="benefitOrderIcon"]').textContent,'📍');assert.equal(doc.querySelector('[data-copy="benefitPaymentIcon"] img').getAttribute('src'),'/icons/prayer-book.svg');assert.equal(doc.querySelector('[data-copy="benefitTicketIcon"] img').getAttribute('src'),'/icons/mikvah.svg');assert(doc.querySelector('.event-venue').hidden);}
   assert.equal(doc.querySelector('.support-phone').href,'tel:+12125550100');assert.equal(doc.querySelector('.support-email').href,'mailto:help@example.invalid');assert(!doc.getElementById('buyingSupportFooter').hidden);
   const total=doc.getElementById('summaryTotal').textContent;doc.getElementById('customerName').value='Untouched customer';
-  doc.querySelector('[data-language="en"]').click();assert.equal(doc.querySelector('[data-copy="benefitOrder"]').textContent,'Shoychet on site');assert.equal(doc.getElementById('summaryTotal').textContent,total);assert.equal(doc.getElementById('customerName').value,'Untouched customer');
+  doc.querySelector('[data-language="en"]').click();if(page==='index.html')assert.equal(doc.querySelector('[data-copy="benefitOrder"]').textContent,'Shoychet on site');assert.equal(doc.getElementById('summaryTotal').textContent,total);assert.equal(doc.getElementById('customerName').value,'Untouched customer');
   w.BuyingLanguages.lock();assert.equal(doc.documentElement.lang,'en');assert.equal(doc.getElementById('previewShowPassword').textContent,'Show');assert.equal(doc.getElementById('previewGateTitle').textContent,'Online ordering will open September 13.');assert(doc.querySelector('.language-switcher').hidden);w.close();
  });
  await test('Editable copy renders as text; empty support/footer and optional text remain hidden',()=>{
@@ -117,10 +117,10 @@ function fullBuyingPage(page='index.html',completed=null) {
   assert.equal(e.state.englishContent.values.venue,'Selichos minyanim from 5:20\nAnother line');w.close();
  });
  await test('Buying page layout follows the introduction, Venue and phone positions',()=>{
-  for(const page of ['index.html','order/index.html']){
+  for(const page of ['index.html']){
    const {window:w}=loadPublic(page);w.BuyingLanguages.apply({...site,pageContent:{...site.pageContent,venue:'First venue line\nSecond venue line'}},false);
    const doc=w.document,box=doc.querySelector('.event-details'),intro=doc.querySelector('.hero-copy'),phone=doc.querySelector('.event-contact');
-   assert(intro.compareDocumentPosition(box)&4);assert(doc.querySelector('.event-booking').compareDocumentPosition(phone)&4);assert.equal(phone.parentElement.className,'hero');
+   assert(intro.compareDocumentPosition(box)&4);assert(doc.querySelector('.event-booking').compareDocumentPosition(phone)&4);assert.equal(phone.parentElement.className,'hero');assert.equal(phone.previousElementSibling.id,'openOrderButton');assert(doc.querySelector('.event-booking').compareDocumentPosition(doc.getElementById('openOrderButton'))&4);
    const pair=doc.querySelector('.event-venues');assert(pair.classList.contains('has-two-lines'));assert.equal(pair.querySelectorAll('.event-venue').length,2);assert.equal(pair.dir,'rtl');
    doc.querySelector('[data-language="en"]').click();assert.equal(pair.dir,'ltr');assert.equal(pair.children[1].textContent,'Second venue line');w.close();
   }
@@ -130,6 +130,18 @@ function fullBuyingPage(page='index.html',completed=null) {
  });
  await test('Unconnected translation still saves Yiddish and reports the actual pending state',async()=>{
   const e=editor(),w=e.w;w.BuyingSettingsEditor.editSection('Time and location');w.document.getElementById('buyingEdit-timeText').value='נייע צייט';w.document.querySelector('[data-buying-section="Time and location"] form').dispatchEvent(new w.Event('submit',{cancelable:true}));await settle();assert.equal(e.state.pageContent.timeText,'נייע צייט');assert.match(w.document.querySelector('[data-buying-section="Time and location"] .settings-message').textContent,/Yiddish saved.*Connection required/);assert.equal(e.confirmed,1);w.close();
+ });
+ await test('English stays selectable after a new Yiddish edit and never displays its stale translation',()=>{
+  const {window:w}=loadPublic('index.html');
+  w.BuyingLanguages.apply({...site,pageContent:{...site.pageContent,timeText:'נייע צייט'},englishContent:{source:{timeText:'old'},values:{timeText:'Stale translation'}}},false);
+  const button=w.document.querySelector('[data-language="en"]');assert.equal(button.hidden,false);button.click();
+  assert.equal(w.document.documentElement.lang,'en');assert.equal(w.document.querySelector('[data-copy="timeText"]').textContent,'נייע צייט');assert.equal(w.document.querySelector('[data-copy="timeText"]').dir,'rtl');
+  assert.equal(w.document.querySelector('[data-copy="benefitOrder"]').textContent,'Shoychet on site');w.close();
+ });
+ await test('Untranslated English terms cannot be accepted or submitted',()=>{
+  const {window:w}=loadPublic(),config={...site,termsEnabled:true,termsRevision:'new',pageContent:{...site.pageContent,termsText:'נייע תנאים'},englishContent:{source:{termsText:'old'},values:{termsText:'Stale terms'}}};
+  w.BuyingLanguages.apply(config,false);w.BuyingCheckout.apply(config);w.document.querySelector('[data-language="en"]').click();
+  assert.equal(w.document.getElementById('acceptBuyerTerms').disabled,true);assert.equal(w.BuyingCheckout.validate(),false);w.close();
  });
  await test('Terms switch works before Edit, requests text before enabling, and saves with one confirmation',async()=>{
   const e=editor(),w=e.w,toggle=w.document.getElementById('buyingTermsEnabled');assert.equal(toggle.disabled,false);toggle.click();await settle();assert.equal(e.confirmed,0);assert.equal(toggle.checked,false);assert.equal(w.document.getElementById('buyingEdit-termsText').disabled,false);
@@ -171,7 +183,7 @@ function fullBuyingPage(page='index.html',completed=null) {
   assert.equal(e.requests[0].init.headers.Authorization,'Bearer local-preview-fixture');assert.equal(e.requests[0].init.cache,'no-store');
   e.requests[0].resolve(Response.json({settings:site}));await settle();
   assert(doc.getElementById('previewGate').hidden);assert(doc.getElementById('previewLoading').hidden);assert(!doc.body.classList.contains('preview-locked'));
-  assert.equal(e.requests.length,1);doc.getElementById('openOrderButton').click();assert.equal(e.navigations.at(-1),'/order/');
+  assert.equal(e.requests.length,1);if(page==='index.html'){doc.getElementById('openOrderButton').click();assert.equal(e.navigations.at(-1),'/order/');}else{assert.equal(doc.querySelector('.hero'),null);assert.equal(doc.querySelector('.event-details'),null);assert.equal(doc.getElementById('openOrderButton'),null);assert(doc.querySelector('.order-section.open'));}assert.equal(doc.getElementById('quantityValue').textContent,'1');assert.equal(doc.getElementById('summaryQuantity').textContent,'1');assert.equal(doc.getElementById('summaryTotal').textContent,'$20.00');
   doc.getElementById('previewExit').click();assert(!doc.getElementById('previewGate').hidden);assert.equal(w.sessionStorage.getItem('kapparosBuyingPreviewV1'),null);assert(doc.body.classList.contains('preview-locked'));w.close();
  });
  await test('A temporary connection failure offers retry without displaying the closed page or losing the preview session',async()=>{

@@ -32,7 +32,7 @@ One-time connection:
 2. Add the key directly in Supabase project `tugsxxafeaqbqonrruqt` → Edge Functions → Secrets as **`KAPPAROS_TRANSLATE_API_KEY`**. Do not put the key in either repository, website fields, or chat.
 3. Open the editor, check the connection, then Edit and Save a section with new Yiddish wording. Review that section's saved English wording.
 
-When translation is unavailable, the Yiddish change still saves and the section reports English as pending. Built-in/current translations remain usable. English is withheld if visible page content lacks a current translation. Hidden support text or disabled terms do not unnecessarily remove the English option. Saving that section again retries its translation.
+When translation is unavailable, the Yiddish change still saves and the section reports English as pending. Built-in/current translations remain usable. The English option stays visible and selectable. Only a field missing a current English translation falls back to its current Yiddish text; stale English is never displayed. English checkout remains unavailable if required terms lack a current English translation. Saving that section again retries its translation.
 
 Only changed, allowlisted public copy is sent to Google Cloud Translation Basic (`yi` → `en`, plain text). The endpoint validates the existing unexpired admin session first. It does not write website state, change credentials, create sales, charge cards, or send messages. Provider quotas are the durable spending limit; the endpoint also has a per-instance burst throttle.
 
@@ -70,3 +70,10 @@ Keep `siksakapparos` and `siksakapparos-order` in sibling directories. In `siksa
 
 Provider documentation: https://docs.cloud.google.com/translate/docs/translate-text
 Supabase secrets: https://supabase.com/docs/guides/functions/secrets
+
+
+## September 14 ordering layout and sync update
+
+The landing button follows the highlights and reservation notice, immediately before the clickable ordering phone (without an underline). `/order/` has a compact brand header and the order form, without the landing information panel, highlights or phone section. New orders start at one chicken. The support footer is horizontal on desktop with smaller mobile text.
+
+See `ADMIN-SYNC.md` for the independent stock/concurrency database update. No Edge Function deployment is part of this change; the earlier blocked `kapparos-sync` expense-payment validation remains unapproved and undeployed.

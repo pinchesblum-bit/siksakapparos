@@ -32,7 +32,7 @@
       : connection === 'ready'
       ? 'Automatic English translation is connected. Each section translates when you save it.'
       : connection === 'missing'
-        ? 'Automatic translation is not connected yet. Your Yiddish edits still save. English is shown only when its translation is up to date.'
+        ? 'Automatic translation is not connected yet. Your Yiddish edits still save. English stays available; newly edited text stays in Yiddish until its translation is ready.'
         : 'Current translated wording is available. Check the connection below to confirm that new Yiddish edits can translate automatically.';
   }
   function mount() {
@@ -226,7 +226,7 @@
       catch (error) { warning = error.message || 'English translation is unavailable.'; }
       await api.saveSection(values, english);
       setEditing(card, false); fill(api.getSettings());
-      message(card, warning ? 'Yiddish saved. ' + warning + ' English for this section is pending.' : 'This section and its English wording are saved.', Boolean(warning));
+      message(card, warning ? 'Yiddish saved. ' + warning + ' English stays available; this section uses the current Yiddish until translation is ready.' : 'This section and its English wording are saved.', Boolean(warning));
     } catch (error) { message(card, error.message || 'This section could not be saved. Please try again.', true); }
     finally { lock(card, false); status(); }
   }

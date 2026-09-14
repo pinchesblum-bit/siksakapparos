@@ -13,7 +13,7 @@ let count = 0;
 const test = async (name, fn) => { await fn(); count++; console.log('PASS',name); };
 function dom(file) {return new JSDOM(read(file),{url:'https://siksakapparos.org/',runScripts:'outside-only'});}
 function script(w,file) {w.eval(read(file));}
-function loadPublic(page='order.html') {const d=dom('siksakapparos-order/'+page),w=d.window;script(w,'siksakapparos-order/buying-content.js');script(w,'siksakapparos-order/buying-presentation.js');script(w,'siksakapparos-order/buying-languages.js');script(w,'siksakapparos-order/buying-checkout.js');return d;}
+function loadPublic(page='order/index.html') {const d=dom('siksakapparos-order/'+page),w=d.window;script(w,'siksakapparos-order/buying-content.js');script(w,'siksakapparos-order/buying-presentation.js');script(w,'siksakapparos-order/buying-languages.js');script(w,'siksakapparos-order/buying-checkout.js');return d;}
 const site = {title:'פנים מאירות סיקסא',subtitle:'ערב יום כיפור כפרות',orderingEnabled:true,publicAccessEnabled:false,price:20,inventory:100,pageContent:{introText:'באשטעלט אייער כפרות גרינג און באקוועם',bookingNote:'ווען איר באשטעלט א כפרה וועט דאס ווערן אוועקגעלייגט ביז 8:00',benefitOrder:'שוחט אויפן פלאץ',benefitPayment:'מניני סליחות ושחרית',benefitTicket:'מקוה חמה',contactLabel:'צו באשטעלן אויפן טעלעפאן רופט:',venue:'',services:'',prepaymentNote:''}};
 function backend(slug, options={}) {
  let handler; const calls=[];
@@ -44,6 +44,18 @@ function editor(settings=site,confirmValue=true) {
  return {d,w,get state(){return state},get confirmed(){return confirmed},saved};
 }
 async function settle(){await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));}
+function fullBuyingPage(page='index.html',completed=null) {
+ const d=new JSDOM(read('siksakapparos-order/'+page),{url:'https://siksakapparos.org/'+(page==='index.html'?'':'order/'),runScripts:'outside-only'}),w=d.window,requests=[],navigations=[];
+ w.AbortSignal=AbortSignal;w.scrollTo=()=>{};w.__navigate=path=>navigations.push(path);
+ w.sessionStorage.setItem('kapparosBuyingPreviewV1','local-preview-fixture');
+ if(completed)w.sessionStorage.setItem('kapparosCompletedTicketV1',JSON.stringify(completed));
+ w.fetch=(url,init)=>new Promise((resolve,reject)=>{assert(url.endsWith('/kapparos-public-config'));requests.push({url,init,resolve,reject});});
+ for(const el of w.document.querySelectorAll('script')){
+  if(el.src){const name=new URL(el.src).pathname.split('/').pop();if(name!=='ticket-design.js')script(w,'siksakapparos-order/'+name);}
+  else w.eval(el.textContent.replaceAll('window.location.assign','window.__navigate'));
+ }
+ return {d,w,requests,navigations};
+}
 (async()=>{
  await test('Current saved wording and Shoychet spelling have current English; stale translations are rejected',()=>{
   const e=presentation.english(site);assert.deepEqual(e.missing,[]);assert.equal(e.values.benefitOrder,'Shoychet on site');assert.equal(e.values.title,'Punim Meiros Siksa');assert.equal(e.values.venue,'');
@@ -58,11 +70,11 @@ async function settle(){await new Promise(resolve=>setImmediate(resolve));await 
   for(const value of ['8453723311','845-372-3311','(845) 372-3311','+1 845 372 3311','18453723311'])assert.deepEqual(copy.phone(value),{label:'845-372-3311',href:'tel:+18453723311'});
   assert.equal(copy.phone('javascript:alert(1)').href,'');
  });
- for(const page of ['index.html','order.html']) await test(page+' keeps private access English and renders saved copy, editable icons and support links',()=>{
+ for(const page of ['index.html','order/index.html']) await test(page+' keeps private access English and renders saved copy, editable icons and support links',()=>{
   const d=loadPublic(page),w=d.window,doc=w.document;
   assert.equal(doc.documentElement.lang,'en');assert(doc.querySelector('.language-switcher').hidden);
   w.BuyingLanguages.apply({...site,pageContent:{...site.pageContent,benefitOrderIcon:'📍',supportPhone:'2125550100',supportEmail:'help@example.invalid'}},false);
-  assert.equal(doc.documentElement.lang,'yi');assert.equal(doc.querySelector('[data-copy="benefitOrderIcon"]').textContent,'📍');assert.equal(doc.querySelector('[data-copy="benefitPaymentIcon"] img').getAttribute('src'),'icons/prayer-book.svg');assert.equal(doc.querySelector('[data-copy="benefitTicketIcon"] img').getAttribute('src'),'icons/mikvah.svg');assert(doc.querySelector('.event-venue').hidden);
+  assert.equal(doc.documentElement.lang,'yi');assert.equal(doc.querySelector('[data-copy="benefitOrderIcon"]').textContent,'📍');assert.equal(doc.querySelector('[data-copy="benefitPaymentIcon"] img').getAttribute('src'),'/icons/prayer-book.svg');assert.equal(doc.querySelector('[data-copy="benefitTicketIcon"] img').getAttribute('src'),'/icons/mikvah.svg');assert(doc.querySelector('.event-venue').hidden);
   assert.equal(doc.querySelector('.support-phone').href,'tel:+12125550100');assert.equal(doc.querySelector('.support-email').href,'mailto:help@example.invalid');assert(!doc.getElementById('buyingSupportFooter').hidden);
   const total=doc.getElementById('summaryTotal').textContent;doc.getElementById('customerName').value='Untouched customer';
   doc.querySelector('[data-language="en"]').click();assert.equal(doc.querySelector('[data-copy="benefitOrder"]').textContent,'Shoychet on site');assert.equal(doc.getElementById('summaryTotal').textContent,total);assert.equal(doc.getElementById('customerName').value,'Untouched customer');
@@ -105,7 +117,7 @@ async function settle(){await new Promise(resolve=>setImmediate(resolve));await 
   assert.equal(e.state.englishContent.values.venue,'Selichos minyanim from 5:20\nAnother line');w.close();
  });
  await test('Buying page layout follows the introduction, Venue and phone positions',()=>{
-  for(const page of ['index.html','order.html']){
+  for(const page of ['index.html','order/index.html']){
    const {window:w}=loadPublic(page);w.BuyingLanguages.apply({...site,pageContent:{...site.pageContent,venue:'First venue line\nSecond venue line'}},false);
    const doc=w.document,box=doc.querySelector('.event-details'),intro=doc.querySelector('.hero-copy'),phone=doc.querySelector('.event-contact');
    assert(intro.compareDocumentPosition(box)&4);assert(doc.querySelector('.event-booking').compareDocumentPosition(phone)&4);assert.equal(phone.parentElement.className,'hero');
@@ -151,6 +163,46 @@ async function settle(){await new Promise(resolve=>setImmediate(resolve));await 
  await test('Translation status and provider remain admin-authenticated; only allowlisted public text is accepted',async()=>{
   const no=backend('kapparos-buying-translate');assert.equal((await no.handler(request({action:'status'},''))).status,401);assert.equal(no.calls.length,0);
   const yes=backend('kapparos-buying-translate',{auth:true});assert.deepEqual(await (await yes.handler(request({action:'status'}))).json(),{configured:false});assert.equal((await yes.handler(request({texts:{customerEmail:'private@example.invalid'}}))).status,400);const r=await yes.handler(request({texts:{timeText:'נייע צייט'}}));assert.equal(r.status,503);assert.equal((await r.json()).code,'translation_setup_required');
+ });
+ for(const page of ['index.html','order/index.html'])await test(page+' restores a verified preview without exposing the login screen while loading',async()=>{
+  const e=fullBuyingPage(page),{w}=e,doc=w.document;
+  assert(doc.getElementById('previewGate').hidden);assert(doc.body.classList.contains('preview-loading'));
+  assert.equal(w.getComputedStyle(doc.querySelector('main')).display,'none');assert.equal(w.getComputedStyle(doc.getElementById('previewGate')).display,'none');
+  assert.equal(e.requests[0].init.headers.Authorization,'Bearer local-preview-fixture');assert.equal(e.requests[0].init.cache,'no-store');
+  e.requests[0].resolve(Response.json({settings:site}));await settle();
+  assert(doc.getElementById('previewGate').hidden);assert(doc.getElementById('previewLoading').hidden);assert(!doc.body.classList.contains('preview-locked'));
+  assert.equal(e.requests.length,1);doc.getElementById('openOrderButton').click();assert.equal(e.navigations.at(-1),'/order/');
+  doc.getElementById('previewExit').click();assert(!doc.getElementById('previewGate').hidden);assert.equal(w.sessionStorage.getItem('kapparosBuyingPreviewV1'),null);assert(doc.body.classList.contains('preview-locked'));w.close();
+ });
+ await test('A temporary connection failure offers retry without displaying the closed page or losing the preview session',async()=>{
+  const e=fullBuyingPage(),{w}=e,doc=w.document;e.requests[0].reject(new Error('Offline fixture'));await settle();
+  assert(doc.getElementById('previewGate').hidden);assert(!doc.getElementById('previewRetry').hidden);assert(doc.body.classList.contains('preview-locked'));
+  assert.equal(w.sessionStorage.getItem('kapparosBuyingPreviewV1'),'local-preview-fixture');doc.getElementById('previewRetry').click();
+  assert(doc.getElementById('previewRetry').hidden);assert.equal(e.requests.length,2);e.requests[1].resolve(Response.json({settings:site}));await settle();
+  assert(!doc.body.classList.contains('preview-locked'));assert(doc.getElementById('previewGate').hidden);w.close();
+ });
+ await test('Only a confirmed locked response shows the English login screen',async()=>{
+  const e=fullBuyingPage(),{w}=e,doc=w.document;assert(doc.getElementById('previewGate').hidden);
+  e.requests[0].resolve(Response.json({locked:true}));await settle();assert(!doc.getElementById('previewGate').hidden);assert(doc.getElementById('previewLoading').hidden);
+  assert(doc.body.classList.contains('preview-locked'));assert.equal(doc.documentElement.lang,'en');assert.equal(w.getComputedStyle(doc.querySelector('main')).display,'none');w.close();
+ });
+ await test('The clean order route restores an existing ticket only after access validation and Done returns home',async()=>{
+  const e=fullBuyingPage('order/index.html',{id:'fixture-only',ticketId:'123456',orderToken:'fixture-only-token',fullName:'Local fixture',phone:'2125550100',quantity:2,price:40,remainingInventory:98}),{w}=e,doc=w.document;
+  assert(!doc.getElementById('demoCheckoutModal').classList.contains('open'));e.requests[0].resolve(Response.json({settings:site}));await settle();
+  assert(doc.getElementById('demoCheckoutModal').classList.contains('open'));assert.equal(doc.getElementById('demoTicketNumber').textContent,'123456');assert.equal(e.requests.length,1);
+  assert.equal(doc.querySelector('.order-back').href,'https://siksakapparos.org/');doc.getElementById('demoDoneButton').click();assert.equal(e.navigations.at(-1),'/');
+  assert.equal(w.sessionStorage.getItem('kapparosCompletedTicketV1'),null);assert.equal(w.sessionStorage.getItem('kapparosBuyingPreviewV1'),'local-preview-fixture');w.close();
+ });
+ await test('The legacy order URL preserves its query and fragment; nested assets and the original chicken icon remain valid',()=>{
+  const old=new JSDOM(read('siksakapparos-order/order.html'),{url:'https://siksakapparos.org/order.html?language=en#summary',runScripts:'outside-only'});let target;
+  old.window.__navigate=value=>target=value;old.window.eval(old.window.document.querySelector('script').textContent.replace('window.location.replace','window.__navigate'));assert.equal(target,'/order/?language=en#summary');old.window.close();
+  const e=fullBuyingPage('order/index.html'),doc=e.w.document;
+  for(const el of doc.querySelectorAll('script[src],link[rel="stylesheet"]')){const url=new URL(el.src||el.href);assert(fs.existsSync(path.join(root,'siksakapparos-order',url.pathname)));}
+  assert.equal(doc.querySelector('base'),null);assert.equal(doc.querySelector('link[rel="canonical"]').href,'https://siksakapparos.org/order/');
+  const png=fs.readFileSync(path.join(root,'siksakapparos-order/favicon.png'));assert.equal(png.readUInt32BE(16),256);assert.equal(png.readUInt32BE(20),256);
+  assert(png.equals(Buffer.from(doc.querySelector('.hero-chicken').src.split(',')[1],'base64')));assert.equal(doc.querySelector('link[rel="icon"]').href,'https://siksakapparos.org/favicon.png');
+  for(const file of ['index.html','order/index.html'])assert(!read('siksakapparos-order/'+file).includes('Demo payments do not charge a card. Successful tests are saved as paid online sales.'));
+  e.w.close();
  });
  console.log(count+' regression checks passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

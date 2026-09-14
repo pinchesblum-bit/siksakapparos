@@ -4,13 +4,21 @@ Open **Settings → Buying Website → Edit Website**. The separate editor has n
 
 The sections are Heading, Time and location, Highlights and icons, Notices and ordering phone, Order form, Order summary, Ticket actions, Buyer terms, and Support footer. The knife, prayer book, and mikvah icons use matching deep-green and gold SVGs in both the editor preview and the buying website. Select a suggested icon or paste another emoji; an empty icon stays hidden. Empty optional fields stay hidden. Selling price and inventory still come from Sales Settings.
 
-The private-access page is fixed English and is not editable in this editor. Public opening remains manual. Demo-payment notices and editable ticket/PDF/email templates retain their existing behavior; this editor does not convert demo payments into real payments or rewrite ticket templates.
+The private-access page is fixed English and is not editable in this editor. Public opening remains manual. The general demo-payment sentence below the homepage content was removed at the owner's request. Checkout still identifies demo payments, and editable ticket/PDF/email templates retain their existing behavior; this editor does not convert demo payments into real payments or rewrite ticket templates.
 
 ## Information layout
 
-The introduction appears above the time/address box. Venue line 1 and line 2 appear at the bottom of that box, side by side on desktop and stacked on mobile. A single populated line is centered. The ordering phone follows the reservation notice. Mobile highlight icons share a fixed-width column at the right edge in Yiddish and the left edge in English.
+The introduction appears above the time/address box. Venue line 1 and line 2 appear at the bottom of that box, side by side on desktop and stacked on mobile. A single populated line is centered. The ordering phone follows the reservation notice. On mobile, the Yiddish highlight rows are centered on the page, while English starts at the left edge. Desktop highlight alignment is unchanged.
 
 Both Venue inputs save into the existing `pageContent.venue` value, separated by a newline, with the existing 240-character combined limit. Existing single-line Venue content stays in the first input. Translations preserve the two lines separately and reuse exact matching saved English. This requires no backend deployment or schema change.
+
+## Page loading, addresses, and search icon
+
+The buying homepage remains `/`; the separate order form lives at `/order/` (`order/index.html`). The old `/order.html` address forwards to `/order/`, retaining query strings and fragments. Order-page assets use root-relative URLs. Back to home and Done return to `/`. Keep the existing order and ticket session storage keys so this address change does not lose retry or completed-ticket state.
+
+Both pages start with a neutral loading state and keep the login screen and buying content hidden until the existing public-config response arrives. A valid saved preview session opens the requested page directly. A confirmed locked response shows the existing English login screen. Network errors show a retry action without flashing the closed-page notice or revealing unverified content. Session scope, expiry, validation, and the manual public-access switch are unchanged.
+
+`favicon.png` is the exact existing 256×256 chicken artwork, linked from the homepage and order page at a stable, crawlable URL. Google controls when and whether it appears in search results. The homepage canonical URL, robots rules, and sitemap remain unchanged.
 
 ## English translation
 

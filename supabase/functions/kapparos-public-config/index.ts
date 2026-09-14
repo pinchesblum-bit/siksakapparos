@@ -1,3 +1,5 @@
+import './buying-content.js';
+const buyingCopy = (globalThis as any).KapparosBuyingContent;
 import { OPENING_NOTICE, hasBuyingAccess, previewLogin } from './preview-access.ts';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -37,6 +39,7 @@ function cleanLines(value: unknown, fallback: string[]) {
 function sanitize(value: any, sales: any[] = [], admin: any = {}) {
   const source = value && typeof value === 'object' ? value : {};
   return {
+    ...buyingCopy.publicCopy(source),
     orderingEnabled: source.orderingEnabled !== false,
     publicAccessEnabled: source.publicAccessEnabled === true,
     title: String(source.title || DEFAULTS.title).trim().slice(0, 120),
@@ -85,7 +88,7 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({token,settings:sanitize(admin.buyingWebsite, rows[0].sales || [], admin)}), {status:200,headers});
     }
     if (!(await hasBuyingAccess(req, admin, SERVICE_KEY))) {
-      return new Response(JSON.stringify({locked:true,notice:OPENING_NOTICE}), {status:200,headers});
+      return new Response(JSON.stringify({locked:true,notice:OPENING_NOTICE,copy:buyingCopy.publicCopy(admin.buyingWebsite, ['title', 'gateTitle', 'gateDescription'])}), {status:200,headers});
     }
     return new Response(JSON.stringify({settings:sanitize(admin.buyingWebsite, rows[0].sales || [], admin)}), {status:200,headers});
   } catch (error) {

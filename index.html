@@ -1714,6 +1714,7 @@
     /* Match the existing chicken image to the ivory page surface. */
     .chicken img { filter:url(#admin-paper-match); }
 </style>
+  <link rel="stylesheet" href="buying-settings.css?v=20260914-1" />
 </head>
 <body>
   <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;pointer-events:none">
@@ -2068,7 +2069,7 @@
             <div class="settings-section">
               <h3>Public access</h3>
               <label class="settings-switch-row field full">
-                <span class="reservation-setting-copy"><span>Open to the public</span><span class="settings-card-note">When off, visitors see the September 13 notice. Use your admin username and password to preview the buying website. It stays private until you turn this on.</span></span>
+                <span class="reservation-setting-copy"><span>Open to the public</span><span class="settings-card-note">When off, visitors see the closed-page notice below. Use your admin username and password to preview the buying website. It stays private until you turn this on.</span></span>
                 <span class="toggle-switch"><input type="checkbox" id="settingBuyingPublicAccess" /><span class="toggle-slider" aria-hidden="true"></span></span>
               </label>
             </div>
@@ -2097,6 +2098,14 @@
             <div class="settings-grid buying-options-grid">
               <div class="field full"><label for="settingBuyingConfirmationText">Customer Confirmation Text</label><textarea id="settingBuyingConfirmationText" rows="4" required></textarea><div class="helper">Shown beside the order summary.</div></div>
             </div>
+            <div class="settings-section buying-language-note">
+              <h3>Yiddish and English</h3>
+              <p class="settings-card-note">Write your page wording in Yiddish. Saving updates the English translation automatically. Visitors can choose ייִדיש or English on either page.</p>
+              <p class="settings-card-note">The fields below control the time, address, phone number, notices, and page wording. Leave an optional field empty to hide it. Selling price remains in Sales Settings.</p>
+              <p id="buyingTranslationStatus" class="settings-card-note" role="status"></p>
+              <details class="buying-english-details"><summary>View saved English wording</summary><dl id="buyingEnglishPreview"></dl></details>
+            </div>
+            <div id="buyingContentFields"></div>
             <p class="settings-message" id="buyingWebsiteSettingsMessage" role="alert"></p>
             <div class="settings-actions" data-settings-actions="buying" hidden><button type="button" class="secondary-btn" data-cancel-settings="buying">Cancel</button><button type="submit" class="primary-btn">Save</button></div>
           </form>
@@ -2774,6 +2783,8 @@
   <div class="toast" id="toast">Sale saved</div>
 
   <script src="ticket-design.js?v=20260911-1"></script>
+  <script src="buying-content.js?v=20260914-1"></script>
+  <script src="buying-settings.js?v=20260914-1"></script>
   <script>
     const STORAGE_KEY = 'kapparosSalesV1';
     const SETTINGS_KEY = 'kapparosSettingsV1';
@@ -4603,6 +4614,7 @@
       settingBuyingPickupTimes.value = state.settings.buyingWebsite.pickupTimes.join('\n');
       settingBuyingPaymentChoices.value = state.settings.buyingWebsite.paymentChoices.join('\n');
       settingBuyingConfirmationText.value = state.settings.buyingWebsite.confirmationText;
+      BuyingSettingsEditor.fill(state.settings.buyingWebsite);
       settingDefaultPrice.value = Number(state.settings.defaultPrice).toFixed(2);
       settingInventory.value = state.settings.inventory;
       settingReservationsEnabled.checked = state.settings.reservationsEnabled !== false;
@@ -4711,6 +4723,7 @@
         settingBuyingPickupTimes.value = value.pickupTimes.join('\n');
         settingBuyingPaymentChoices.value = value.paymentChoices.join('\n');
         settingBuyingConfirmationText.value = value.confirmationText;
+        BuyingSettingsEditor.fill(value);
         buyingWebsiteSettingsMessage.textContent = '';
       }
       if (section === 'sales') {
@@ -6942,41 +6955,51 @@
       }
     });
 
+    let buyingSettingsSaving = false;
     buyingWebsiteSettingsForm.addEventListener('submit', async event => {
       event.preventDefault();
-      if (!buyingWebsiteSettingsForm.reportValidity()) return;
-      const pickupTimes = Array.isArray(state.settings.buyingWebsite.pickupTimes) ? state.settings.buyingWebsite.pickupTimes : [];
-      const paymentChoices = ['Credit card'];
-      const next = {
-        orderingEnabled: settingBuyingEnabled.checked,
-        publicAccessEnabled: state.settings.buyingWebsite.publicAccessEnabled === true,
-        title: settingBuyingTitle.value.trim(),
-        subtitle: settingBuyingSubtitle.value.trim(),
-        buttonText: settingBuyingButtonText.value.trim(),
-        price: Math.max(0, Number(state.settings.defaultPrice)),
-        inventory: Math.max(0, Math.floor(Number(state.settings.inventory))),
-        pickupTimes,
-        paymentChoices,
-        confirmationText: settingBuyingConfirmationText.value.trim()
-      };
-      if (JSON.stringify(next) === JSON.stringify(state.settings.buyingWebsite)) {
+      if (buyingSettingsSaving || !buyingWebsiteSettingsForm.reportValidity()) return;
+      const next = BuyingSettingsEditor.read(state.settings.buyingWebsite);
+      const needsTranslation = KapparosBuyingContent.english(next).missing.length > 0;
+      if (!needsTranslation && JSON.stringify(next) === JSON.stringify(state.settings.buyingWebsite)) {
         buyingWebsiteSettingsMessage.style.color = '#7a7269';
         buyingWebsiteSettingsMessage.textContent = 'No changes to save.';
         setSettingsEditMode('buying', false);
         return;
       }
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
-      state.settings.buyingWebsite = next;
-      saveSettings();
+      buyingSettingsSaving = true;
+      buyingWebsiteSettingsForm.querySelectorAll('input, textarea, button').forEach(control => {
+        if (control !== settingBuyingEnabled && control !== settingBuyingPublicAccess) control.disabled = true;
+      });
+      buyingWebsiteSettingsMessage.style.color = '#7a7269';
+      buyingWebsiteSettingsMessage.textContent = 'Saving wording and updating English…';
+      let translationError = '';
       try {
+        try { next.englishContent = await BuyingSettingsEditor.translate(next, cloudSessionToken); }
+        catch (error) { translationError = error.message || 'English translation is unavailable.'; }
+        // Keep switches and shared sales settings current if they changed while translating.
+        state.settings.buyingWebsite = {
+          ...state.settings.buyingWebsite,
+          ...Object.fromEntries(KapparosBuyingContent.fields.filter(field => field.root).map(field => [field.key, next[field.key]])),
+          pageContent: next.pageContent,
+          englishContent: next.englishContent || state.settings.buyingWebsite.englishContent
+        };
+        saveSettings();
         await flushCloudSave();
-        buyingWebsiteSettingsMessage.style.color = '#426447';
-        buyingWebsiteSettingsMessage.textContent = 'Buying Website settings saved.';
+        BuyingSettingsEditor.fill(state.settings.buyingWebsite);
+        buyingWebsiteSettingsMessage.style.color = translationError ? '#a23939' : '#426447';
+        buyingWebsiteSettingsMessage.textContent = translationError
+          ? 'Yiddish wording saved. ' + translationError + ' English stays unavailable for changed text until translation succeeds. After connecting, press Edit and Save again.'
+          : 'Buying Website settings and English translation saved.';
         setSettingsEditMode('buying', false);
-        showToast('Buying Website settings saved');
+        showToast(translationError ? 'Wording saved; English translation pending' : 'Buying Website settings saved');
       } catch (error) {
         buyingWebsiteSettingsMessage.style.color = '#a23939';
         buyingWebsiteSettingsMessage.textContent = error.message || 'The settings are waiting to save.';
+      } finally {
+        buyingSettingsSaving = false;
+        setSettingsEditMode('buying', settingsEditMode.buying);
       }
     });
 

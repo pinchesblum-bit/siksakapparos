@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "scripts": {"test": "node regression.cjs"},
+  "devDependencies": {"jsdom": "26.1.0", "typescript": "5.9.3"}
+}

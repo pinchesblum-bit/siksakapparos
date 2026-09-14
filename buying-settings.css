@@ -1,0 +1,9 @@
+#buyingWebsiteSettingsForm input[dir="auto"], #buyingWebsiteSettingsForm textarea[dir="auto"] { font-size: 17px; line-height: 1.5; }
+#buyingWebsiteSettingsForm textarea { resize: vertical; }
+.buying-language-note { line-height: 1.6; }
+.buying-english-details { margin-top: 12px; }
+.buying-english-details summary { cursor: pointer; color: #203c36; font-weight: 600; padding: 8px 0; }
+.buying-translation-row { display: grid; grid-template-columns: minmax(140px, 1fr) 3fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e2d8c8; }
+.buying-translation-row dt { color: #6c675f; }
+.buying-translation-row dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width:600px) { .buying-translation-row { grid-template-columns: 1fr; gap: 5px; } }

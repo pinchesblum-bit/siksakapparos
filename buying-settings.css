@@ -14,6 +14,9 @@
 .buying-editor-field input:focus, .buying-editor-field textarea:focus { outline: 2px solid #a6854f; outline-offset: 2px; }
 .buying-editor-field input.buying-icon-input { max-width: 110px; font-size: 24px; text-align: center; }
 .buying-editor-icon-field .buying-editor-value { font-size: 26px; }
+.buying-symbol { display: inline-block; width: 32px; height: 32px; object-fit: contain; vertical-align: middle; }
+.buying-icon-name { margin-inline-start: 9px; font-size: 15px; line-height: 1.5; vertical-align: middle; }
+.buying-icon-preview { margin-top: 10px; min-height: 32px; font-size: 26px; }
 .buying-english-details { margin-top: 18px; }
 .buying-english-details summary { cursor: pointer; color: #203c36; font-weight: 600; padding: 8px 0; }
 .buying-translation-row { display: grid; grid-template-columns: minmax(140px, 1fr) 3fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid #e2d8c8; }

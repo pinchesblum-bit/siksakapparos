@@ -2,13 +2,13 @@
 
 Open **Settings → Buying Website → Edit Website**. The separate editor has nine sections and 48 editable wording/icon fields. Each section has its own Edit, Cancel, Save, and saved English preview. Saving one section preserves drafts in other sections. Refresh keeps the editor page selected.
 
-The sections are Heading, Time and location, Highlights and icons, Notices and ordering phone, Order form, Order summary, Ticket actions, Buyer terms, and Support footer. Empty optional fields stay hidden. Selling price and inventory still come from Sales Settings.
+The sections are Heading, Time and location, Highlights and icons, Notices and ordering phone, Order form, Order summary, Ticket actions, Buyer terms, and Support footer. The knife, prayer book, and mikvah icons use matching deep-green and gold SVGs in both the editor preview and the buying website. Select a suggested icon or paste another emoji; an empty icon stays hidden. Empty optional fields stay hidden. Selling price and inventory still come from Sales Settings.
 
 The private-access page is fixed English and is not editable in this editor. Public opening remains manual. Demo-payment notices and editable ticket/PDF/email templates retain their existing behavior; this editor does not convert demo payments into real payments or rewrite ticket templates.
 
 ## English translation
 
-The current saved wording has English translations, including **Punim Meiros Siksa** and **Shoyched on site**. The admin's confirmed Yiddish label is **שוחט אויפן פלאץ**. Translations are matched to their exact source; stale English is not displayed after a wording change.
+The current saved wording has English translations, including **Punim Meiros Siksa** and **Shoychet on site**. The admin's confirmed Yiddish label is **שוחט אויפן פלאץ**. Translations are matched to their exact source; stale English is not displayed after a wording change.
 
 Future custom Yiddish text uses the dedicated `kapparos-buying-translate` function. The editor's **Check translation connection** action checks whether its server-side key is configured. A configured key still needs a successful translation request to verify provider access.
 
@@ -44,7 +44,9 @@ Add a support phone number and/or email address in **Support footer**. The help 
 - `supabase/functions/kapparos-buying-translate/buying-content.js`
 - `supabase/functions/kapparos-public-order/buying-content.js`
 
-Deploy those three functions with their matching shared schema. Both copies of `preview-access.ts` remain unchanged. Publish each frontend through its existing GitHub Pages workflow.
+The frontend-only `buying-presentation.js` supplies the branded icon choices, icon defaults, and the visible Shoychet spelling correction without changing access or checkout code. Keep its two copies and the three SVG assets identical.
+
+Deploy those three functions with their matching shared schema only when making an authorized backend change. The icon/spelling update is frontend-only and does not deploy any function. Both copies of `preview-access.ts` remain unchanged. Publish each frontend through its existing GitHub Pages workflow.
 
 **Do not deploy `kapparos-sync` as part of this work.** Its separately blocked validation deployment remains outstanding. No database migration is needed; the existing atomic order RPC already preserves the terms-acceptance metadata in the sale JSON.
 

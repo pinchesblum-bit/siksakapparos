@@ -2,6 +2,7 @@
 (function (root) {
   'use strict';
   const copy = root.KapparosBuyingContent;
+  const presentation = root.KapparosBuyingPresentation;
   const sections = [...new Set(copy.fields.map(field => field.group))];
   const cards = new Map();
   let api = null, saving = false, connection = 'unknown';
@@ -13,6 +14,15 @@
   };
   function message(card, text, error = false) {
     card.message.textContent = text; card.message.classList.toggle('is-error', error);
+  }
+  function showIcon(element, value) {
+    const icon = presentation.icon(value);
+    element.replaceChildren();
+    if (icon) {
+      const picture = make('img', 'buying-symbol');
+      picture.src = icon.path; picture.alt = ''; picture.width = 32; picture.height = 32;
+      element.append(picture, make('span', 'buying-icon-name', icon.label));
+    } else element.textContent = value || 'No icon';
   }
   function status() {
     const line = document.getElementById('buyingTranslationStatus');
@@ -46,7 +56,7 @@
       if (group === 'Support footer') section.append(make('p', 'settings-card-note', 'Add a phone number, an email address, or both. The help line appears at the bottom of both buying pages.'));
       const form = make('form', 'buying-editor-form');
       const grid = make('div', 'buying-editor-grid');
-      const fields = copy.fields.filter(field => field.group === group), controls = new Map(), displays = new Map(), englishRows = new Map();
+      const fields = copy.fields.filter(field => field.group === group), controls = new Map(), displays = new Map(), englishRows = new Map(), iconPreviews = new Map();
       for (const field of fields) {
         const wrap = make('div', 'buying-editor-field' + (field.max >= 500 ? ' buying-editor-wide' : ''));
         const label = make('label', '', field.label); label.htmlFor = 'buyingEdit-' + field.key;
@@ -57,10 +67,19 @@
         if (field.max >= 500) input.rows = field.key === 'termsText' ? 8 : 3;
         else input.type = field.type === 'tel' || field.type === 'email' ? field.type : 'text';
         if (field.type === 'icon') {
-          input.setAttribute('aria-description', 'Paste an emoji, or leave empty for no icon.');
+          input.setAttribute('aria-description', 'Choose a suggested icon, paste another emoji, or leave empty for no icon.');
+          const choices = make('datalist'); choices.id = input.id + '-choices';
+          presentation.icons.forEach(icon => { const option = make('option'); option.value = icon.value; option.label = icon.label; choices.append(option); });
+          input.setAttribute('list', choices.id); wrap.append(choices);
           wrap.classList.add('buying-editor-icon-field');
         }
         wrap.append(label, display, input); grid.append(wrap); controls.set(field.key, input); displays.set(field.key, display);
+        if (field.type === 'icon') {
+          const preview = make('div', 'buying-icon-preview'); preview.hidden = true;
+          preview.setAttribute('aria-label', 'Icon preview');
+          input.addEventListener('input', () => showIcon(preview, input.value.trim()));
+          wrap.append(preview); iconPreviews.set(field.key, preview);
+        }
       }
       form.append(grid);
       const english = make('details', 'buying-english-details'); const summary = make('summary', '', 'View saved English wording'); const list = make('dl', 'buying-english-list');
@@ -72,7 +91,7 @@
       const actions = make('div', 'settings-actions'); actions.hidden = true;
       const cancel = make('button', 'secondary-btn', 'Cancel'); cancel.type = 'button';
       const save = make('button', 'primary-btn', 'Save'); save.type = 'submit'; actions.append(cancel, save); form.append(actions); section.append(form); container.append(section);
-      const card = {group, section, form, fields, controls, displays, englishRows, edit, actions, message: notice, editing: false, busy: false}; cards.set(group, card);
+      const card = {group, section, form, fields, controls, displays, englishRows, iconPreviews, edit, actions, message: notice, editing: false, busy: false}; cards.set(group, card);
       edit.addEventListener('click', () => editSection(group)); cancel.addEventListener('click', () => { setEditing(card, false); fill(api.getSettings()); message(card, ''); });
       form.addEventListener('submit', event => { event.preventDefault(); saveSection(card); });
     });
@@ -80,6 +99,7 @@
   function setEditing(card, editing) {
     card.editing = editing; card.edit.hidden = editing; card.actions.hidden = !editing;
     card.controls.forEach((input, key) => { input.hidden = !editing; input.disabled = !editing || card.busy; card.displays.get(key).hidden = editing; });
+    card.iconPreviews.forEach((preview, key) => { preview.hidden = !editing; showIcon(preview, card.controls.get(key).value); });
   }
   function editSection(group) {
     if (!api || saving) return;
@@ -88,12 +108,15 @@
     card.controls.values().next().value?.focus();
   }
   function fill(settings = {}) {
-    mount(); const source = copy.source(settings), translated = copy.english(settings);
+    mount(); const source = presentation.source(settings), translated = presentation.english(settings);
     cards.forEach(card => {
       card.fields.forEach(field => {
         if (!card.editing) card.controls.get(field.key).value = source[field.key];
         const value = field.type === 'tel' ? copy.phone(source[field.key]).label : source[field.key];
-        card.displays.get(field.key).textContent = value || 'Not shown';
+        if (field.type === 'icon') {
+          showIcon(card.displays.get(field.key), value);
+          showIcon(card.iconPreviews.get(field.key), card.controls.get(field.key).value);
+        } else card.displays.get(field.key).textContent = value || 'Not shown';
         if (card.englishRows.has(field.key)) card.englishRows.get(field.key).textContent = Object.hasOwn(translated.values, field.key) ? translated.values[field.key] || 'Not shown' : 'Translation pending';
       });
     });
@@ -107,7 +130,7 @@
     const toggle = document.getElementById('buyingTermsEnabled'); if (toggle) toggle.disabled = busy;
   }
   async function translate(settings, token, fields = copy.fields) {
-    const result = copy.english(settings), keys = new Set(fields.map(field => field.key));
+    const result = presentation.english(settings), keys = new Set(fields.map(field => field.key));
     const missing = result.missing.filter(key => keys.has(key));
     if (missing.length) {
       const response = await fetch('https://tugsxxafeaqbqonrruqt.supabase.co/functions/v1/kapparos-buying-translate', {
@@ -139,7 +162,7 @@
     for (const field of card.fields.filter(field => field.type === 'tel')) {
       if (values[field.key] && !copy.phone(values[field.key]).href) { message(card, 'Enter a valid phone number, or leave it empty.', true); card.controls.get(field.key).focus(); return; }
     }
-    const old = copy.source(before), pending = copy.english(next).missing.some(key => card.controls.has(key));
+    const old = presentation.source(before), pending = presentation.english(next).missing.some(key => card.controls.has(key));
     if (!pending && card.fields.every(field => old[field.key] === values[field.key])) { setEditing(card, false); message(card, 'No changes to save.'); return; }
     if (!(await api.confirm())) return;
     lock(card, true); message(card, 'Saving this section and updating English…');
@@ -157,7 +180,7 @@
     const card = cards.get('Buyer terms'), toggle = document.getElementById('buyingTermsEnabled');
     const current = api.getSettings(); toggle.checked = current.termsEnabled === true;
     if (saving || enabled === toggle.checked) return;
-    if (enabled && !copy.source(current).termsText) { editSection('Buyer terms'); card.controls.get('termsText').focus(); message(card, 'Enter and save your terms, then turn on the requirement.', true); return; }
+    if (enabled && !presentation.source(current).termsText) { editSection('Buyer terms'); card.controls.get('termsText').focus(); message(card, 'Enter and save your terms, then turn on the requirement.', true); return; }
     if (!(await api.confirm())) return;
     lock(card, true);
     try { await api.saveTermsEnabled(enabled); fill(api.getSettings()); message(card, enabled ? 'Buyers must now accept your terms before payment.' : 'The terms requirement is off.'); }

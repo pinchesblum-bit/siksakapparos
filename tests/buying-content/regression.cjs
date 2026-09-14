@@ -8,11 +8,12 @@ const ts = require('typescript');
 const root = path.resolve(__dirname, '../../..');
 const read = p => fs.readFileSync(path.join(root,p),'utf8');
 const copy = require(path.join(root,'siksakapparos/buying-content.js'));
+const presentation = require(path.join(root,'siksakapparos/buying-presentation.js'));
 let count = 0;
 const test = async (name, fn) => { await fn(); count++; console.log('PASS',name); };
 function dom(file) {return new JSDOM(read(file),{url:'https://siksakapparos.org/',runScripts:'outside-only'});}
 function script(w,file) {w.eval(read(file));}
-function loadPublic(page='order.html') {const d=dom('siksakapparos-order/'+page),w=d.window;script(w,'siksakapparos-order/buying-content.js');script(w,'siksakapparos-order/buying-languages.js');script(w,'siksakapparos-order/buying-checkout.js');return d;}
+function loadPublic(page='order.html') {const d=dom('siksakapparos-order/'+page),w=d.window;script(w,'siksakapparos-order/buying-content.js');script(w,'siksakapparos-order/buying-presentation.js');script(w,'siksakapparos-order/buying-languages.js');script(w,'siksakapparos-order/buying-checkout.js');return d;}
 const site = {title:'פנים מאירות סיקסא',subtitle:'ערב יום כיפור כפרות',orderingEnabled:true,publicAccessEnabled:false,price:20,inventory:100,pageContent:{introText:'באשטעלט אייער כפרות גרינג און באקוועם',bookingNote:'ווען איר באשטעלט א כפרה וועט דאס ווערן אוועקגעלייגט ביז 8:00',benefitOrder:'שוחט אויפן פלאץ',benefitPayment:'מניני סליחות ושחרית',benefitTicket:'מקוה חמה',contactLabel:'צו באשטעלן אויפן טעלעפאן רופט:',venue:'',services:'',prepaymentNote:''}};
 function backend(slug, options={}) {
  let handler; const calls=[];
@@ -34,7 +35,7 @@ function backend(slug, options={}) {
 const request=(body,token='a'.repeat(64),origin='https://pinchesblum-bit.github.io')=>new Request('https://unit.invalid',{method:'POST',headers:{Origin:origin,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
 const order={action:'create-demo-order',fullName:'Local fixture',phone:'2125550100',email:'fixture@example.invalid',quantity:2,expectedPrice:40,orderKey:'local-test-order-key-1234',orderToken:'b'.repeat(48)};
 function editor(settings=site,confirmValue=true) {
- const d=dom('siksakapparos/index.html'),w=d.window;script(w,'siksakapparos/buying-content.js');script(w,'siksakapparos/buying-settings.js');w.AbortSignal=AbortSignal;
+ const d=dom('siksakapparos/index.html'),w=d.window;script(w,'siksakapparos/buying-content.js');script(w,'siksakapparos/buying-presentation.js');script(w,'siksakapparos/buying-settings.js');w.AbortSignal=AbortSignal;
  let state=structuredClone(settings),confirmed=0,saved=[];w.fetch=async()=>Response.json({code:'translation_setup_required',error:'Connection required'},{status:503});
  w.BuyingSettingsEditor.init({getSettings:()=>state,token:()=> 'fixture',confirm:async()=>{confirmed++;return confirmValue;},saveSection:async(values,en)=>{
    saved.push({values,en});for(const field of copy.fields)if(Object.hasOwn(values,field.key)){if(field.root)state[field.key]=values[field.key];else(state.pageContent||={})[field.key]=values[field.key];}
@@ -44,8 +45,9 @@ function editor(settings=site,confirmValue=true) {
 }
 async function settle(){await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));}
 (async()=>{
- await test('Current saved wording and Shoyched spelling have current English; stale translations are rejected',()=>{
-  const e=copy.english(site);assert.deepEqual(e.missing,[]);assert.equal(e.values.benefitOrder,'Shoyched on site');assert.equal(e.values.title,'Punim Meiros Siksa');assert.equal(e.values.venue,'');
+ await test('Current saved wording and Shoychet spelling have current English; stale translations are rejected',()=>{
+  const e=presentation.english(site);assert.deepEqual(e.missing,[]);assert.equal(e.values.benefitOrder,'Shoychet on site');assert.equal(e.values.title,'Punim Meiros Siksa');assert.equal(e.values.venue,'');
+  assert.equal(presentation.english({...site,englishContent:{source:{benefitOrder:site.pageContent.benefitOrder},values:{benefitOrder:'Shoyched on site'}}}).values.benefitOrder,'Shoychet on site');
   assert(!copy.fields.some(f=>f.key.startsWith('gate')));
   assert(copy.english({...site,pageContent:{...site.pageContent,timeText:'נייע צייט'},englishContent:{source:{timeText:'old'},values:{timeText:'Stale'}}}).missing.includes('timeText'));
  });
@@ -60,10 +62,10 @@ async function settle(){await new Promise(resolve=>setImmediate(resolve));await 
   const d=loadPublic(page),w=d.window,doc=w.document;
   assert.equal(doc.documentElement.lang,'en');assert(doc.querySelector('.language-switcher').hidden);
   w.BuyingLanguages.apply({...site,pageContent:{...site.pageContent,benefitOrderIcon:'📍',supportPhone:'2125550100',supportEmail:'help@example.invalid'}},false);
-  assert.equal(doc.documentElement.lang,'yi');assert.equal(doc.querySelector('[data-copy="benefitOrderIcon"]').textContent,'📍');assert(doc.querySelector('.event-venue').hidden);
+  assert.equal(doc.documentElement.lang,'yi');assert.equal(doc.querySelector('[data-copy="benefitOrderIcon"]').textContent,'📍');assert.equal(doc.querySelector('[data-copy="benefitPaymentIcon"] img').getAttribute('src'),'icons/prayer-book.svg');assert.equal(doc.querySelector('[data-copy="benefitTicketIcon"] img').getAttribute('src'),'icons/mikvah.svg');assert(doc.querySelector('.event-venue').hidden);
   assert.equal(doc.querySelector('.support-phone').href,'tel:+12125550100');assert.equal(doc.querySelector('.support-email').href,'mailto:help@example.invalid');assert(!doc.getElementById('buyingSupportFooter').hidden);
   const total=doc.getElementById('summaryTotal').textContent;doc.getElementById('customerName').value='Untouched customer';
-  doc.querySelector('[data-language="en"]').click();assert.equal(doc.querySelector('[data-copy="benefitOrder"]').textContent,'Shoyched on site');assert.equal(doc.getElementById('summaryTotal').textContent,total);assert.equal(doc.getElementById('customerName').value,'Untouched customer');
+  doc.querySelector('[data-language="en"]').click();assert.equal(doc.querySelector('[data-copy="benefitOrder"]').textContent,'Shoychet on site');assert.equal(doc.getElementById('summaryTotal').textContent,total);assert.equal(doc.getElementById('customerName').value,'Untouched customer');
   w.BuyingLanguages.lock();assert.equal(doc.documentElement.lang,'en');assert.equal(doc.getElementById('previewShowPassword').textContent,'Show');assert.equal(doc.getElementById('previewGateTitle').textContent,'Online ordering will open September 13.');assert(doc.querySelector('.language-switcher').hidden);w.close();
  });
  await test('Editable copy renders as text; empty support/footer and optional text remain hidden',()=>{

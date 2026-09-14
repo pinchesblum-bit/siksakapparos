@@ -18,7 +18,7 @@ const site = {title:'פנים מאירות סיקסא',subtitle:'ערב יום �
 function backend(slug, options={}) {
  let handler; const calls=[];
  const current={settings:options.admin||{defaultPrice:20,inventory:300,buyingWebsite:site},sales:options.sales||[]};
- const context=vm.createContext({console,Request,Response,Headers,AbortSignal,TextEncoder,Uint8Array,crypto:webcrypto,KapparosBuyingContent:copy,OPENING_NOTICE:'Online ordering will open September 13.',hasBuyingAccess:async()=>options.access??true,previewLogin:async()=> 'mock-preview',
+ const context=vm.createContext({console,Request,Response,Headers,AbortSignal,TextEncoder,TextDecoder,Uint8Array,btoa,atob,crypto:webcrypto,KapparosBuyingContent:copy,OPENING_NOTICE:'Online ordering will open September 13.',hasBuyingAccess:async()=>options.access??true,previewLogin:async()=> 'mock-preview',
  Deno:{env:{get:key=>({SUPABASE_URL:'https://unit.invalid',SUPABASE_SERVICE_ROLE_KEY:'server-test',KAPPAROS_TRANSLATE_API_KEY:options.key}[key])},serve:f=>handler=f},
  fetch:async(url,init={})=>{
   calls.push({url,init});
@@ -28,6 +28,7 @@ function backend(slug, options={}) {
   if(url.includes('translation.googleapis.com')){if(options.providerError)return Response.json({error:'private diagnostic'},{status:400});const q=JSON.parse(init.body).q;return Response.json({data:{translations:q.map(()=>({translatedText:'New wording'}))}});}
   throw Error('Unexpected network request '+url);
  }});
+ if(options.realAccess){const access=read('siksakapparos/supabase/functions/'+slug+'/preview-access.ts').replace(/^export /mg,'');vm.runInContext(ts.transpileModule(access,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}}).outputText,context);}
  const code=read('siksakapparos/supabase/functions/'+slug+'/index.ts').replace(/^import .*;$/mg,'').replace('export async function','async function');
  vm.runInContext(ts.transpileModule(code,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.None}}).outputText,context);
  return {handler,calls,current};
@@ -50,7 +51,7 @@ function fullBuyingPage(page='index.html',completed=null,options={}) {
  Object.defineProperty(w.performance,'getEntriesByType',{value:()=>[{type:options.navigationType||'reload'}]});
  w.sessionStorage.setItem('kapparosBuyingVisitV1','1');
  if(options.handoff)w.sessionStorage.setItem('kapparosBuyingHandoffV1',JSON.stringify(options.handoff));
- w.sessionStorage.setItem('kapparosBuyingPreviewV1','local-preview-fixture');
+ if(options.token!==null)w.sessionStorage.setItem('kapparosBuyingPreviewV1',options.token||'local-preview-fixture');
  if(completed)w.sessionStorage.setItem('kapparosCompletedTicketV1',JSON.stringify(completed));
  w.fetch=(url,init)=>new Promise((resolve,reject)=>{assert(url.endsWith('/kapparos-public-config'));requests.push({url,init,resolve,reject});});
  for(const el of w.document.querySelectorAll('script')){
@@ -187,7 +188,7 @@ function fullBuyingPage(page='index.html',completed=null,options={}) {
   e.requests[0].resolve(Response.json({settings:site}));await settle();
   assert(doc.getElementById('previewGate').hidden);assert(doc.getElementById('previewLoading').hidden);assert(!doc.body.classList.contains('preview-locked'));
   assert.equal(e.requests.length,1);if(page==='index.html'){doc.getElementById('openOrderButton').click();assert.equal(e.navigations.at(-1),'/order/');}else{assert.equal(doc.querySelector('.hero'),null);assert.equal(doc.querySelector('.event-details'),null);assert.equal(doc.getElementById('openOrderButton'),null);assert(doc.querySelector('.order-section.open'));}assert.equal(doc.getElementById('quantityValue').textContent,'1');assert.equal(doc.getElementById('summaryQuantity').textContent,'1');assert.equal(doc.getElementById('summaryTotal').textContent,'$20.00');
-  doc.getElementById('previewExit').click();assert(!doc.getElementById('previewGate').hidden);assert.equal(w.sessionStorage.getItem('kapparosBuyingPreviewV1'),null);assert(doc.body.classList.contains('preview-locked'));w.close();
+  if(page==='order/index.html'){doc.getElementById('previewExit').click();assert(!doc.getElementById('previewGate').hidden);assert.equal(w.sessionStorage.getItem('kapparosBuyingPreviewV1'),null);assert(doc.body.classList.contains('preview-locked'));}else assert(doc.getElementById('previewExit').hidden);w.close();
  });
  await test('Sold-out notice replaces the landing action and stays there after a language change',async()=>{
   const e=fullBuyingPage(),{w}=e,doc=w.document;e.requests[0].resolve(Response.json({settings:{...site,inventory:0}}));await settle();
@@ -252,8 +253,8 @@ function fullBuyingPage(page='index.html',completed=null,options={}) {
   assert(doc.getElementById('previewRetry').hidden);assert.equal(e.requests.length,2);e.requests[1].resolve(Response.json({settings:site}));await settle();
   assert(!doc.body.classList.contains('preview-locked'));assert(doc.getElementById('previewGate').hidden);w.close();
  });
- await test('Only a confirmed locked response shows the English login screen',async()=>{
-  const e=fullBuyingPage(),{w}=e,doc=w.document;assert(doc.getElementById('previewGate').hidden);
+ await test('Only a confirmed locked order response shows the English login screen',async()=>{
+  const e=fullBuyingPage('order/index.html'),{w}=e,doc=w.document;assert(doc.getElementById('previewGate').hidden);
   e.requests[0].resolve(Response.json({locked:true}));await settle();assert(!doc.getElementById('previewGate').hidden);assert(doc.getElementById('previewLoading').hidden);
   assert(doc.body.classList.contains('preview-locked'));assert.equal(doc.documentElement.lang,'en');assert.equal(w.getComputedStyle(doc.querySelector('main')).display,'none');w.close();
  });
@@ -283,7 +284,7 @@ function fullBuyingPage(page='index.html',completed=null,options={}) {
   const e=fullBuyingPage('index.html',{id:'old',ticketId:'123456',orderToken:'old-token'},{navigationType:'navigate'});e.requests[0].resolve(Response.json({settings:site}));await settle();
   assert.equal(e.w.sessionStorage.getItem('kapparosCompletedTicketV1'),null);assert(!e.w.document.getElementById('demoCheckoutModal').classList.contains('open'));e.w.close();
  });
- await test('Logout clears the terminal and next login from the order route goes home',async()=>{
+ await test('Logout returns home and login on the order route opens a fresh order form',async()=>{
   const e=fullBuyingPage('order/index.html'),{w}=e,d=w.document;e.requests[0].resolve(Response.json({settings:site}));await settle();buyer(e,1);
   d.getElementById('checkoutButton').click();e.requests[1].resolve(Response.json({settings:site}));await settle();d.getElementById('demoCardName').value='Fixture card';
   w.sessionStorage.setItem('kapparosCompletedTicketV1','old');w.sessionStorage.setItem('kapparosCheckoutSessionV1','old');d.getElementById('previewExit').click();
@@ -291,7 +292,7 @@ function fullBuyingPage(page='index.html',completed=null,options={}) {
   assert.equal(d.getElementById('demoCardName').value,'');assert(!d.getElementById('demoCheckoutModal').classList.contains('open'));
   d.getElementById('previewUsername').value='fixture';d.getElementById('previewPassword').value='fixture';d.getElementById('previewLoginForm').dispatchEvent(new w.Event('submit',{cancelable:true}));
   e.requests[2].resolve(Response.json({token:'new-fixture-token',settings:site}));await settle();assert.equal(e.navigations.at(-1),'/');
-  assert(!d.getElementById('demoCheckoutModal').classList.contains('open'));assert.equal(JSON.parse(w.sessionStorage.getItem('kapparosBuyingHandoffV1')).path,'/');w.close();
+  assert(!d.getElementById('demoCheckoutModal').classList.contains('open'));assert(!d.body.classList.contains('preview-locked'));assert(d.getElementById('previewGate').hidden);assert.equal(w.sessionStorage.getItem('kapparosBuyingHandoffV1'),null);assert.equal(d.getElementById('quantityValue').textContent,'1');w.close();
  });
  await test('Internal navigation uses a single-use recent configuration; expired or changed-session copies are rejected',async()=>{
   const a=fullBuyingPage(),{w}=a;a.requests[0].resolve(Response.json({settings:site}));await settle();w.document.getElementById('openOrderButton').click();
@@ -319,6 +320,45 @@ function fullBuyingPage(page='index.html',completed=null,options={}) {
  await test('A stock response arriving after logout cannot reopen payment',async()=>{
   const e=fullBuyingPage('order/index.html'),{w}=e,d=w.document;e.requests[0].resolve(Response.json({settings:site}));await settle();buyer(e,1);d.getElementById('checkoutButton').click();d.getElementById('previewExit').click();
   e.requests[1].resolve(Response.json({settings:site}));await settle();assert(!d.getElementById('demoCheckoutModal').classList.contains('open'));assert(!d.getElementById('previewGate').hidden);assert.equal(w.sessionStorage.getItem('kapparosBuyingPreviewV1'),null);w.close();
+ });
+ await test('Public homepage exposes only its copy and availability; private ordering still requires a real signed session',async()=>{
+  const password='local-test-password',passwordHash=Buffer.from(await webcrypto.subtle.digest('SHA-256',new TextEncoder().encode(password))).toString('hex');
+  const admin={defaultPrice:20,inventory:100,username:'local-test-user',passwordHash,ticketDelivery:{email:{subject:'PRIVATE-TEMPLATE'}},buyingWebsite:{...site,termsEnabled:true,pageContent:{...site.pageContent,termsText:'PRIVATE-TERMS',orderDescription:'PRIVATE-ORDER-COPY'}}};
+  const b=backend('kapparos-public-config',{realAccess:true,admin,sales:[{fullName:'PRIVATE-CUSTOMER',phone:'2125550199',status:'paid',quantity:3}]});
+  const home=await (await b.handler(request({action:'homepage-config'},''))).json();
+  assert.equal(home.settings.homepageOnly,true);assert.equal(home.settings.inventory,97);assert.equal(home.settings.publicAccessEnabled,false);
+  assert.equal(home.settings.pageContent.benefitOrder,site.pageContent.benefitOrder);
+  assert.equal(home.settings.price,undefined);assert.equal(home.settings.ticketDelivery,undefined);assert.equal(home.settings.termsRevision,undefined);
+  assert.equal(home.settings.pageContent.orderDescription,undefined);assert.equal(home.settings.pageContent.termsText,undefined);
+  for(const secret of [passwordHash,password,'PRIVATE-TEMPLATE','PRIVATE-TERMS','PRIVATE-ORDER-COPY','PRIVATE-CUSTOMER'])assert(!JSON.stringify(home).includes(secret));
+  for(const token of ['',Buffer.from(JSON.stringify(home.settings)).toString('base64'),'bp1.invalid.invalid'])assert.equal((await (await b.handler(request({action:'public-config'},token))).json()).locked,true);
+  assert.equal((await b.handler(request({action:'preview-login',username:admin.username,password:'wrong'},''))).status,401);
+  const logged=await (await b.handler(request({action:'preview-login',username:admin.username,password},''))).json();assert(logged.token.startsWith('bp1.'));assert.equal(logged.settings.price,20);
+  assert.equal((await (await b.handler(request({action:'public-config'},logged.token))).json()).settings.price,20);
+  const orders=backend('kapparos-public-order',{realAccess:true,admin});const denied=await orders.handler(request(order,''));assert.equal(denied.status,401);assert.equal((await denied.json()).code,'PREVIEW_LOGIN_REQUIRED');assert(!orders.calls.some(c=>c.url.includes('/rpc/')));
+  admin.buyingWebsite.publicAccessEnabled=true;assert.equal((await (await b.handler(request({action:'public-config'},''))).json()).settings.publicAccessEnabled,true);
+ });
+ for(const language of ['yi','en'])await test(language+' public homepage -> Order now -> English login -> order form, with no homepage login or checkout bypass',async()=>{
+  const home={...site,homepageOnly:true};const a=fullBuyingPage('index.html',null,{navigationType:'navigate',token:null});
+  assert.equal(JSON.parse(a.requests[0].init.body).action,'homepage-config');assert.equal(a.requests[0].init.headers.Authorization,undefined);
+  a.requests[0].resolve(Response.json({settings:home}));await settle();const d=a.w.document;d.querySelector('[data-language="'+language+'"]').click();
+  assert(d.getElementById('previewGate').hidden);assert(d.getElementById('previewExit').hidden);assert(!d.body.classList.contains('preview-locked'));
+  d.getElementById('openOrderButton').click();assert.equal(a.navigations.at(-1),'/order/');const handoff=JSON.parse(a.w.sessionStorage.getItem('kapparosBuyingHandoffV1'));
+  const b=fullBuyingPage('order/index.html',null,{navigationType:'navigate',handoff,token:null}),w=b.w,o=w.document;
+  assert.equal(b.requests.length,1);assert.equal(JSON.parse(b.requests[0].init.body).action,'public-config');assert.equal(b.requests[0].init.headers.Authorization,undefined);assert(o.getElementById('previewGate').hidden);assert(o.body.classList.contains('preview-locked'));
+  b.requests[0].resolve(Response.json({locked:true}));await settle();assert(!o.getElementById('previewGate').hidden);assert.equal(o.documentElement.lang,'en');assert.equal(w.getComputedStyle(o.querySelector('main')).display,'none');
+  o.getElementById('previewUsername').value='fixture';o.getElementById('previewPassword').value='fixture';o.getElementById('previewLoginForm').dispatchEvent(new w.Event('submit',{cancelable:true}));b.requests[1].resolve(Response.json({error:'Incorrect username or password.'},{status:401}));await settle();assert(!o.getElementById('previewGate').hidden);assert.equal(w.sessionStorage.getItem('kapparosBuyingPreviewV1'),null);
+  o.getElementById('previewLoginForm').dispatchEvent(new w.Event('submit',{cancelable:true}));b.requests[2].resolve(Response.json({token:'new-fixture-token',settings:site}));await settle();
+  assert.equal(b.navigations.length,0);assert(o.getElementById('previewGate').hidden);assert(!o.body.classList.contains('preview-locked'));assert.equal(o.getElementById('quantityValue').textContent,'1');assert.equal(o.getElementById('customerName').value,'');assert.equal(o.getElementById('previewPassword').value,'');assert(!o.getElementById('demoCheckoutModal').classList.contains('open'));
+  const refreshed=fullBuyingPage('order/index.html',null,{token:'new-fixture-token'});assert(refreshed.w.document.getElementById('previewGate').hidden);assert.equal(refreshed.requests[0].init.headers.Authorization,'Bearer new-fixture-token');refreshed.requests[0].resolve(Response.json({settings:site}));await settle();assert(!refreshed.w.document.body.classList.contains('preview-locked'));
+  o.getElementById('previewExit').click();assert.equal(b.navigations.at(-1),'/');assert.equal(w.sessionStorage.getItem('kapparosBuyingPreviewV1'),null);
+  const returned=fullBuyingPage('index.html',null,{token:null,navigationType:'navigate'});returned.requests[0].resolve(Response.json({settings:home}));await settle();assert(returned.w.document.getElementById('previewGate').hidden);assert(!returned.w.document.body.classList.contains('preview-locked'));
+  for(const page of [a,b,refreshed,returned])page.w.close();
+ });
+ await test('Public ordering switch skips the order gate; a failed homepage request never shows the private gate',async()=>{
+  const handoff={path:'/order/',token:null,at:Date.now(),verifiedAt:Date.now(),settings:{...site,homepageOnly:true,publicAccessEnabled:true}};
+  const e=fullBuyingPage('order/index.html',null,{token:null,navigationType:'navigate',handoff});e.requests[0].resolve(Response.json({settings:{...site,publicAccessEnabled:true}}));await settle();assert(e.w.document.getElementById('previewGate').hidden);assert(!e.w.document.body.classList.contains('preview-locked'));assert(e.w.document.getElementById('previewExit').hidden);e.w.close();
+  const home=fullBuyingPage('index.html',null,{token:null});home.requests[0].resolve(Response.json({locked:true}));await settle();assert(home.w.document.getElementById('previewGate').hidden);assert(!home.w.document.getElementById('previewRetry').hidden);home.w.close();
  });
  console.log(count+' regression checks passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

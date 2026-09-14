@@ -2070,9 +2070,9 @@
           </div>
           <form id="buyingWebsiteSettingsForm">
             <div class="settings-section">
-              <h3>Public access</h3>
+              <h3>Ordering access</h3>
               <label class="settings-switch-row field full">
-                <span class="reservation-setting-copy"><span>Open to the public</span><span class="settings-card-note">When off, visitors see the English private-access page. Use your admin username and password to preview the buying website. It stays private until you turn this on.</span></span>
+                <span class="reservation-setting-copy"><span>Allow ordering without login</span><span class="settings-card-note">Everyone can see the buying homepage. When off, pressing Order now opens the English private-access page. Use your admin username and password to continue to the order form. Turn this on to allow ordering without login.</span></span>
                 <span class="toggle-switch"><input type="checkbox" id="settingBuyingPublicAccess" /><span class="toggle-slider" aria-hidden="true"></span></span>
               </label>
             </div>
@@ -7087,7 +7087,7 @@
         saveSettings();
         await flushCloudSave();
         settingBuyingPublicAccess.checked = next;
-        showToast(next ? 'Buying website opened to the public' : 'Buying website requires login');
+        showToast(next ? 'Ordering opened to the public' : 'Ordering requires login; the homepage remains public');
       } catch (error) {
         buyingWebsiteSettingsMessage.textContent = 'The access setting is waiting to save. ' + error.message;
         settingBuyingPublicAccess.checked = next;
@@ -7520,7 +7520,6 @@
   </script>
 </body>
 </html>
-
 
 
 

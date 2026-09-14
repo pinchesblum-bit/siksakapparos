@@ -36,24 +36,32 @@ function cleanLines(value: unknown, fallback: string[]) {
   const cleaned = source.map(item => String(item || '').trim()).filter(Boolean).slice(0, 30);
   return cleaned.length ? cleaned : fallback;
 }
-async function sanitize(value: any, sales: any[] = [], admin: any = {}) {
+const HOMEPAGE_GROUPS = new Set(['Heading', 'Time and location', 'Highlights and icons', 'Notices and ordering phone', 'Support footer']);
+const HOMEPAGE_KEYS = buyingCopy.fields.filter((field: any) => HOMEPAGE_GROUPS.has(field.group)).map((field: any) => field.key);
+async function sanitize(value: any, sales: any[] = [], admin: any = {}, homepageOnly = false) {
   const source = value && typeof value === 'object' ? value : {};
-  return {
-    ...buyingCopy.publicCopy(source),
-    termsEnabled: source.termsEnabled === true,
-    termsRevision: source.termsEnabled === true ? await buyingCopy.termsRevision(source) : '',
+  const homepage = {
+    ...buyingCopy.publicCopy(source, homepageOnly ? HOMEPAGE_KEYS : undefined),
     orderingEnabled: source.orderingEnabled !== false,
     publicAccessEnabled: source.publicAccessEnabled === true,
     title: String(source.title || DEFAULTS.title).trim().slice(0, 120),
     subtitle: String(source.subtitle || DEFAULTS.subtitle).trim().slice(0, 120),
     buttonText: String(source.buttonText || DEFAULTS.buttonText).trim().slice(0, 160),
-    price: Number.isFinite(Number(admin.defaultPrice)) ? Math.max(0, Number(admin.defaultPrice)) : 0,
     inventory: (() => {
       const allocation = Number.isFinite(Number(admin.inventory)) ? Math.max(0, Math.floor(Number(admin.inventory))) : 0;
       const sold = sales.reduce((sum, sale) => String(sale.status || 'paid') === 'paid'
         ? sum + Math.max(0, Number(sale.quantity || 0)) : sum, 0);
       return Math.max(0, allocation - sold);
-    })(),
+    })()
+  };
+  // Public visitors receive only landing-page copy and aggregate availability.
+  // Order configuration and every order operation retain the existing access check.
+  if (homepageOnly) return { ...homepage, homepageOnly: true };
+  return {
+    ...homepage,
+    termsEnabled: source.termsEnabled === true,
+    termsRevision: source.termsEnabled === true ? await buyingCopy.termsRevision(source) : '',
+    price: Number.isFinite(Number(admin.defaultPrice)) ? Math.max(0, Number(admin.defaultPrice)) : 0,
     pickupTimes: cleanLines(source.pickupTimes, DEFAULTS.pickupTimes),
     paymentChoices: ['Credit card'],
     confirmationText: buyingCopy.source(source).confirmationText,
@@ -85,6 +93,9 @@ Deno.serve(async (req: Request) => {
     const rows = await result.json();
     if (!rows?.[0]) return new Response(JSON.stringify({error: 'No data found'}), {status: 404, headers});
     const admin = rows[0].settings || {};
+    if (body.action === 'homepage-config') {
+      return new Response(JSON.stringify({settings:await sanitize(admin.buyingWebsite, rows[0].sales || [], admin, true)}), {status:200,headers});
+    }
     if (body.action === 'preview-login') {
       const token = await previewLogin(req, body, admin, SERVICE_KEY);
       return new Response(JSON.stringify({token,settings:await sanitize(admin.buyingWebsite, rows[0].sales || [], admin)}), {status:200,headers});
@@ -98,4 +109,3 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({error: status < 500 ? (error as Error).message : 'Settings unavailable'}), {status,headers});
   }
 });
-

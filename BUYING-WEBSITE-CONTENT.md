@@ -77,3 +77,12 @@ Supabase secrets: https://supabase.com/docs/guides/functions/secrets
 The landing button follows the highlights and reservation notice, immediately before the clickable ordering phone (without an underline). `/order/` has a compact brand header and the order form, without the landing information panel, highlights or phone section. New orders start at one chicken. The support footer is horizontal on desktop with smaller mobile text.
 
 See `ADMIN-SYNC.md` for the independent stock/concurrency database update. No Edge Function deployment is part of this change; the earlier blocked `kapparos-sync` expense-payment validation remains unapproved and undeployed.
+
+
+## Stock check before payment and sold-out placement
+
+The landing sold-out/closed notice replaces the order button at the same position, above the ordering phone. Switching language preserves that state. The footer copy is closer to its divider on desktop and mobile.
+
+Quantity controls disable at one and at the server-reported available limit. Continue to payment performs a fresh authenticated, uncached public-config read before opening payment. If the requested quantity is no longer available, it updates the quantity/summary, leaves customer inputs intact, and requires the buyer to review the warning before continuing. A changed price or terms also requires review. A failed availability check leaves the form visible and permits retry; confirmed expired access shows the existing login gate. The final atomic database stock check and checkout idempotency remain unchanged, because availability can still change while payment details are entered. No backend deployment is needed for this UI change.
+
+The admin list shows Online (muted gold) in the Status column in place of Paid for paid online sales. Paid admin sales retain their green Paid label. Reserved/Expired remain visible when applicable. Demo appears alongside existing Notes, without displacing their contents. Sale data, payment status and accounting calculations are unchanged.

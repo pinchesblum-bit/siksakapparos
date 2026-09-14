@@ -120,7 +120,7 @@ function fullBuyingPage(page='index.html',completed=null) {
   for(const page of ['index.html']){
    const {window:w}=loadPublic(page);w.BuyingLanguages.apply({...site,pageContent:{...site.pageContent,venue:'First venue line\nSecond venue line'}},false);
    const doc=w.document,box=doc.querySelector('.event-details'),intro=doc.querySelector('.hero-copy'),phone=doc.querySelector('.event-contact');
-   assert(intro.compareDocumentPosition(box)&4);assert(doc.querySelector('.event-booking').compareDocumentPosition(phone)&4);assert.equal(phone.parentElement.className,'hero');assert.equal(phone.previousElementSibling.id,'openOrderButton');assert(doc.querySelector('.event-booking').compareDocumentPosition(doc.getElementById('openOrderButton'))&4);
+   assert(intro.compareDocumentPosition(box)&4);assert(doc.querySelector('.event-booking').compareDocumentPosition(phone)&4);assert.equal(phone.parentElement.className,'hero');assert.equal(phone.previousElementSibling.id,'availabilityMessage');assert.equal(phone.previousElementSibling.previousElementSibling.id,'openOrderButton');assert(doc.querySelector('.event-booking').compareDocumentPosition(doc.getElementById('openOrderButton'))&4);
    const pair=doc.querySelector('.event-venues');assert(pair.classList.contains('has-two-lines'));assert.equal(pair.querySelectorAll('.event-venue').length,2);assert.equal(pair.dir,'rtl');
    doc.querySelector('[data-language="en"]').click();assert.equal(pair.dir,'ltr');assert.equal(pair.children[1].textContent,'Second venue line');w.close();
   }
@@ -185,6 +185,62 @@ function fullBuyingPage(page='index.html',completed=null) {
   assert(doc.getElementById('previewGate').hidden);assert(doc.getElementById('previewLoading').hidden);assert(!doc.body.classList.contains('preview-locked'));
   assert.equal(e.requests.length,1);if(page==='index.html'){doc.getElementById('openOrderButton').click();assert.equal(e.navigations.at(-1),'/order/');}else{assert.equal(doc.querySelector('.hero'),null);assert.equal(doc.querySelector('.event-details'),null);assert.equal(doc.getElementById('openOrderButton'),null);assert(doc.querySelector('.order-section.open'));}assert.equal(doc.getElementById('quantityValue').textContent,'1');assert.equal(doc.getElementById('summaryQuantity').textContent,'1');assert.equal(doc.getElementById('summaryTotal').textContent,'$20.00');
   doc.getElementById('previewExit').click();assert(!doc.getElementById('previewGate').hidden);assert.equal(w.sessionStorage.getItem('kapparosBuyingPreviewV1'),null);assert(doc.body.classList.contains('preview-locked'));w.close();
+ });
+ await test('Sold-out notice replaces the landing action and stays there after a language change',async()=>{
+  const e=fullBuyingPage(),{w}=e,doc=w.document;e.requests[0].resolve(Response.json({settings:{...site,inventory:0}}));await settle();
+  const button=doc.getElementById('openOrderButton'),notice=doc.getElementById('availabilityMessage');
+  // Load the external style used by the real page into this isolated DOM fixture.
+  const style=doc.createElement('style');style.textContent=read('siksakapparos-order/buying-languages.css');doc.head.append(style);
+  assert.equal(w.getComputedStyle(button).display,'none');assert.equal(button.disabled,true);assert.equal(notice.hidden,false);
+  assert.equal(notice.previousElementSibling,button);assert(notice.nextElementSibling.classList.contains('event-contact'));
+  doc.querySelector('[data-language="en"]').click();assert.equal(w.getComputedStyle(button).display,'none');assert.equal(notice.textContent,'Online orders are currently sold out.');
+  w.applyConfig({...site,inventory:3});assert.notEqual(w.getComputedStyle(button).display,'none');assert.equal(button.disabled,false);assert.equal(notice.hidden,true);w.close();
+ });
+ function buyer(e,amount=1){
+  const d=e.w.document;d.getElementById('customerName').value='Local fixture';d.getElementById('customerPhone').value='2125550100';d.getElementById('customerEmail').value='fixture@example.invalid';
+  for(let i=1;i<amount;i++)d.getElementById('increaseQuantity').click();
+ }
+ await test('Online quantity controls stop at one and the actual available limit',async()=>{
+  const e=fullBuyingPage('order/index.html'),{w}=e,d=w.document;e.requests[0].resolve(Response.json({settings:{...site,inventory:3}}));await settle();
+  assert.equal(d.getElementById('decreaseQuantity').disabled,true);buyer(e,3);assert.equal(d.getElementById('quantityValue').textContent,'3');assert.equal(d.getElementById('increaseQuantity').disabled,true);
+  d.getElementById('increaseQuantity').click();d.getElementById('increaseQuantity').dispatchEvent(new w.Event('click'));assert.equal(d.getElementById('quantityValue').textContent,'3');
+  d.getElementById('decreaseQuantity').click();assert.equal(d.getElementById('quantityValue').textContent,'2');assert.equal(d.getElementById('increaseQuantity').disabled,false);w.close();
+ });
+ for(const remaining of [0,1])await test('Checkout checks fresh stock before payment when remaining drops to '+remaining,async()=>{
+  const e=fullBuyingPage('order/index.html'),{w}=e,d=w.document;e.requests[0].resolve(Response.json({settings:{...site,inventory:3}}));await settle();buyer(e,3);
+  d.getElementById('checkoutButton').click();assert.equal(e.requests.length,2);assert.equal(e.requests[1].init.cache,'no-store');assert.equal(e.requests[1].init.headers.Authorization,'Bearer local-preview-fixture');
+  assert.equal(d.getElementById('checkoutButton').getAttribute('aria-busy'),'true');assert.equal(d.getElementById('increaseQuantity').disabled,true);assert.equal(d.getElementById('decreaseQuantity').disabled,true);
+  assert(!d.getElementById('demoCheckoutModal').classList.contains('open'));d.getElementById('checkoutButton').click();assert.equal(e.requests.length,2);
+  e.requests[1].resolve(Response.json({settings:{...site,inventory:remaining}}));await settle();
+  assert(!d.getElementById('demoCheckoutModal').classList.contains('open'));assert.equal(d.getElementById('checkoutAvailabilityError').hidden,false);
+  assert.equal(d.getElementById('quantityValue').textContent,String(remaining));assert.equal(d.getElementById('customerName').value,'Local fixture');assert.equal(d.getElementById('customerEmail').value,'fixture@example.invalid');
+  assert.equal(d.getElementById('checkoutButton').disabled,remaining===0);assert.equal(d.getElementById('increaseQuantity').disabled,true);
+  d.querySelector('[data-language="en"]').click();assert.match(d.getElementById('checkoutAvailabilityError').textContent,remaining===0?/sold out/:/not enough chickens/);
+  assert.equal(w.sessionStorage.getItem('kapparosCheckoutSessionV1'),null);w.close();
+ });
+ await test('Sufficient fresh stock opens payment with the reviewed quantity and no sale request',async()=>{
+  const e=fullBuyingPage('order/index.html'),{w}=e,d=w.document;e.requests[0].resolve(Response.json({settings:{...site,inventory:3}}));await settle();buyer(e,2);
+  d.getElementById('checkoutButton').click();e.requests[1].resolve(Response.json({settings:{...site,inventory:2}}));await settle();
+  assert(d.getElementById('demoCheckoutModal').classList.contains('open'));assert.equal(d.getElementById('demoPaymentTotal').textContent,'$40.00');assert.equal(d.getElementById('demoCardNumber').value,'');assert.equal(d.getElementById('checkoutAvailabilityError').hidden,true);assert.equal(e.requests.length,2);w.close();
+ });
+ await test('A failed stock check keeps the form and preview access intact and allows retry',async()=>{
+  const e=fullBuyingPage('order/index.html'),{w}=e,d=w.document;e.requests[0].resolve(Response.json({settings:{...site,inventory:3}}));await settle();buyer(e,2);
+  d.getElementById('checkoutButton').click();e.requests[1].reject(new Error('Local offline fixture'));await settle();
+  assert(!d.getElementById('demoCheckoutModal').classList.contains('open'));assert.equal(d.getElementById('previewGate').hidden,true);assert(!d.body.classList.contains('preview-loading'));assert.equal(d.getElementById('customerName').value,'Local fixture');
+  assert.equal(d.getElementById('checkoutButton').disabled,false);assert.equal(d.getElementById('quantityValue').textContent,'2');assert.equal(d.getElementById('checkoutAvailabilityError').hidden,false);
+  d.getElementById('checkoutButton').click();assert.equal(e.requests.length,3);e.requests[2].resolve(Response.json({settings:{...site,inventory:3}}));await settle();assert(d.getElementById('demoCheckoutModal').classList.contains('open'));w.close();
+ });
+ await test('A changed price requires reviewing the new total before payment',async()=>{
+  const e=fullBuyingPage('order/index.html'),{w}=e,d=w.document;e.requests[0].resolve(Response.json({settings:{...site,inventory:3}}));await settle();buyer(e,2);
+  d.getElementById('checkoutButton').click();e.requests[1].resolve(Response.json({settings:{...site,inventory:3,price:25}}));await settle();
+  assert(!d.getElementById('demoCheckoutModal').classList.contains('open'));assert.equal(d.getElementById('summaryTotal').textContent,'$50.00');assert.equal(d.getElementById('checkoutAvailabilityError').hidden,false);w.close();
+ });
+ await test('Checkout respects changed terms and expired preview access',async()=>{
+  const e=fullBuyingPage('order/index.html'),{w}=e,d=w.document,terms={...site,inventory:3,termsEnabled:true,termsRevision:'before',pageContent:{...site.pageContent,termsText:'Fixture terms.'}};
+  e.requests[0].resolve(Response.json({settings:terms}));await settle();buyer(e,1);d.getElementById('acceptBuyerTerms').click();
+  d.getElementById('checkoutButton').click();e.requests[1].resolve(Response.json({settings:{...terms,termsRevision:'after',pageContent:{...terms.pageContent,termsText:'Changed fixture terms.'}}}));await settle();
+  assert(!d.getElementById('demoCheckoutModal').classList.contains('open'));assert.equal(d.getElementById('acceptBuyerTerms').checked,false);d.getElementById('acceptBuyerTerms').click();
+  d.getElementById('checkoutButton').click();e.requests[2].resolve(Response.json({locked:true}));await settle();assert.equal(d.getElementById('previewGate').hidden,false);assert(!d.getElementById('demoCheckoutModal').classList.contains('open'));w.close();
  });
  await test('A temporary connection failure offers retry without displaying the closed page or losing the preview session',async()=>{
   const e=fullBuyingPage(),{w}=e,doc=w.document;e.requests[0].reject(new Error('Offline fixture'));await settle();

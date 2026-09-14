@@ -26,7 +26,7 @@ async function device(){
  };
  for(const el of w.document.querySelectorAll('script')){
   if(el.src){const name=new URL(el.src).pathname.split('/').pop();if(name!=='ticket-design.js')w.eval(fs.readFileSync('siksakapparos/'+name,'utf8'));}
-  else w.eval(el.textContent+(el.textContent.includes('initializeCloudSession();')?`\nwindow.fixture={state,openModal,showSaleEditor,refreshCloudStateSilently,flushCloudSave,queueCloudSave,cloudSnapshot,canUseSaleTicket,saveSettings,showSaleView,get dirty(){return cloudSaveDirty},get submitting(){return saleSubmitting},get baseline(){return cloudBaselineRaw},get baselineUi(){return cloudBaselineUi},get ready(){return cloudReady}};`:''));
+  else w.eval(el.textContent+(el.textContent.includes('initializeCloudSession();')?`\nwindow.fixture={state,openModal,showSaleEditor,refreshCloudStateSilently,flushCloudSave,queueCloudSave,cloudSnapshot,canUseSaleTicket,saveSettings,showSaleView,renderSales,get dirty(){return cloudSaveDirty},get submitting(){return saleSubmitting},get baseline(){return cloudBaselineRaw},get baselineUi(){return cloudBaselineUi},get ready(){return cloudReady}};`:''));
  }
  await until(()=>w.fixture?.ready);assert.deepEqual(errors,[]);
  return {w,doc:w.document,calls,errors,delay(){let release;delayed=new Promise(r=>release=r);return()=>{delayed=null;release();};}};
@@ -39,7 +39,7 @@ function submit(d){d.doc.getElementById('saleForm').dispatchEvent(new d.w.Event(
  await reset();const a=await device(),b=await device();fill(a,'Local fixture A');fill(b,'Local fixture B');
  b.doc.getElementById('quantity').value='1';b.doc.getElementById('otherDetails').value='Do not disturb';
  const release=a.delay();submit(a);await settle();assert(a.doc.getElementById('saveSaleBtn').disabled);assert(!a.doc.getElementById('saleForm').classList.contains('sale-readonly'));assert(a.w.fixture.dirty);assert.equal(a.w.fixture.canUseSaleTicket(a.w.fixture.state.sales[0]),false);assert.equal((await get()).sales.length,0);
- release();await until(()=>!a.w.fixture.submitting);assert.equal((await get()).sales.length,1);assert(a.doc.getElementById('saleForm').classList.contains('sale-readonly'));
+ release();await until(()=>!a.w.fixture.submitting);assert.equal((await get()).sales.length,1);assert(a.doc.getElementById('saleForm').classList.contains('sale-readonly'));assert.equal(a.doc.querySelector('.sale-row td:nth-child(3) .status-pill.paid').textContent,'Paid');
  // Device B still has a stale stock view when it submits. The database refuses it.
  submit(b);await until(()=>!b.w.fixture.submitting);assert.equal((await get()).sales.length,1);assert(!b.doc.getElementById('saleForm').classList.contains('sale-readonly'));assert.equal(b.doc.getElementById('fullName').value,'Local fixture B');assert.equal(b.w.fixture.dirty,false);assert.equal(b.doc.getElementById('quantity').getAttribute('aria-invalid'),'true');assert.match(b.doc.getElementById('toast').textContent,/not enough chickens/);
  console.log('PASS two complete admin pages: last chicken rejected, form preserved, success/ticket waits for server');
@@ -48,9 +48,18 @@ function submit(d){d.doc.getElementById('saleForm').dispatchEvent(new d.w.Event(
  const remote={id:'fixture-online',ticketId:'654321',fullName:'Local online fixture',phone:'2125550101',status:'paid',quantity:1,price:20,isOnlineSale:true,isDemoSale:true};
  await db.query("update kapparos_app_state set sales=$1,updated_at=now() where id='main'",[[remote]]);await b.w.fixture.refreshCloudStateSilently();
  assert.equal(b.w.fixture.state.sales.length,1);assert.equal(b.doc.getElementById('fullName').value,'Local fixture B');assert.equal(b.doc.getElementById('otherDetails').value,'Do not disturb');assert.equal(b.doc.getElementById('paymentType').value,'cash');assert.equal(b.doc.getElementById('quantity').getAttribute('aria-invalid'),'true');
- assert.equal(b.doc.querySelector('.sale-source-badges .online-sale-badge').textContent,'Online');assert.equal(b.doc.querySelector('.sale-source-badges .demo-sale-badge').textContent,'Demo');
+ assert.equal(b.doc.querySelector('.sale-row td:nth-child(3) .status-pill.online').textContent,'Online');assert.equal(b.doc.querySelector('.note-cell .demo-sale-badge').textContent,'Demo');assert.equal(b.doc.querySelector('.sale-name .online-sale-badge,.sale-name .demo-sale-badge'),null);assert.equal(b.doc.querySelector('.sale-row td:nth-child(3) .paid'),null);
  b.w.fixture.openModal(remote.id);assert.equal(b.doc.getElementById('saleDemoBadge').hidden,false);assert.equal(b.doc.getElementById('saleOnlineBadge').hidden,false);assert.equal(b.doc.getElementById('geschlagen').disabled,false);
  console.log('PASS form-open polling updates stock without resetting fields; Online/Demo visible in list and view; switch usable');
+ // Source badges must not hide a reservation/expiry or overwrite existing notes.
+ b.w.fixture.state.settings.customFields=[{id:'fixture-notes',label:'Notes',required:false}];
+ b.w.fixture.state.sales=[{...remote,customFields:{'fixture-notes':'Keep this note'}},{...remote,id:'fixture-reserved',status:'reserved',isDemoSale:false},{...remote,id:'fixture-expired',status:'expired',isDemoSale:false}];
+ b.w.fixture.renderSales();
+ assert.equal(b.doc.querySelector('[data-sale-id="fixture-online"] .note-preview').textContent,'Keep this note');
+ assert.equal(b.doc.querySelector('[data-sale-id="fixture-reserved"] .status-pill').textContent,'Reserved');
+ assert.equal(b.doc.querySelector('[data-sale-id="fixture-expired"] .status-pill').textContent,'Expired');
+ console.log('PASS Online replaces Paid only; Demo keeps notes; Reserved and Expired remain visible');
+
  // Ordinary saves send no unchanged sales or settings defaults.
  await reset();await a.w.fixture.refreshCloudStateSilently();a.w.fixture.state.settings.defaultPrice=25;a.w.fixture.saveSettings();await a.w.fixture.flushCloudSave();
  const sent=a.calls.filter(c=>c.action==='save').at(-1);assert.equal(sent.sales.length,0);assert(sent.settings._kapparosWrite);assert.equal(sent.settings.inventory,undefined);assert.equal((await get()).settings.defaultPrice,25);assert.equal((await get()).settings.inventory,1);

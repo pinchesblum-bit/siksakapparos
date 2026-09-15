@@ -4037,9 +4037,15 @@
       flushCloudSave().catch(() => {});
       refreshCloudStateSilently();
     });
-    window.addEventListener('focus', refreshCloudStateSilently);
+    window.addEventListener('focus', () => {
+      refreshCloudStateSilently();
+      focusTicketScanner();
+    });
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') refreshCloudStateSilently();
+      if (document.visibilityState === 'visible') {
+        refreshCloudStateSilently();
+        focusTicketScanner();
+      }
     });
     window.addEventListener('beforeunload', event => {
       if (!cloudSaveDirty) return;
@@ -5661,6 +5667,22 @@
       menuBtn.setAttribute('aria-expanded', String(open));
     }
 
+    function focusTicketScanner({ force = false } = {}) {
+      setTimeout(() => {
+        if (state.page !== 'sales'
+          || appShell.classList.contains('locked')
+          || appShell.getAttribute('aria-hidden') === 'true'
+          || ticketScanner.hidden
+          || ticketScanner.disabled
+          || document.querySelector('.open[aria-hidden="false"]')) return;
+        const activeControl = document.activeElement;
+        const userIsTyping = activeControl?.matches?.('input:not(#ticketScanner), textarea, select, [contenteditable="true"]');
+        if (userIsTyping && !force) return;
+        ticketScanner.focus({ preventScroll: true });
+        ticketScanner.select();
+      }, 0);
+    }
+
     function showPage(page) {
       page = VALID_PAGES.has(page) ? page : 'sales';
       const previousPage = state.page;
@@ -5690,7 +5712,10 @@
         state.todoSortMode = 'manual';
         renderTodo();
       }
-      if (page === 'sales') renderSales();
+      if (page === 'sales') {
+        renderSales();
+        focusTicketScanner();
+      }
       if (page === 'reports') renderReports();
       if (page === 'accounting') renderAccounting();
       if (page === 'ticket') renderTicketPage();
@@ -5815,6 +5840,7 @@
       state.editingSaleId = null;
       printSaleTicketBtn.hidden = true;
       emailSaleTicketBtn.hidden = true;
+      focusTicketScanner({ force: true });
     }
 
     let toastTimer = null;
@@ -5941,6 +5967,7 @@
         if (error.status === 401) lockWebsite();
       } finally {
         homeBtn.disabled = false;
+        focusTicketScanner({ force: true });
       }
     });
 
@@ -6574,6 +6601,23 @@
       state.searchQuery = salesSearch.value;
       renderSales();
     });
+    salesSearch.addEventListener('search', () => {
+      state.searchQuery = salesSearch.value;
+      renderSales();
+      if (!salesSearch.value) focusTicketScanner({ force: true });
+    });
+    salesSearch.addEventListener('keydown', event => {
+      if (!['Enter', 'Escape'].includes(event.key)) return;
+      event.preventDefault();
+      if (event.key === 'Escape') {
+        salesSearch.value = '';
+        state.searchQuery = '';
+        renderSales();
+      }
+      salesSearch.blur();
+      focusTicketScanner({ force: true });
+    });
+    salesSearch.addEventListener('blur', () => focusTicketScanner());
     ticketScanner.addEventListener('input', () => {
       ticketScanner.value = ticketScanner.value.replace(/\D/g, '').slice(0, 10);
       clearTimeout(ticketScanTimer);

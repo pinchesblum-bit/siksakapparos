@@ -2773,7 +2773,7 @@
 
   <div class="toast" id="toast">Sale saved</div>
 
-  <script src="ticket-design.js?v=20260911-1"></script>
+  <script src="ticket-design.js?v=20260915-2"></script>
   <script src="buying-content.js?v=20260914-2"></script>
   <script src="buying-presentation.js?v=20260914-8"></script>
   <script src="buying-settings.js?v=20260914-6"></script>
@@ -3547,35 +3547,7 @@
     }
 
     function buildTicketBarcodeSvg(ticketId) {
-      const patterns = {
-        0: 'nnwwn', 1: 'wnnnw', 2: 'nwnnw', 3: 'wwnnn', 4: 'nnwnw',
-        5: 'wnwnn', 6: 'nwwnn', 7: 'nnnww', 8: 'wnnwn', 9: 'nwnwn'
-      };
-      let digits = String(ticketId || '').replace(/\D/g, '');
-      if (digits.length % 2) digits = `0${digits}`;
-      const narrow = 2;
-      const wide = 5;
-      const quiet = 14;
-      const elements = [];
-      let x = quiet;
-      const addElement = (isBar, width) => {
-        if (isBar) elements.push(`<rect x="${x}" y="0" width="${width}" height="64" rx=".3"/>`);
-        x += width;
-      };
-      [narrow, narrow, narrow, narrow].forEach((width, index) => addElement(index % 2 === 0, width));
-      for (let index = 0; index < digits.length; index += 2) {
-        const barPattern = patterns[digits[index]];
-        const spacePattern = patterns[digits[index + 1]];
-        for (let part = 0; part < 5; part += 1) {
-          addElement(true, barPattern[part] === 'w' ? wide : narrow);
-          addElement(false, spacePattern[part] === 'w' ? wide : narrow);
-        }
-      }
-      addElement(true, wide);
-      addElement(false, narrow);
-      addElement(true, narrow);
-      x += quiet;
-      return `<svg viewBox="0 0 ${x} 64" role="img" aria-label="Barcode for ticket ${escapeHtml(digits)}" preserveAspectRatio="none"><g fill="#17130f">${elements.join('')}</g></svg>`;
+      return KapparosTicketDesign.barcodeSvg(ticketId, { height: 64, moduleWidth: 3 });
     }
 
     function getTicketPaymentText(sale) {

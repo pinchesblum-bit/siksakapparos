@@ -210,24 +210,44 @@ async function getResendSender() {
 }
 
 
-function buildEmailBarcode(ticketId: string) {
-  const patterns: Record<string, string> = {
-    '0': 'nnwwn', '1': 'wnnnw', '2': 'nwnnw', '3': 'wwnnn', '4': 'nnwnw',
-    '5': 'wnwnn', '6': 'nwwnn', '7': 'nnnww', '8': 'wnnwn', '9': 'nwnwn',
-  };
-  const units: number[] = [1, 1, 1, 1];
+const CODE128_PATTERNS = [
+  '212222','222122','222221','121223','121322','131222','122213','122312',
+  '132212','221213','221312','231212','112232','122132','122231','113222',
+  '123122','123221','223211','221132','221231','213212','223112','312131',
+  '311222','321122','321221','312212','322112','322211','212123','212321',
+  '232121','111323','131123','131321','112313','132113','132311','211313',
+  '231113','231311','112133','112331','132131','113123','113321','133121',
+  '313121','211331','231131','213113','213311','213131','311123','311321',
+  '331121','312113','312311','332111','314111','221411','431111','111224',
+  '111422','121124','121421','141122','141221','112214','112412','122114',
+  '122411','142112','142211','241211','221114','413111','241112','134111',
+  '111242','121142','121241','114212','124112','124211','411212','421112',
+  '421211','212141','214121','412121','111143','111341','131141','114113',
+  '114311','411113','411311','113141','114131','311141','411131','211412',
+  '211214','211232','2331112',
+];
+
+function code128Units(ticketId: string) {
+  const codewords = [105];
   for (let index = 0; index < ticketId.length; index += 2) {
-    const bars = patterns[ticketId[index]];
-    const spaces = patterns[ticketId[index + 1]];
-    for (let part = 0; part < 5; part += 1) {
-      units.push(bars[part] === 'w' ? 3 : 1, spaces[part] === 'w' ? 3 : 1);
-    }
+    codewords.push(Number(ticketId.slice(index, index + 2)));
   }
-  units.push(3, 1, 1);
-  const cells = units.map((unit, index) =>
-    `<td style="width:${unit * 2}px;height:82px;padding:0;background:${index % 2 === 0 ? '#17130f' : '#ffffff'};font-size:0;line-height:0">&nbsp;</td>`
-  ).join('');
-  return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto;border-collapse:collapse;background:#fff"><tr>${cells}</tr></table>`;
+  let checksum = codewords[0];
+  for (let index = 1; index < codewords.length; index += 1) checksum += codewords[index] * index;
+  codewords.push(checksum % 103, 106);
+  return codewords.flatMap(codeword => CODE128_PATTERNS[codeword].split('').map(Number));
+}
+
+function buildEmailBarcode(ticketId: string) {
+  const moduleWidth = 3;
+  const quietWidth = moduleWidth * 10;
+  const units = code128Units(ticketId);
+  const cells = units.map((unit, index) => {
+    const width = unit * moduleWidth;
+    return `<td width="${width}" style="width:${width}px;min-width:${width}px;height:90px;padding:0;background:${index % 2 === 0 ? '#17130f' : '#ffffff'};font-size:0;line-height:0">&nbsp;</td>`;
+  }).join('');
+  const quiet = `<td width="${quietWidth}" style="width:${quietWidth}px;min-width:${quietWidth}px;height:90px;padding:0;background:#fff;font-size:0;line-height:0">&nbsp;</td>`;
+  return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto;border-collapse:collapse;table-layout:fixed;background:#fff"><tr>${quiet}${cells}${quiet}</tr></table>`;
 }
 
 function fillTicketTemplate(template: string, values: Record<string, unknown>) {

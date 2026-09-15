@@ -42,6 +42,74 @@ const DEFAULT_TICKET_DELIVERY = {
 
   const safeTicketColor = (value, fallback) => /^#[0-9a-f]{6}$/i.test(value || '') ? value : fallback;
   const safeTicketSize = (value, fallback, min, max) => Number.isFinite(Number(value)) ? Math.min(max, Math.max(min, Number(value))) : fallback;
+
+  // Code 128 Set C is widely supported by inexpensive 1D scanners and adds a
+  // checksum. Ticket IDs remain the same six digits (or legacy ten digits).
+  const CODE128_PATTERNS = [
+    '212222','222122','222221','121223','121322','131222','122213','122312',
+    '132212','221213','221312','231212','112232','122132','122231','113222',
+    '123122','123221','223211','221132','221231','213212','223112','312131',
+    '311222','321122','321221','312212','322112','322211','212123','212321',
+    '232121','111323','131123','131321','112313','132113','132311','211313',
+    '231113','231311','112133','112331','132131','113123','113321','133121',
+    '313121','211331','231131','213113','213311','213131','311123','311321',
+    '331121','312113','312311','332111','314111','221411','431111','111224',
+    '111422','121124','121421','141122','141221','112214','112412','122114',
+    '122411','142112','142211','241211','221114','413111','241112','134111',
+    '111242','121142','121241','114212','124112','124211','411212','421112',
+    '421211','212141','214121','412121','111143','111341','131141','114113',
+    '114311','411113','411311','113141','114131','311141','411131','211412',
+    '211214','211232','2331112'
+  ];
+
+  function barcodeData(value) {
+    const ticketId = String(value || '').replace(/\D/g, '');
+    if (!/^(?:\d{6}|\d{10})$/.test(ticketId)) throw new Error('The ticket number is not valid.');
+    const codewords = [105];
+    for (let index = 0; index < ticketId.length; index += 2) {
+      codewords.push(Number(ticketId.slice(index, index + 2)));
+    }
+    let checksum = codewords[0];
+    for (let index = 1; index < codewords.length; index += 1) checksum += codewords[index] * index;
+    codewords.push(checksum % 103, 106);
+    const units = codewords.flatMap(codeword => CODE128_PATTERNS[codeword].split('').map(Number));
+    return { ticketId, codewords, units };
+  }
+
+  function barcodeSvg(value, options = {}) {
+    const { ticketId, units } = barcodeData(value);
+    const moduleWidth = Math.max(2, Math.round(Number(options.moduleWidth) || 3));
+    const height = Math.max(48, Math.round(Number(options.height) || 72));
+    const quietModules = 10;
+    const totalWidth = (units.reduce((sum, unit) => sum + unit, 0) + quietModules * 2) * moduleWidth;
+    let x = quietModules * moduleWidth;
+    const bars = [];
+    units.forEach((unit, index) => {
+      const width = unit * moduleWidth;
+      if (index % 2 === 0) bars.push(`<rect x="${x}" y="0" width="${width}" height="${height}"/>`);
+      x += width;
+    });
+    return `<svg viewBox="0 0 ${totalWidth} ${height}" role="img" aria-label="Barcode for ticket ${ticketId}" preserveAspectRatio="xMidYMid meet"><rect width="100%" height="100%" fill="#fff"/><g fill="#17130f">${bars.join('')}</g></svg>`;
+  }
+
+  function drawBarcode(context, value, centerX, y, height, maximumWidth) {
+    const { units } = barcodeData(value);
+    const quietModules = 10;
+    const totalModules = units.reduce((sum, unit) => sum + unit, 0) + quietModules * 2;
+    const moduleWidth = Math.max(5, Math.floor(maximumWidth / totalModules));
+    const totalWidth = totalModules * moduleWidth;
+    let x = centerX - totalWidth / 2;
+    context.fillStyle = '#ffffff';
+    context.fillRect(x, y, totalWidth, height);
+    x += quietModules * moduleWidth;
+    context.fillStyle = '#17130f';
+    units.forEach((unit, index) => {
+      const width = unit * moduleWidth;
+      if (index % 2 === 0) context.fillRect(x, y, width, height);
+      x += width;
+    });
+  }
+
   function render(design, values) {
     design = { ...DEFAULT_TICKET_DELIVERY, ...(design || {}) };
     const ticketId = String(values.ticket_id || '').replace(/\D/g, '');
@@ -113,31 +181,11 @@ const DEFAULT_TICKET_DELIVERY = {
       }
 
       if (design.pdfShowBarcode) {
-        const patterns = {
-          0: 'nnwwn', 1: 'wnnnw', 2: 'nwnnw', 3: 'wwnnn', 4: 'nnwnw',
-          5: 'wnwnn', 6: 'nwwnn', 7: 'nnnww', 8: 'wnnwn', 9: 'nwnwn'
-        };
-        const units = [1, 1, 1, 1];
-        for (let index = 0; index < ticketId.length; index += 2) {
-          const bars = patterns[ticketId[index]];
-          const spaces = patterns[ticketId[index + 1]];
-          for (let part = 0; part < 5; part += 1) {
-            units.push(bars[part] === 'w' ? 3 : 1, spaces[part] === 'w' ? 3 : 1);
-          }
-        }
-        units.push(3, 1, 1);
-        const barcodeWidth = 1040;
-        const unitWidth = barcodeWidth / units.reduce((sum, unit) => sum + unit, 0);
-        let barcodeX = (canvas.width - barcodeWidth) / 2;
         const barcodeY = Math.min(1250, Math.max(contentBottom + 75, design.pdfShowDetails ? 1040 : 520));
         const barcodeHeight = Math.min(230, 1490 - barcodeY);
-        context.fillStyle = textColor;
-        units.forEach((unit, index) => {
-          const width = unit * unitWidth;
-          if (index % 2 === 0) context.fillRect(barcodeX, barcodeY, width, barcodeHeight);
-          barcodeX += width;
-        });
+        drawBarcode(context, ticketId, canvas.width / 2, barcodeY, barcodeHeight, 1100);
         context.font = '700 34px monospace';
+        context.fillStyle = textColor;
         context.fillText(ticketId.split('').join(' '), canvas.width / 2, barcodeY + barcodeHeight + 62);
       }
 
@@ -155,5 +203,5 @@ const DEFAULT_TICKET_DELIVERY = {
     const blob = await new Promise((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('The PDF could not be created.')), 'image/jpeg', .95));
     return { bytes:new Uint8Array(await blob.arrayBuffer()), width:canvas.width, height:canvas.height };
   }
-  root.KapparosTicketDesign = Object.freeze({ render, toJpeg });
+  root.KapparosTicketDesign = Object.freeze({ render, toJpeg, barcodeSvg, barcodeData });
 })(globalThis);

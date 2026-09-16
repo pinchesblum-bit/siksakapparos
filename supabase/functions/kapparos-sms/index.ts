@@ -78,14 +78,14 @@ Deno.serve(async (req: Request) => {
     if (!/^[0-9]{10}$/.test(recipient)) return json(req, { error: 'Enter exactly 10 digits.' }, 400);
     const displayPhone = recipient.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1-$2-$3');
     const ticketId = String(sale.ticketId || '');
-    if (!/^[0-9]{10}$/.test(ticketId)) return json(req, { error: 'Save this sale before sending its ticket.' }, 400);
+    if (!/^[0-9]{6,10}$/.test(ticketId)) return json(req, { error: 'Save this sale before sending its ticket.' }, 400);
     const username = Deno.env.get('SMSGATE_USERNAME') || '';
     const password = Deno.env.get('SMSGATE_PASSWORD') || '';
     if (!username || !password) return json(req, { error: 'Text messaging is not configured yet.' }, 503);
     const methods = Array.isArray(settings.paymentMethods) ? settings.paymentMethods : [];
     const payment = methods.find((item: any) => String(item?.id) === String(sale.paymentType))?.label || sale.paymentType || 'Not selected';
-    const title = settings.title || 'פנים מאירות סיקסא';
-    const subtitle = settings.subtitle || 'כפרות';
+    const title = 'Punim Meiros Siksa';
+    const subtitle = 'Kaparos';
     const brand = [title, subtitle].filter(Boolean).join(' ');
     const defaultMessage = [
       title, subtitle, '',

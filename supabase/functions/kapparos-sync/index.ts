@@ -256,7 +256,7 @@ function fillTicketTemplate(template: string, values: Record<string, unknown>) {
 }
 
 async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, recipientOverride = '') {
-  if (Boolean(GMAIL_USER) !== Boolean(GMAIL_APP_PASSWORD)) {
+  if (!RESEND_API_KEY && Boolean(GMAIL_USER) !== Boolean(GMAIL_APP_PASSWORD)) {
     throw new Error('Gmail delivery is only partly configured. Add both GMAIL_USER and GMAIL_APP_PASSWORD in Supabase secrets.');
   }
   if (!GMAIL_USER && !RESEND_API_KEY) {
@@ -342,6 +342,31 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
     </div>
   </body></html>`;
 
+  let resendError = '';
+  if (RESEND_API_KEY) {
+    const configuredFrom = await getResendSender();
+    const addressMatch = configuredFrom.match(/<([^>]+)>/);
+    const safeSenderName = senderName.replace(/[<>\r\n]/g, '').trim() || 'Kapparos Tickets';
+    const from = addressMatch ? `${safeSenderName} <${addressMatch[1]}>` : configuredFrom;
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [recipient],
+        subject,
+        html,
+        attachments: [{ filename: `kapparos-ticket-${ticketId}.pdf`, content: pdfBase64 }],
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (response.ok) return { ...payload, provider: 'resend' };
+    resendError = String(payload?.message || payload?.error || 'The ticket email could not be sent.');
+  }
+
   if (GMAIL_USER && GMAIL_APP_PASSWORD) {
     try {
       const transporter = nodemailer.createTransport({
@@ -372,30 +397,10 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
     }
   }
 
-  const from = await getResendSender();
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from,
-      to: [recipient],
-      subject,
-      html,
-      attachments: [{ filename: `kapparos-ticket-${ticketId}.pdf`, content: pdfBase64 }],
-    }),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message = String(payload?.message || payload?.error || 'The ticket email could not be sent.');
-    if (/domain|sender|from/i.test(message)) {
+  if (/domain|sender|from/i.test(resendError)) {
       throw new Error('Verify a sending domain in Resend before emailing customers.');
-    }
-    throw new Error(message);
   }
-  return payload;
+  throw new Error(resendError || 'The ticket email could not be sent.');
 }
 
 function mergeConcurrentSales(currentValue: unknown, incomingValue: unknown, knownValue: unknown) {

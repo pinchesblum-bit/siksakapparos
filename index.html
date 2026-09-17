@@ -5127,9 +5127,16 @@
           groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
         }
         if (sale.isOnlineSale !== true) groups[sale.paymentType].count += 1;
-        if ((sale.status || 'paid') === 'paid' && !isBanshakPayment(sale.paymentType)) groups[sale.paymentType].money += Number(sale.price || 0);
+        if ((sale.status || 'paid') === 'paid' && sale.isOnlineSale !== true && !isBanshakPayment(sale.paymentType)) {
+          groups[sale.paymentType].money += Number(sale.price || 0);
+        }
       });
 
+      const onlineOrderMoney = state.sales.reduce((sum, sale) => (
+        sale.isOnlineSale === true
+        && (sale.status || 'paid') === 'paid'
+        && !isBanshakPayment(sale.paymentType)
+      ) ? sum + Number(sale.price || 0) : sum, 0);
       const groupValues = Object.values(groups);
       const paidGroups = groupValues.filter(group => !isBanshakPayment(group.id));
       const onlineSalesCount = state.sales.filter(sale => sale.isOnlineSale === true && sale.status !== 'expired').length;
@@ -5138,7 +5145,7 @@
           <div class="stat-label">${escapeHtml(group.label)} sales</div>
           <div class="stat-value">${group.count}</div>
         </div>`).join('');
-      document.getElementById('moneyTotalsGrid').innerHTML = paidGroups.map(group => `
+      document.getElementById('moneyTotalsGrid').innerHTML = [...paidGroups, { label: 'Online Orders', money: onlineOrderMoney }].map(group => `
         <div class="stat-card">
           <div class="stat-label">${escapeHtml(group.label)} total</div>
           <div class="stat-value">${money(group.money)}</div>
@@ -5157,7 +5164,7 @@
       document.getElementById('reportNeedsReservedTotal').textContent = needsReserved;
       document.getElementById('reportNeedsSavedTotal').textContent = needsSaved;
 
-      const subtotal = paidGroups.reduce((sum, group) => sum + group.money, 0);
+      const subtotal = paidGroups.reduce((sum, group) => sum + group.money, onlineOrderMoney);
       document.getElementById('subtotalMoney').textContent = money(subtotal);
       updateHomeSummary();
     }

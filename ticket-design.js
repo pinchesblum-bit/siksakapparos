@@ -8,7 +8,7 @@ const DEFAULT_TICKET_DELIVERY = {
       subheading: '{subtitle}',
       ticketNumberLabel: 'Ticket',
       emailMessage: 'Hello {name},\n\nHere are the details of your order.',
-      footer: 'Please keep this ticket.',
+      footer: 'If you do not have the ticket, you may use your name or order ID instead.',
       nameLabel: 'Name',
       phoneLabel: 'Phone',
       quantityLabel: 'Amount of כפרות',
@@ -117,7 +117,7 @@ const DEFAULT_TICKET_DELIVERY = {
     const fill = value => String(value ?? '').replace(/\{([a-z_]+)\}/g, (match, key) => Object.prototype.hasOwnProperty.call(values, key) ? String(values[key] ?? '') : match);
       const canvas = document.createElement('canvas');
       canvas.width = 1440;
-      canvas.height = 1720;
+      canvas.height = 900;
       const context = canvas.getContext('2d');
       if (!context) throw new Error('This device could not prepare the PDF.');
 
@@ -127,31 +127,39 @@ const DEFAULT_TICKET_DELIVERY = {
       const muted = safeTicketColor(design.pdfMutedColor, '#626b63');
       const headingSize = safeTicketSize(design.pdfHeadingSize, 64, 38, 86);
       const valueSize = safeTicketSize(design.pdfValueSize, 43, 26, 56);
+      const configuredHeading = fill(design.heading).trim();
+      const configuredSubheading = fill(design.subheading).trim();
+      const configuredFooter = fill(design.footer).trim();
+      const heading = String(design.heading || '').trim() === '{title}' ? 'Cappores Center' : configuredHeading;
+      const subheading = String(design.subheading || '').trim() === '{subtitle}' ? 'Cong. Punim Meiros Siksa' : configuredSubheading;
+      const footer = /^please keep this ticket\.?$/i.test(configuredFooter)
+        ? 'If you do not have the ticket, you may use your name or order ID instead.'
+        : configuredFooter;
 
       context.fillStyle = background;
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.strokeStyle = accent;
-      context.lineWidth = 5;
-      context.strokeRect(42, 42, canvas.width - 84, canvas.height - 84);
+      context.lineWidth = 4;
+      context.strokeRect(34, 34, canvas.width - 68, canvas.height - 68);
       context.textAlign = 'center';
       context.fillStyle = textColor;
-      context.font = `900 ${headingSize}px Arial, sans-serif`;
-      context.fillText(fill(design.heading), canvas.width / 2, 145, canvas.width - 180);
+      context.font = `900 ${Math.min(headingSize, 66)}px Arial, sans-serif`;
+      context.fillText(heading, canvas.width / 2, 112, canvas.width - 180);
 
-      let headerY = 215;
-      if (design.pdfShowSubtitle && fill(design.subheading)) {
+      let headerY = 165;
+      if (design.pdfShowSubtitle && subheading) {
         context.fillStyle = accent;
-        context.font = '800 46px Arial, sans-serif';
-        context.fillText(fill(design.subheading), canvas.width / 2, headerY, canvas.width - 180);
-        headerY += 75;
+        context.font = '800 34px Arial, sans-serif';
+        context.fillText(subheading, canvas.width / 2, headerY, canvas.width - 180);
+        headerY += 55;
       }
       context.fillStyle = accent;
-      context.font = '900 38px Arial, sans-serif';
+      context.font = '900 32px Arial, sans-serif';
       context.fillText(`${fill(design.ticketNumberLabel)} #${ticketId}`, canvas.width / 2, headerY, canvas.width - 180);
-      const dividerY = headerY + 50;
+      const dividerY = headerY + 30;
       context.beginPath();
-      context.moveTo(110, dividerY);
-      context.lineTo(canvas.width - 110, dividerY);
+      context.moveTo(80, dividerY);
+      context.lineTo(canvas.width - 80, dividerY);
       context.stroke();
 
       let contentBottom = dividerY;
@@ -163,36 +171,40 @@ const DEFAULT_TICKET_DELIVERY = {
           ...(design.pdfShowPrice ? [[design.priceLabel, values.price_paid]] : []),
           [design.paymentLabel, values.payment_method]
         ];
-        const availableHeight = design.pdfShowBarcode ? 720 : 1080;
-        const rowGap = Math.min(175, Math.max(125, availableHeight / Math.max(1, details.length)));
-        const startY = dividerY + 85;
+        const detailCenterX = design.pdfShowBarcode ? 355 : canvas.width / 2;
+        const detailWidth = design.pdfShowBarcode ? 560 : 1180;
+        const availableHeight = 430;
+        const rowGap = Math.min(108, availableHeight / Math.max(1, details.length));
+        const startY = dividerY + 55;
         details.forEach(([label, value], index) => {
           const y = startY + index * rowGap;
           context.fillStyle = muted;
-          context.font = '800 28px Arial, sans-serif';
-          context.fillText(fill(label), canvas.width / 2, y, canvas.width - 190);
+          context.font = '800 23px Arial, sans-serif';
+          context.fillText(fill(label), detailCenterX, y, detailWidth);
           context.fillStyle = textColor;
-          context.font = `700 ${valueSize}px Arial, sans-serif`;
+          context.font = `700 ${Math.min(valueSize, 38)}px Arial, sans-serif`;
           const cleanValue = String(value || '—');
           const fittedValue = cleanValue.length > 52 ? `${cleanValue.slice(0, 51)}…` : cleanValue;
-          context.fillText(fittedValue, canvas.width / 2, y + Math.max(52, valueSize + 15), canvas.width - 190);
-          contentBottom = y + Math.max(62, valueSize + 25);
+          context.fillText(fittedValue, detailCenterX, y + 43, detailWidth);
+          contentBottom = y + 52;
         });
       }
 
       if (design.pdfShowBarcode) {
-        const barcodeY = Math.min(1250, Math.max(contentBottom + 75, design.pdfShowDetails ? 1040 : 520));
-        const barcodeHeight = Math.min(230, 1490 - barcodeY);
-        drawBarcode(context, ticketId, canvas.width / 2, barcodeY, barcodeHeight, 1100);
-        context.font = '700 34px monospace';
+        const barcodeCenterX = design.pdfShowDetails ? 1045 : canvas.width / 2;
+        const barcodeY = design.pdfShowDetails ? 365 : Math.max(contentBottom + 70, 350);
+        const barcodeWidth = design.pdfShowDetails ? 600 : 1080;
+        const barcodeHeight = 190;
+        drawBarcode(context, ticketId, barcodeCenterX, barcodeY, barcodeHeight, barcodeWidth);
+        context.font = '700 30px monospace';
         context.fillStyle = textColor;
-        context.fillText(ticketId.split('').join(' '), canvas.width / 2, barcodeY + barcodeHeight + 62);
+        context.fillText(ticketId.split('').join(' '), barcodeCenterX, barcodeY + barcodeHeight + 52);
       }
 
-      if (design.pdfShowFooter && fill(design.footer)) {
+      if (design.pdfShowFooter && footer) {
         context.fillStyle = muted;
-        context.font = '500 25px Arial, sans-serif';
-        context.fillText(fill(design.footer), canvas.width / 2, 1590, canvas.width - 190);
+        context.font = '500 24px Arial, sans-serif';
+        context.fillText(footer, canvas.width / 2, 830, canvas.width - 150);
       }
 
 

@@ -280,26 +280,23 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
   const rows: Array<[string, unknown, boolean?]> = [
     [orderNumberLabel, '#' + ticketId],
     [nameLabel, sale.fullName || '—'],
-    [phoneLabel, phoneDisplay],
+    [phoneLabel, phoneDisplay, true],
     [quantityLabel, quantityNumber],
     [unitPriceLabel, unitPrice],
     [priceLabel, totalPaid],
     [paymentLabel, payment],
   ];
-  const detailsHtml = rows.map(([label, value, isStatus], index) => {
+  const detailsHtml = rows.map(([label, value, noWrap], index) => {
     const border = index === rows.length - 1 ? '' : 'border-bottom:1px solid #ded4bf;';
-    const valueHtml = isStatus
-      ? `<span style="display:inline-block;padding:5px 12px;border-radius:999px;background:#e1eee8;color:${accent};font-weight:700">${escapeEmailHtml(value)}</span>`
-      : escapeEmailHtml(value);
     return `<tr>
       <td style="padding:12px 14px;${border}color:${muted};text-align:left">${escapeEmailHtml(label)}</td>
-      <td dir="auto" style="padding:12px 14px;${border}font-weight:700;text-align:right;color:${textColor}">${valueHtml}</td>
+      <td dir="auto" style="padding:12px 14px;${border}font-weight:700;text-align:right;color:${textColor};white-space:${noWrap ? 'nowrap' : 'normal'}">${escapeEmailHtml(value)}</td>
     </tr>`;
   }).join('');
 
   const plainText = [
     'Cappores Center',
-    'Congregation Punim Meiros Siksa',
+    'Cong. Punim Meiros Siksa',
     '',
     emailMessage,
     '',
@@ -340,7 +337,7 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
               <tr>
                 <td align="center" style="padding:0 30px">
                   <h1 style="margin:4px 0 8px;color:${accent};font-size:46px;line-height:1.08;font-weight:800;text-align:center">Cappores Center</h1>
-                  <div style="color:${accent};font-size:23px;line-height:1.4;font-weight:600;text-align:center">Congregation Punim Meiros Siksa</div>
+                  <div style="color:${accent};font-size:23px;line-height:1.4;font-weight:600;text-align:center">Cong. Punim Meiros Siksa</div>
                   ${showMessage && emailMessage ? `<div dir="auto" style="margin:22px 4px 24px;text-align:center;color:${muted};line-height:1.6;white-space:pre-wrap">${escapeEmailHtml(emailMessage)}</div>` : '<div style="height:24px;line-height:24px">&nbsp;</div>'}
                 </td>
               </tr>

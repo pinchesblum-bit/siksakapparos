@@ -2804,7 +2804,7 @@
       subheading: '{subtitle}',
       ticketNumberLabel: 'Ticket',
       emailMessage: 'Hello {name},\n\nHere are the details of your order.',
-      footer: 'Please keep this ticket.',
+      footer: 'If you do not have the ticket, you may use your name or order ID instead.',
       nameLabel: 'Name',
       phoneLabel: 'Phone',
       quantityLabel: 'Amount of כפרות',
@@ -3592,7 +3592,7 @@
           ${buildTicketBarcodeSvg(ticketId)}
           <div class="ticket-barcode-number">${escapeHtml(ticketId)}</div>
         </div>
-        <div class="ticket-footer">Please keep this ticket. Ticket ID #${escapeHtml(ticketId)}</div>`;
+        <div class="ticket-footer">If you do not have the ticket, you may use your name or order ID instead.</div>`;
       return true;
     }
 
@@ -3642,12 +3642,14 @@
       };
       const pageWidth = 612;
       const pageHeight = 792;
-      const margin = 32;
-      const scale = Math.min((pageWidth - margin * 2) / imageWidth, (pageHeight - margin * 2) / imageHeight);
+      const halfHeight = pageHeight / 2;
+      const horizontalMargin = 24;
+      const verticalMargin = 18;
+      const scale = Math.min((pageWidth - horizontalMargin * 2) / imageWidth, (halfHeight - verticalMargin * 2) / imageHeight);
       const drawWidth = imageWidth * scale;
       const drawHeight = imageHeight * scale;
       const drawX = (pageWidth - drawWidth) / 2;
-      const drawY = (pageHeight - drawHeight) / 2;
+      const drawY = halfHeight + (halfHeight - drawHeight) / 2;
       const drawing = `q\n${drawWidth.toFixed(2)} 0 0 ${drawHeight.toFixed(2)} ${drawX.toFixed(2)} ${drawY.toFixed(2)} cm\n/Im0 Do\nQ`;
 
       add('%PDF-1.4\n%âãÏÓ\n');
@@ -7545,4 +7547,3 @@
   </script>
 </body>
 </html>
-

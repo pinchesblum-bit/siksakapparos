@@ -275,8 +275,8 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
   const quantityLabel = fillTicketTemplate(ticketText(delivery, 'quantityLabel', 'Amount of chickens', 80), values);
   const unitPriceLabel = fillTicketTemplate(ticketText(delivery, 'unitPriceLabel', 'Price per chicken', 80), values);
   const priceLabel = fillTicketTemplate(ticketText(delivery, 'priceLabel', 'Total paid', 80), values);
-  const statusLabel = fillTicketTemplate(ticketText(delivery, 'paymentStatusLabel', 'Payment status', 80), values);
-  const paymentLabel = fillTicketTemplate(ticketText(delivery, 'paymentLabel', 'Payment method', 80), values);
+  const configuredPaymentLabel = fillTicketTemplate(ticketText(delivery, 'paymentLabel', 'Payment type', 80), values);
+  const paymentLabel = /^payment method$/i.test(configuredPaymentLabel.trim()) ? 'Payment type' : configuredPaymentLabel;
   const rows: Array<[string, unknown, boolean?]> = [
     [orderNumberLabel, '#' + ticketId],
     [nameLabel, sale.fullName || '—'],
@@ -284,7 +284,6 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
     [quantityLabel, quantityNumber],
     [unitPriceLabel, unitPrice],
     [priceLabel, totalPaid],
-    [statusLabel, paymentStatus, true],
     [paymentLabel, payment],
   ];
   const detailsHtml = rows.map(([label, value, isStatus], index) => {
@@ -311,7 +310,6 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
     `${quantityLabel}: ${quantityNumber}`,
     `${unitPriceLabel}: ${unitPrice}`,
     `${priceLabel}: ${totalPaid}`,
-    `${statusLabel}: ${paymentStatus}`,
     `${paymentLabel}: ${payment}`,
     '',
     pickupMessage,
@@ -341,7 +339,6 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
               </tr>
               <tr>
                 <td align="center" style="padding:0 30px">
-                  <img src="https://siksakapparos.org/favicon.png" width="128" height="128" alt="Cappores chicken" style="display:block;width:128px;height:128px;margin:0 auto;border:0">
                   <h1 style="margin:4px 0 8px;color:${accent};font-size:46px;line-height:1.08;font-weight:800;text-align:center">Cappores Center</h1>
                   <div style="color:${accent};font-size:23px;line-height:1.4;font-weight:600;text-align:center">Congregation Punim Meiros Siksa</div>
                   ${showMessage && emailMessage ? `<div dir="auto" style="margin:22px 4px 24px;text-align:center;color:${muted};line-height:1.6;white-space:pre-wrap">${escapeEmailHtml(emailMessage)}</div>` : '<div style="height:24px;line-height:24px">&nbsp;</div>'}
@@ -371,7 +368,16 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
               </tr>
 
               <tr>
-                <td dir="rtl" align="center" style="padding:25px 20px;background:${accent};color:#ffffff;text-align:center;font-size:32px;line-height:1.25;font-weight:800">גמר חתימה טובה</td>
+                <td align="center" style="padding:11px 18px;background:${accent};color:#ffffff">
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto;border-collapse:collapse">
+                    <tr>
+                      <td style="padding:0 12px 0 0;vertical-align:middle">
+                        <img src="https://siksakapparos.org/favicon.png" width="48" height="48" alt="Cappores chicken" style="display:block;width:48px;height:48px;border:0">
+                      </td>
+                      <td dir="rtl" style="vertical-align:middle;color:#ffffff;text-align:center;font-size:23px;line-height:1.2;font-weight:800;white-space:nowrap">גמר חתימה טובה</td>
+                    </tr>
+                  </table>
+                </td>
               </tr>
             </table>
           </td>

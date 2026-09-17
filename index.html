@@ -4512,7 +4512,7 @@
         [draft.phoneLabel, sample.phone, true],
         [draft.quantityLabel, sample.quantity, true],
         [draft.priceLabel, sample.price_paid, Boolean(draft.emailShowPrice)],
-        [draft.paymentLabel, sample.payment_method, true]
+        [/^payment method$/i.test(String(draft.paymentLabel || '').trim()) ? 'Payment type' : draft.paymentLabel, sample.payment_method, true]
       ];
       const emailRows = detailValues.filter(item => item[2]).map(([label, value]) =>
         `<div class="email-preview-row"><span style="color:${emailMuted}">${escapeHtml(fillTicketPreviewTemplate(label, sample))}</span><span class="email-preview-value" dir="auto">${escapeHtml(value)}</span></div>`).join('');
@@ -4534,7 +4534,7 @@
             ${draft.emailShowDetails ? `<div>${emailRows}</div>` : ''}
             <div class="email-preview-message" style="color:${emailText};font-weight:700">${escapeHtml(pickupMessage)}</div>
             <div class="email-preview-message" style="color:${emailMuted}">(${escapeHtml(pickupAlternative)})</div>
-            <div class="email-preview-message" style="background:${emailAccent};color:#fff;font-size:1.15em;font-weight:800">גמר חתימה טובה</div>
+            <div class="email-preview-message" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:7px 10px;background:${emailAccent};color:#fff;font-size:1em;font-weight:800"><img src="https://siksakapparos.org/favicon.png" width="28" height="28" alt="" style="display:block;width:28px;height:28px">גמר חתימה טובה</div>
           </div>
         </div>`;
 
@@ -7545,5 +7545,4 @@
   </script>
 </body>
 </html>
-
 

@@ -246,87 +246,225 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
 
   const ticketId = String(sale.ticketId || '').replace(/\D/g, '').slice(0, 10);
   if (!ticketId) throw new Error('This sale does not have a valid ticket number.');
+
   const paymentMethods = Array.isArray(settings?.paymentMethods) ? settings.paymentMethods : [];
   const paymentPlans = Array.isArray(settings?.paymentPlans) ? settings.paymentPlans : [];
   const usesPlan = ['reserved', 'expired'].includes(String(sale.status || 'paid'));
   const options = usesPlan ? paymentPlans : paymentMethods;
   const selectedId = usesPlan ? sale.plannedPaymentType : sale.paymentType;
   const payment = options.find((item: any) => String(item?.id) === String(selectedId))?.label || selectedId || 'Not selected';
-  const priceNumber = Number(sale.price);
-  const pricePaid = Number.isFinite(priceNumber) ? '$' + priceNumber.toFixed(2) : '$0.00';
-  const title = String(settings?.title || 'Kapparos');
-  const subtitle = String(settings?.subtitle || '').trim();
+  const quantityNumber = Math.max(0, Math.floor(Number(sale.quantity) || 0));
+  const totalPaidNumber = Number.isFinite(Number(sale.price)) ? Math.max(0, Number(sale.price)) : 0;
+  const configuredUnitPrice = Number(settings?.defaultPrice);
+  const unitPriceNumber = quantityNumber > 0 && totalPaidNumber > 0
+    ? totalPaidNumber / quantityNumber
+    : (Number.isFinite(configuredUnitPrice) ? Math.max(0, configuredUnitPrice) : 0);
+  const money = (amount: number) => '$' + amount.toFixed(2);
+  const totalPaid = money(totalPaidNumber);
+  const unitPrice = money(unitPriceNumber);
+  const paymentStatus = String(sale.status || 'paid') === 'paid' ? 'Paid' : String(sale.status || '—');
+  const cleanPhone = String(sale.phone || '').replace(/\D/g, '').slice(-10);
+  const phoneDisplay = cleanPhone.length === 10
+    ? `(${cleanPhone.slice(0, 3)}) ${cleanPhone.slice(3, 6)}-${cleanPhone.slice(6)}`
+    : (sale.phone || '—');
+
+  const title = String(settings?.title || 'פנים מאירות סיקסא');
+  const subtitle = String(settings?.subtitle || 'כפרות').trim();
   const brandName = [title, subtitle].filter(Boolean).join(' ');
   const delivery = settings?.ticketDelivery || {};
   const values = {
     name: sale.fullName || '—',
     ticket_id: ticketId,
-    quantity: sale.quantity || 0,
-    phone: sale.phone || '—',
+    order_number: ticketId,
+    quantity: quantityNumber,
+    phone: phoneDisplay,
     payment_method: payment,
-    price_paid: pricePaid,
+    payment_status: paymentStatus,
+    unit_price: unitPrice,
+    price_paid: totalPaid,
     title,
     subtitle,
     brand: brandName,
   };
-  const subjectTemplate = ticketText(delivery, 'emailSubject', '{brand} — Ticket #{ticket_id}', 200);
+
+  const subjectTemplate = ticketText(delivery, 'emailSubject', 'Your Cappores order confirmation — #{ticket_id}', 200);
   const subject = fillTicketTemplate(subjectTemplate, values).replace(/[\r\n]+/g, ' ').trim();
-  const senderName = fillTicketTemplate(ticketText(delivery, 'emailSender', '{brand}', 120), values).replace(/[\r\n]+/g, ' ').trim() || brandName || 'Kapparos Tickets';
-  const heading = fillTicketTemplate(ticketText(delivery, 'heading', '{title}', 160), values);
-  const subheading = fillTicketTemplate(ticketText(delivery, 'subheading', '{subtitle}', 160), values);
+  const senderName = fillTicketTemplate(ticketText(delivery, 'emailSender', 'Cappores Tickets', 120), values).replace(/[\r\n]+/g, ' ').trim() || 'Cappores Tickets';
   const ticketLabel = fillTicketTemplate(ticketText(delivery, 'ticketNumberLabel', 'Ticket', 80), values);
-  const emailMessage = fillTicketTemplate(ticketText(delivery, 'emailMessage', 'Scan the barcode above, or use the attached printable PDF.'), values);
-  const background = ticketColor(delivery, 'emailBackgroundColor', '#fcfaf5');
-  const card = ticketColor(delivery, 'emailCardColor', '#fffefb');
-  const accent = ticketColor(delivery, 'emailAccentColor', '#203c36');
+  const emailMessage = fillTicketTemplate(
+    ticketText(delivery, 'emailMessage', 'Please bring the attached ticket with you. You may print it or show it on your phone.'),
+    values
+  );
+  const background = ticketColor(delivery, 'emailBackgroundColor', '#f5f3ee');
+  const card = ticketColor(delivery, 'emailCardColor', '#fffdf8');
+  const accent = ticketColor(delivery, 'emailAccentColor', '#173f36');
   const textColor = ticketColor(delivery, 'emailTextColor', '#203c36');
-  const muted = ticketColor(delivery, 'emailMutedColor', '#626b63');
+  const muted = ticketColor(delivery, 'emailMutedColor', '#68716b');
+  const gold = '#b49a68';
+  const soft = '#f2efe6';
   const fontSize = ticketSize(delivery, 'emailFontSize', 16, 12, 24);
-  const headingSize = ticketSize(delivery, 'emailHeadingSize', 30, 20, 48);
-  const showSubtitle = ticketBoolean(delivery, 'emailShowSubtitle', true);
   const showDetails = ticketBoolean(delivery, 'emailShowDetails', true);
-  const showPrice = ticketBoolean(delivery, 'emailShowPrice', true);
   const showBarcode = ticketBoolean(delivery, 'emailShowBarcode', true);
   const showMessage = ticketBoolean(delivery, 'emailShowMessage', true);
-  const nameLabel = fillTicketTemplate(ticketText(delivery, 'nameLabel', 'Name', 80), values);
-  const phoneLabel = fillTicketTemplate(ticketText(delivery, 'phoneLabel', 'Phone', 80), values);
-  const quantityLabel = fillTicketTemplate(ticketText(delivery, 'quantityLabel', 'Amount of כפרות', 80), values);
-  const priceLabel = fillTicketTemplate(ticketText(delivery, 'priceLabel', 'Price Paid', 80), values);
-  const paymentLabel = fillTicketTemplate(ticketText(delivery, 'paymentLabel', 'Payment Method', 80), values);
-  const rows: Array<[string, unknown]> = [
+
+  const orderNumberLabel = fillTicketTemplate(ticketText(delivery, 'orderNumberLabel', 'Order number', 80), values);
+  const nameLabel = fillTicketTemplate(ticketText(delivery, 'nameLabel', 'Customer name', 80), values);
+  const phoneLabel = fillTicketTemplate(ticketText(delivery, 'phoneLabel', 'Phone number', 80), values);
+  const quantityLabel = fillTicketTemplate(ticketText(delivery, 'quantityLabel', 'Amount of chickens', 80), values);
+  const unitPriceLabel = fillTicketTemplate(ticketText(delivery, 'unitPriceLabel', 'Price per chicken', 80), values);
+  const priceLabel = fillTicketTemplate(ticketText(delivery, 'priceLabel', 'Total paid', 80), values);
+  const statusLabel = fillTicketTemplate(ticketText(delivery, 'paymentStatusLabel', 'Payment status', 80), values);
+  const paymentLabel = fillTicketTemplate(ticketText(delivery, 'paymentLabel', 'Payment method', 80), values);
+  const rows: Array<[string, unknown, boolean?]> = [
+    [orderNumberLabel, '#' + ticketId],
     [nameLabel, sale.fullName || '—'],
-    [phoneLabel, sale.phone || '—'],
-    [quantityLabel, sale.quantity || 0],
-    ...(showPrice ? [[priceLabel, pricePaid] as [string, unknown]] : []),
+    [phoneLabel, phoneDisplay],
+    [quantityLabel, quantityNumber],
+    [unitPriceLabel, unitPrice],
+    [priceLabel, totalPaid],
+    [statusLabel, paymentStatus, true],
     [paymentLabel, payment],
   ];
-  const detailsHtml = rows.map(([label, value], index) => {
-    const border = index === rows.length - 1 ? '' : 'border-bottom:1px solid #d4c6ac;';
-    return `<tr><td style="padding:11px;${border}color:${muted}">${escapeEmailHtml(label)}</td><td style="padding:11px;${border}font-weight:700" dir="auto">${escapeEmailHtml(value)}</td></tr>`;
+  const detailsHtml = rows.map(([label, value, isStatus], index) => {
+    const border = index === rows.length - 1 ? '' : 'border-bottom:1px solid #ded4bf;';
+    const valueHtml = isStatus
+      ? `<span style="display:inline-block;padding:5px 12px;border-radius:999px;background:#e1eee8;color:${accent};font-weight:700">${escapeEmailHtml(value)}</span>`
+      : escapeEmailHtml(value);
+    return `<tr>
+      <td style="padding:12px 14px;${border}color:${muted};text-align:left">${escapeEmailHtml(label)}</td>
+      <td dir="auto" style="padding:12px 14px;${border}font-weight:700;text-align:right;color:${textColor}">${valueHtml}</td>
+    </tr>`;
   }).join('');
+
   const plainText = [
-    subject,
-    `${ticketLabel} #${ticketId}`,
+    'כפרות צענטער',
+    'שע״י ביהמ״ד פנים מאירות סיקסא',
+    '76 Grove St., Monsey, N.Y. 10952',
+    '',
+    'ערב יום כיפור — פון 5:00 ביז 8:00',
+    'בחצר בית מדרשינו — 76 Grove St.',
+    'מניני סליחות ושחרית ומקוה חמה',
+    'מניני סליחות פון 5:20',
+    'מניני שחרית פון 6:15',
+    `פרייז פאר א כפרה: ${unitPrice}`,
+    '',
+    'ORDER DETAILS',
+    `${orderNumberLabel}: #${ticketId}`,
     `${nameLabel}: ${sale.fullName || '—'}`,
-    `${phoneLabel}: ${sale.phone || '—'}`,
-    `${quantityLabel}: ${sale.quantity || 0}`,
-    ...(showPrice ? [`${priceLabel}: ${pricePaid}`] : []),
+    `${phoneLabel}: ${phoneDisplay}`,
+    `${quantityLabel}: ${quantityNumber}`,
+    `${unitPriceLabel}: ${unitPrice}`,
+    `${priceLabel}: ${totalPaid}`,
+    `${statusLabel}: ${paymentStatus}`,
     `${paymentLabel}: ${payment}`,
-    emailMessage
-  ].filter(Boolean).join('\n');
-  const html = `<!doctype html><html lang="und" dir="auto"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeEmailHtml(subject)}</title></head><body style="margin:0;background:${background};font-family:Arial,sans-serif;color:${textColor};font-size:${fontSize}px">
-    <div lang="und" dir="auto" style="max-width:620px;margin:32px auto;padding:30px;background:${card};border:2px solid ${accent};border-radius:18px">
-      <h1 dir="auto" style="margin:0 0 6px;text-align:center;color:${accent};font-size:${headingSize}px">${escapeEmailHtml(heading)}</h1>
-      ${showSubtitle && subheading ? `<div dir="auto" style="margin:0 0 10px;text-align:center;font-size:${Math.max(16, Math.round(headingSize * .72))}px;font-weight:800;color:${accent}">${escapeEmailHtml(subheading)}</div>` : ''}
-      <p dir="auto" style="margin:0 0 26px;text-align:center;font-weight:700">${escapeEmailHtml(ticketLabel)} #${escapeEmailHtml(ticketId)}</p>
-      ${showDetails ? `<table style="width:100%;border-collapse:collapse">${detailsHtml}</table>` : ''}
-      ${showBarcode ? `<div style="margin:28px auto 10px;text-align:center">
-        ${buildEmailBarcode(ticketId)}
-        <div style="margin-top:8px;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:.2em;color:${textColor}">${escapeEmailHtml(ticketId)}</div>
-      </div>` : ''}
-      ${showMessage && emailMessage ? `<p dir="auto" style="margin:18px 0 0;text-align:center;color:${muted};white-space:pre-wrap">${escapeEmailHtml(emailMessage)}</p>` : ''}
-    </div>
-  </body></html>`;
+    '',
+    emailMessage,
+    '',
+    'גמר חתימה טובה',
+    'https://siksakapparos.org/'
+  ].filter(value => value !== null && value !== undefined).join('\n');
+
+  const html = `<!doctype html>
+  <html lang="yi" dir="rtl">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <meta name="x-apple-disable-message-reformatting">
+      <title>${escapeEmailHtml(subject)}</title>
+    </head>
+    <body style="margin:0;padding:0;background:${background};font-family:Arial,'Noto Sans Hebrew',sans-serif;color:${textColor};font-size:${fontSize}px">
+      <div style="display:none;max-height:0;overflow:hidden;opacity:0">Your Cappores order is confirmed. Ticket #${escapeEmailHtml(ticketId)}.</div>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:${background};border-collapse:collapse">
+        <tr>
+          <td align="center" style="padding:24px 10px">
+            <table role="presentation" width="620" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:620px;background:${card};border:1px solid #c8b78f;border-collapse:separate;border-spacing:0">
+              <tr>
+                <td dir="rtl" style="padding:24px 34px 4px;text-align:right;color:${muted};font-size:18px">בס״ד</td>
+              </tr>
+              <tr>
+                <td align="center" style="padding:0 30px">
+                  <img src="https://siksakapparos.org/favicon.png" width="128" height="128" alt="Cappores chicken" style="display:block;width:128px;height:128px;margin:0 auto;border:0">
+                  <h1 style="margin:4px 0 8px;color:${accent};font-size:46px;line-height:1.08;font-weight:800;text-align:center">כפרות צענטער</h1>
+                  <div style="color:${accent};font-size:23px;line-height:1.4;font-weight:600;text-align:center">שע״י ביהמ״ד פנים מאירות סיקסא</div>
+                  <div style="margin-top:8px;font-size:17px;line-height:1.5;text-align:center" dir="ltr">
+                    <a href="https://www.google.com/maps/search/?api=1&amp;query=76%20Grove%20St%2C%20Monsey%2C%20NY%2010952" style="color:${muted};text-decoration:underline">76 Grove St., Monsey, N.Y. 10952</a>
+                  </div>
+                  <div style="margin:22px 0;color:${gold};font-size:18px;text-align:center">──────── ◇ ────────</div>
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:0 30px 24px">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:${soft};border-collapse:separate;border-spacing:0;border-radius:16px">
+                    <tr><td dir="rtl" style="padding:24px 24px 12px;text-align:center;color:${accent};font-size:34px;font-weight:700">ערב יום כיפור</td></tr>
+                    <tr><td style="padding:0 44px"><div style="height:1px;background:#cdbd99;font-size:0;line-height:0">&nbsp;</div></td></tr>
+                    <tr><td dir="rtl" style="padding:14px 24px 24px;text-align:center;color:${accent};font-size:31px">פון 5:00 ביז 8:00</td></tr>
+                  </table>
+                </td>
+              </tr>
+
+              <tr>
+                <td dir="rtl" align="center" style="padding:0 30px 20px;text-align:center">
+                  <div style="color:${accent};font-size:30px;line-height:1.35;font-weight:700">בחצר בית מדרשינו</div>
+                  <div style="margin-top:8px;font-size:23px;font-weight:700" dir="ltr">
+                    <a href="https://www.google.com/maps/search/?api=1&amp;query=76%20Grove%20St%2C%20Monsey%2C%20NY%2010952" style="color:${muted};text-decoration:underline">76 GROVE ST.</a>
+                  </div>
+                  <div style="margin:18px 0;color:${gold};font-size:18px">— ◇ —</div>
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:0 30px 24px">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:${soft};border-collapse:separate;border-spacing:0;border-radius:16px">
+                    <tr><td dir="rtl" style="padding:24px 20px 14px;text-align:center;color:#8a642b;font-size:25px;font-weight:800">◇ מניני סליחות ושחרית ומקוה חמה ◇</td></tr>
+                    <tr><td style="padding:0 54px"><div style="height:1px;background:#d8cdb8;font-size:0;line-height:0">&nbsp;</div></td></tr>
+                    <tr><td dir="rtl" style="padding:18px 20px 6px;text-align:center;color:${accent};font-size:23px">מניני סליחות פון <strong>5:20</strong></td></tr>
+                    <tr><td dir="rtl" style="padding:6px 20px 24px;text-align:center;color:${accent};font-size:23px">מניני שחרית פון <strong>6:15</strong></td></tr>
+                  </table>
+                </td>
+              </tr>
+
+              <tr>
+                <td dir="rtl" align="center" style="padding:2px 30px 28px;text-align:center;color:${accent};font-size:30px;line-height:1.3">פרייז פאר א כפרה: <strong dir="ltr">${escapeEmailHtml(unitPrice)}</strong></td>
+              </tr>
+
+              ${showDetails ? `<tr>
+                <td dir="ltr" style="padding:0 30px 26px">
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;border:1px solid #d2c29f;border-collapse:separate;border-spacing:0;border-radius:14px;overflow:hidden;background:#fffefb">
+                    <tr><td colspan="2" style="padding:17px 14px;background:${accent};color:#ffffff;text-align:center;font-size:23px;font-weight:700">Order Details</td></tr>
+                    ${detailsHtml}
+                  </table>
+                </td>
+              </tr>` : ''}
+
+              ${showBarcode ? `<tr>
+                <td align="center" style="padding:0 20px 24px">
+                  <div style="margin:0 auto 10px;text-align:center">
+                    ${buildEmailBarcode(ticketId)}
+                    <div style="margin-top:8px;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:.18em;color:${textColor}">${escapeEmailHtml(ticketId)}</div>
+                  </div>
+                </td>
+              </tr>` : ''}
+
+              ${showMessage && emailMessage ? `<tr>
+                <td dir="auto" style="padding:0 34px 26px;text-align:center;color:${muted};line-height:1.6;white-space:pre-wrap">${escapeEmailHtml(emailMessage)}</td>
+              </tr>` : ''}
+
+              <tr>
+                <td align="center" style="padding:0 30px 30px">
+                  <a href="https://siksakapparos.org/" style="display:inline-block;padding:13px 24px;background:${accent};color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700" dir="rtl">באזוכט דעם וועבזייטל</a>
+                </td>
+              </tr>
+
+              <tr>
+                <td dir="rtl" align="center" style="padding:25px 20px;background:${accent};color:#ffffff;text-align:center;font-size:32px;line-height:1.25;font-weight:800">גמר חתימה טובה</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+  </html>`;
 
   const safeSenderName = senderName.replace(/[<>\r\n]/g, '').trim() || 'Cappores Tickets';
   const response = await fetch('https://api.resend.com/emails', {

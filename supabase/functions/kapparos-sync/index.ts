@@ -291,17 +291,19 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
   const subject = fillTicketTemplate(subjectTemplate, values).replace(/[\r\n]+/g, ' ').trim();
   const senderName = fillTicketTemplate(ticketText(delivery, 'emailSender', 'Cappores Tickets', 120), values).replace(/[\r\n]+/g, ' ').trim() || 'Cappores Tickets';
   const ticketLabel = fillTicketTemplate(ticketText(delivery, 'ticketNumberLabel', 'Ticket', 80), values);
-  const emailMessage = fillTicketTemplate(
-    ticketText(delivery, 'emailMessage', 'Please bring the attached ticket with you. You may print it or show it on your phone.'),
+  const savedEmailMessage = fillTicketTemplate(
+    ticketText(delivery, 'emailMessage', 'Hello {name},\n\nHere are the details of your order.'),
     values
   );
+  const legacyEmailMessage = /thank you for choosing|please present the barcode|גמר חתימה טובה/i.test(savedEmailMessage);
+  const emailMessage = (legacyEmailMessage
+    ? `Hello ${String(values.name)},\n\nHere are the details of your order.`
+    : savedEmailMessage.replace(/^\s*גמר חתימה טובה\s*$/gim, '').trim());
   const background = ticketColor(delivery, 'emailBackgroundColor', '#f5f3ee');
   const card = ticketColor(delivery, 'emailCardColor', '#fffdf8');
   const accent = ticketColor(delivery, 'emailAccentColor', '#173f36');
   const textColor = ticketColor(delivery, 'emailTextColor', '#203c36');
   const muted = ticketColor(delivery, 'emailMutedColor', '#68716b');
-  const gold = '#b49a68';
-  const soft = '#f2efe6';
   const fontSize = ticketSize(delivery, 'emailFontSize', 16, 12, 24);
   const showDetails = ticketBoolean(delivery, 'emailShowDetails', true);
   const showBarcode = ticketBoolean(delivery, 'emailShowBarcode', true);
@@ -339,14 +341,8 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
   const plainText = [
     'כפרות צענטער',
     'שע״י ביהמ״ד פנים מאירות סיקסא',
-    '76 Grove St., Monsey, N.Y. 10952',
     '',
-    'ערב יום כיפור — פון 5:00 ביז 8:00',
-    'בחצר בית מדרשינו — 76 Grove St.',
-    'מניני סליחות ושחרית ומקוה חמה',
-    'מניני סליחות פון 5:20',
-    'מניני שחרית פון 6:15',
-    `פרייז פאר א כפרה: ${unitPrice}`,
+    emailMessage,
     '',
     'ORDER DETAILS',
     `${orderNumberLabel}: #${ticketId}`,
@@ -358,9 +354,6 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
     `${statusLabel}: ${paymentStatus}`,
     `${paymentLabel}: ${payment}`,
     '',
-    emailMessage,
-    '',
-    'גמר חתימה טובה',
     'https://siksakapparos.org/'
   ].filter(value => value !== null && value !== undefined).join('\n');
 
@@ -386,46 +379,8 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
                   <img src="https://siksakapparos.org/favicon.png" width="128" height="128" alt="Cappores chicken" style="display:block;width:128px;height:128px;margin:0 auto;border:0">
                   <h1 style="margin:4px 0 8px;color:${accent};font-size:46px;line-height:1.08;font-weight:800;text-align:center">כפרות צענטער</h1>
                   <div style="color:${accent};font-size:23px;line-height:1.4;font-weight:600;text-align:center">שע״י ביהמ״ד פנים מאירות סיקסא</div>
-                  <div style="margin-top:8px;font-size:17px;line-height:1.5;text-align:center" dir="ltr">
-                    <a href="https://www.google.com/maps/search/?api=1&amp;query=76%20Grove%20St%2C%20Monsey%2C%20NY%2010952" style="color:${muted};text-decoration:underline">76 Grove St., Monsey, N.Y. 10952</a>
-                  </div>
-                  <div style="margin:22px 0;color:${gold};font-size:18px;text-align:center">──────── ◇ ────────</div>
+                  ${showMessage && emailMessage ? `<div dir="auto" style="margin:22px 4px 24px;text-align:center;color:${muted};line-height:1.6;white-space:pre-wrap">${escapeEmailHtml(emailMessage)}</div>` : '<div style="height:24px;line-height:24px">&nbsp;</div>'}
                 </td>
-              </tr>
-
-              <tr>
-                <td style="padding:0 30px 24px">
-                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:${soft};border-collapse:separate;border-spacing:0;border-radius:16px">
-                    <tr><td dir="rtl" style="padding:24px 24px 12px;text-align:center;color:${accent};font-size:34px;font-weight:700">ערב יום כיפור</td></tr>
-                    <tr><td style="padding:0 44px"><div style="height:1px;background:#cdbd99;font-size:0;line-height:0">&nbsp;</div></td></tr>
-                    <tr><td dir="rtl" style="padding:14px 24px 24px;text-align:center;color:${accent};font-size:31px">פון 5:00 ביז 8:00</td></tr>
-                  </table>
-                </td>
-              </tr>
-
-              <tr>
-                <td dir="rtl" align="center" style="padding:0 30px 20px;text-align:center">
-                  <div style="color:${accent};font-size:30px;line-height:1.35;font-weight:700">בחצר בית מדרשינו</div>
-                  <div style="margin-top:8px;font-size:23px;font-weight:700" dir="ltr">
-                    <a href="https://www.google.com/maps/search/?api=1&amp;query=76%20Grove%20St%2C%20Monsey%2C%20NY%2010952" style="color:${muted};text-decoration:underline">76 GROVE ST.</a>
-                  </div>
-                  <div style="margin:18px 0;color:${gold};font-size:18px">— ◇ —</div>
-                </td>
-              </tr>
-
-              <tr>
-                <td style="padding:0 30px 24px">
-                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:${soft};border-collapse:separate;border-spacing:0;border-radius:16px">
-                    <tr><td dir="rtl" style="padding:24px 20px 14px;text-align:center;color:#8a642b;font-size:25px;font-weight:800">◇ מניני סליחות ושחרית ומקוה חמה ◇</td></tr>
-                    <tr><td style="padding:0 54px"><div style="height:1px;background:#d8cdb8;font-size:0;line-height:0">&nbsp;</div></td></tr>
-                    <tr><td dir="rtl" style="padding:18px 20px 6px;text-align:center;color:${accent};font-size:23px">מניני סליחות פון <strong>5:20</strong></td></tr>
-                    <tr><td dir="rtl" style="padding:6px 20px 24px;text-align:center;color:${accent};font-size:23px">מניני שחרית פון <strong>6:15</strong></td></tr>
-                  </table>
-                </td>
-              </tr>
-
-              <tr>
-                <td dir="rtl" align="center" style="padding:2px 30px 28px;text-align:center;color:${accent};font-size:30px;line-height:1.3">פרייז פאר א כפרה: <strong dir="ltr">${escapeEmailHtml(unitPrice)}</strong></td>
               </tr>
 
               ${showDetails ? `<tr>
@@ -446,18 +401,10 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
                 </td>
               </tr>` : ''}
 
-              ${showMessage && emailMessage ? `<tr>
-                <td dir="auto" style="padding:0 34px 26px;text-align:center;color:${muted};line-height:1.6;white-space:pre-wrap">${escapeEmailHtml(emailMessage)}</td>
-              </tr>` : ''}
-
               <tr>
                 <td align="center" style="padding:0 30px 30px">
                   <a href="https://siksakapparos.org/" style="display:inline-block;padding:13px 24px;background:${accent};color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700" dir="rtl">באזוכט דעם וועבזייטל</a>
                 </td>
-              </tr>
-
-              <tr>
-                <td dir="rtl" align="center" style="padding:25px 20px;background:${accent};color:#ffffff;text-align:center;font-size:32px;line-height:1.25;font-weight:800">גמר חתימה טובה</td>
               </tr>
             </table>
           </td>

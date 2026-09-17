@@ -2804,7 +2804,7 @@
       heading: '{title}',
       subheading: '{subtitle}',
       ticketNumberLabel: 'Ticket',
-      emailMessage: 'Hello {name},\n\nThank you for choosing {brand}. Please present the barcode above or the attached PDF when picking up your kapparos.\n\nגמר חתימה טובה',
+      emailMessage: 'Hello {name},\n\nHere are the details of your order.',
       footer: 'Please keep this ticket.',
       nameLabel: 'Name',
       phoneLabel: 'Phone',
@@ -4521,7 +4521,8 @@
       const heading = fillTicketPreviewTemplate(draft.heading, sample);
       const subheading = fillTicketPreviewTemplate(draft.subheading, sample);
       const ticketLabel = fillTicketPreviewTemplate(draft.ticketNumberLabel, sample);
-      const emailMessage = fillTicketPreviewTemplate(draft.emailMessage, sample);
+      const emailMessage = fillTicketPreviewTemplate(draft.emailMessage, sample)
+        .replace(/^\s*גמר חתימה טובה\s*$/gim, '').trim();
       const barcode = `<div class="designer-barcode">${buildTicketBarcodeSvg(sample.ticket_id)}<div class="designer-barcode-number">${sample.ticket_id}</div></div>`;
       document.getElementById('ticketEmailPreview').innerHTML = `
         <div style="padding:0 0 9px;font:12px Arial,sans-serif;color:#5f6368"><strong>From:</strong> ${escapeHtml(fillTicketPreviewTemplate(draft.emailSender, sample))}<br><strong>Subject:</strong> ${escapeHtml(fillTicketPreviewTemplate(draft.emailSubject, sample))}</div>
@@ -4529,10 +4530,10 @@
           <div class="email-preview-card" style="background:${emailCard};border-color:${emailAccent}">
             <div class="email-preview-heading" style="color:${emailAccent};font-size:${emailHeadingSize}px">${escapeHtml(heading)}</div>
             ${draft.emailShowSubtitle && subheading ? `<div class="email-preview-subheading" style="color:${emailAccent}">${escapeHtml(subheading)}</div>` : ''}
+            ${draft.emailShowMessage && emailMessage ? `<div class="email-preview-message" style="color:${emailMuted}">${escapeHtml(emailMessage)}</div>` : ''}
             <div class="email-preview-ticket">${escapeHtml(ticketLabel)} #${sample.ticket_id}</div>
             ${draft.emailShowDetails ? `<div>${emailRows}</div>` : ''}
             ${draft.emailShowBarcode ? barcode : ''}
-            ${draft.emailShowMessage ? `<div class="email-preview-message" style="color:${emailMuted}">${escapeHtml(emailMessage)}</div>` : ''}
           </div>
         </div>`;
 
@@ -7543,7 +7544,6 @@
   </script>
 </body>
 </html>
-
 
 
 

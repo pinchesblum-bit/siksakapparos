@@ -7,7 +7,7 @@ const DEFAULT_TICKET_DELIVERY = {
       heading: '{title}',
       subheading: '{subtitle}',
       ticketNumberLabel: 'Ticket',
-      emailMessage: 'Hello {name},\n\nThank you for choosing {brand}. Please present the barcode above or the attached PDF when picking up your kapparos.\n\nגמר חתימה טובה',
+      emailMessage: 'Hello {name},\n\nHere are the details of your order.',
       footer: 'Please keep this ticket.',
       nameLabel: 'Name',
       phoneLabel: 'Phone',

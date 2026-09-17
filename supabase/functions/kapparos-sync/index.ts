@@ -189,46 +189,6 @@ function ticketSize(delivery: any, key: string, fallback: number, min: number, m
   return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 }
 
-const CODE128_PATTERNS = [
-  '212222','222122','222221','121223','121322','131222','122213','122312',
-  '132212','221213','221312','231212','112232','122132','122231','113222',
-  '123122','123221','223211','221132','221231','213212','223112','312131',
-  '311222','321122','321221','312212','322112','322211','212123','212321',
-  '232121','111323','131123','131321','112313','132113','132311','211313',
-  '231113','231311','112133','112331','132131','113123','113321','133121',
-  '313121','211331','231131','213113','213311','213131','311123','311321',
-  '331121','312113','312311','332111','314111','221411','431111','111224',
-  '111422','121124','121421','141122','141221','112214','112412','122114',
-  '122411','142112','142211','241211','221114','413111','241112','134111',
-  '111242','121142','121241','114212','124112','124211','411212','421112',
-  '421211','212141','214121','412121','111143','111341','131141','114113',
-  '114311','411113','411311','113141','114131','311141','411131','211412',
-  '211214','211232','2331112',
-];
-
-function code128Units(ticketId: string) {
-  const codewords = [105];
-  for (let index = 0; index < ticketId.length; index += 2) {
-    codewords.push(Number(ticketId.slice(index, index + 2)));
-  }
-  let checksum = codewords[0];
-  for (let index = 1; index < codewords.length; index += 1) checksum += codewords[index] * index;
-  codewords.push(checksum % 103, 106);
-  return codewords.flatMap(codeword => CODE128_PATTERNS[codeword].split('').map(Number));
-}
-
-function buildEmailBarcode(ticketId: string) {
-  const moduleWidth = 3;
-  const quietWidth = moduleWidth * 10;
-  const units = code128Units(ticketId);
-  const cells = units.map((unit, index) => {
-    const width = unit * moduleWidth;
-    return `<td width="${width}" style="width:${width}px;min-width:${width}px;height:90px;padding:0;background:${index % 2 === 0 ? '#17130f' : '#ffffff'};font-size:0;line-height:0">&nbsp;</td>`;
-  }).join('');
-  const quiet = `<td width="${quietWidth}" style="width:${quietWidth}px;min-width:${quietWidth}px;height:90px;padding:0;background:#fff;font-size:0;line-height:0">&nbsp;</td>`;
-  return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 auto;border-collapse:collapse;table-layout:fixed;background:#fff"><tr>${quiet}${cells}${quiet}</tr></table>`;
-}
-
 function fillTicketTemplate(template: string, values: Record<string, unknown>) {
   return template.replace(/\{([a-z_]+)\}/g, (match, key) =>
     Object.prototype.hasOwnProperty.call(values, key) ? String(values[key] ?? '') : match);
@@ -290,7 +250,6 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
   const subjectTemplate = ticketText(delivery, 'emailSubject', 'Your Cappores order confirmation — #{ticket_id}', 200);
   const subject = fillTicketTemplate(subjectTemplate, values).replace(/[\r\n]+/g, ' ').trim();
   const senderName = fillTicketTemplate(ticketText(delivery, 'emailSender', 'Cappores Tickets', 120), values).replace(/[\r\n]+/g, ' ').trim() || 'Cappores Tickets';
-  const ticketLabel = fillTicketTemplate(ticketText(delivery, 'ticketNumberLabel', 'Ticket', 80), values);
   const savedEmailMessage = fillTicketTemplate(
     ticketText(delivery, 'emailMessage', 'Hello {name},\n\nHere are the details of your order.'),
     values
@@ -306,8 +265,9 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
   const muted = ticketColor(delivery, 'emailMutedColor', '#68716b');
   const fontSize = ticketSize(delivery, 'emailFontSize', 16, 12, 24);
   const showDetails = ticketBoolean(delivery, 'emailShowDetails', true);
-  const showBarcode = ticketBoolean(delivery, 'emailShowBarcode', true);
   const showMessage = ticketBoolean(delivery, 'emailShowMessage', true);
+  const pickupMessage = 'Please present the attached PDF ticket when picking up your cappores.';
+  const pickupAlternative = "If you do not have the ticket, you may use your name or order ID instead.";
 
   const orderNumberLabel = fillTicketTemplate(ticketText(delivery, 'orderNumberLabel', 'Order number', 80), values);
   const nameLabel = fillTicketTemplate(ticketText(delivery, 'nameLabel', 'Customer name', 80), values);
@@ -339,8 +299,8 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
   }).join('');
 
   const plainText = [
-    'כפרות צענטער',
-    'שע״י ביהמ״ד פנים מאירות סיקסא',
+    'Cappores Center',
+    'Congregation Punim Meiros Siksa',
     '',
     emailMessage,
     '',
@@ -354,11 +314,16 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
     `${statusLabel}: ${paymentStatus}`,
     `${paymentLabel}: ${payment}`,
     '',
+    pickupMessage,
+    `(${pickupAlternative})`,
+    '',
+    'גמר חתימה טובה',
+    '',
     'https://siksakapparos.org/'
   ].filter(value => value !== null && value !== undefined).join('\n');
 
   const html = `<!doctype html>
-  <html lang="yi" dir="rtl">
+  <html lang="en" dir="ltr">
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -372,13 +337,13 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
           <td align="center" style="padding:24px 10px">
             <table role="presentation" width="620" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:620px;background:${card};border:1px solid #c8b78f;border-collapse:separate;border-spacing:0">
               <tr>
-                <td dir="rtl" style="padding:24px 34px 4px;text-align:right;color:${muted};font-size:18px">בס״ד</td>
+                <td dir="ltr" style="padding:24px 34px 4px;text-align:right;color:${muted};font-size:18px">B&quot;H</td>
               </tr>
               <tr>
                 <td align="center" style="padding:0 30px">
                   <img src="https://siksakapparos.org/favicon.png" width="128" height="128" alt="Cappores chicken" style="display:block;width:128px;height:128px;margin:0 auto;border:0">
-                  <h1 style="margin:4px 0 8px;color:${accent};font-size:46px;line-height:1.08;font-weight:800;text-align:center">כפרות צענטער</h1>
-                  <div style="color:${accent};font-size:23px;line-height:1.4;font-weight:600;text-align:center">שע״י ביהמ״ד פנים מאירות סיקסא</div>
+                  <h1 style="margin:4px 0 8px;color:${accent};font-size:46px;line-height:1.08;font-weight:800;text-align:center">Cappores Center</h1>
+                  <div style="color:${accent};font-size:23px;line-height:1.4;font-weight:600;text-align:center">Congregation Punim Meiros Siksa</div>
                   ${showMessage && emailMessage ? `<div dir="auto" style="margin:22px 4px 24px;text-align:center;color:${muted};line-height:1.6;white-space:pre-wrap">${escapeEmailHtml(emailMessage)}</div>` : '<div style="height:24px;line-height:24px">&nbsp;</div>'}
                 </td>
               </tr>
@@ -392,19 +357,21 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
                 </td>
               </tr>` : ''}
 
-              ${showBarcode ? `<tr>
-                <td align="center" style="padding:0 20px 24px">
-                  <div style="margin:0 auto 10px;text-align:center">
-                    ${buildEmailBarcode(ticketId)}
-                    <div style="margin-top:8px;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:.18em;color:${textColor}">${escapeEmailHtml(ticketId)}</div>
-                  </div>
+              <tr>
+                <td dir="ltr" align="center" style="padding:2px 40px 28px;text-align:center">
+                  <div style="color:${textColor};font-size:18px;line-height:1.55;font-weight:700">${escapeEmailHtml(pickupMessage)}</div>
+                  <div style="margin-top:8px;color:${muted};font-size:15px;line-height:1.55">(${escapeEmailHtml(pickupAlternative)})</div>
                 </td>
-              </tr>` : ''}
+              </tr>
 
               <tr>
                 <td align="center" style="padding:0 30px 30px">
-                  <a href="https://siksakapparos.org/" style="display:inline-block;padding:13px 24px;background:${accent};color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700" dir="rtl">באזוכט דעם וועבזייטל</a>
+                  <a href="https://siksakapparos.org/" style="display:inline-block;padding:13px 24px;background:${accent};color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700" dir="ltr">Visit our website</a>
                 </td>
+              </tr>
+
+              <tr>
+                <td dir="rtl" align="center" style="padding:25px 20px;background:${accent};color:#ffffff;text-align:center;font-size:32px;line-height:1.25;font-weight:800">גמר חתימה טובה</td>
               </tr>
             </table>
           </td>

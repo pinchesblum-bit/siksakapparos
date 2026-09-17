@@ -2281,7 +2281,6 @@
                       <label class="designer-check"><input type="checkbox" id="settingEmailShowSubtitle" /> Email second heading</label>
                       <label class="designer-check"><input type="checkbox" id="settingEmailShowDetails" /> Email customer details</label>
                       <label class="designer-check"><input type="checkbox" id="settingEmailShowPrice" /> Email price</label>
-                      <label class="designer-check"><input type="checkbox" id="settingEmailShowBarcode" /> Email barcode</label>
                       <label class="designer-check"><input type="checkbox" id="settingEmailShowMessage" /> Email message</label>
                       <label class="designer-check"><input type="checkbox" id="settingPdfShowSubtitle" /> PDF second heading</label>
                       <label class="designer-check"><input type="checkbox" id="settingPdfShowDetails" /> PDF customer details</label>
@@ -3061,7 +3060,7 @@
       'settingTicketEmailSender', 'settingTicketHeading', 'settingTicketSubheading', 'settingTicketNumberLabel',
       'settingTicketFooter', 'settingTicketNameLabel', 'settingTicketPhoneLabel', 'settingTicketQuantityLabel',
       'settingTicketPriceLabel', 'settingTicketPaymentLabel', 'settingEmailShowSubtitle', 'settingEmailShowDetails',
-      'settingEmailShowPrice', 'settingEmailShowBarcode', 'settingEmailShowMessage', 'settingPdfShowSubtitle',
+      'settingEmailShowPrice', 'settingEmailShowMessage', 'settingPdfShowSubtitle',
       'settingPdfShowDetails', 'settingPdfShowPrice', 'settingPdfShowBarcode', 'settingPdfShowFooter',
       'settingEmailBackgroundColor', 'settingEmailCardColor', 'settingEmailAccentColor', 'settingEmailTextColor',
       'settingEmailMutedColor', 'settingEmailFontSize', 'settingEmailHeadingSize', 'settingPdfBackgroundColor',
@@ -4419,7 +4418,6 @@
       settingEmailShowSubtitle: 'emailShowSubtitle',
       settingEmailShowDetails: 'emailShowDetails',
       settingEmailShowPrice: 'emailShowPrice',
-      settingEmailShowBarcode: 'emailShowBarcode',
       settingEmailShowMessage: 'emailShowMessage',
       settingPdfShowSubtitle: 'pdfShowSubtitle',
       settingPdfShowDetails: 'pdfShowDetails',
@@ -4523,7 +4521,8 @@
       const ticketLabel = fillTicketPreviewTemplate(draft.ticketNumberLabel, sample);
       const emailMessage = fillTicketPreviewTemplate(draft.emailMessage, sample)
         .replace(/^\s*גמר חתימה טובה\s*$/gim, '').trim();
-      const barcode = `<div class="designer-barcode">${buildTicketBarcodeSvg(sample.ticket_id)}<div class="designer-barcode-number">${sample.ticket_id}</div></div>`;
+      const pickupMessage = 'Please present the attached PDF ticket when picking up your cappores.';
+      const pickupAlternative = "If you do not have the ticket, you may use your name or order ID instead.";
       document.getElementById('ticketEmailPreview').innerHTML = `
         <div style="padding:0 0 9px;font:12px Arial,sans-serif;color:#5f6368"><strong>From:</strong> ${escapeHtml(fillTicketPreviewTemplate(draft.emailSender, sample))}<br><strong>Subject:</strong> ${escapeHtml(fillTicketPreviewTemplate(draft.emailSubject, sample))}</div>
         <div class="email-preview" style="background:${emailBackground};color:${emailText};font-size:${emailFontSize}px">
@@ -4533,7 +4532,9 @@
             ${draft.emailShowMessage && emailMessage ? `<div class="email-preview-message" style="color:${emailMuted}">${escapeHtml(emailMessage)}</div>` : ''}
             <div class="email-preview-ticket">${escapeHtml(ticketLabel)} #${sample.ticket_id}</div>
             ${draft.emailShowDetails ? `<div>${emailRows}</div>` : ''}
-            ${draft.emailShowBarcode ? barcode : ''}
+            <div class="email-preview-message" style="color:${emailText};font-weight:700">${escapeHtml(pickupMessage)}</div>
+            <div class="email-preview-message" style="color:${emailMuted}">(${escapeHtml(pickupAlternative)})</div>
+            <div class="email-preview-message" style="background:${emailAccent};color:#fff;font-size:1.15em;font-weight:800">גמר חתימה טובה</div>
           </div>
         </div>`;
 
@@ -7544,6 +7545,5 @@
   </script>
 </body>
 </html>
-
 
 

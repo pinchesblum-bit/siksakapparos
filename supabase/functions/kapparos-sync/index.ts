@@ -1,5 +1,3 @@
-import nodemailer from 'npm:nodemailer@10.0.1';
-
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ALLOWED_ORIGINS = new Set([
@@ -7,10 +5,8 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 const DEFAULT_PASSWORD_HASH = '2a00ac564b31afd7eaab2c9e59f81e386dc6ad673c8f8d000e6de3d37f9a3a94';
 const SESSION_DAYS = 30;
-const GMAIL_USER = (Deno.env.get('GMAIL_USER') || '').trim().toLowerCase();
-const GMAIL_APP_PASSWORD = (Deno.env.get('GMAIL_APP_PASSWORD') || '').replace(/\s+/g, '');
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
-const RESEND_FALLBACK_FROM = 'Kapparos Tickets <onboarding@resend.dev>';
+const RESEND_FROM_ADDRESS = 'no-reply@siksakapparos.org';
 
 function corsHeaders(req: Request) {
   const origin = req.headers.get('origin') || '';
@@ -193,23 +189,6 @@ function ticketSize(delivery: any, key: string, fallback: number, min: number, m
   return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 }
 
-async function getResendSender() {
-  try {
-    const response = await fetch('https://api.resend.com/domains?limit=100', {
-      headers: { Authorization: `Bearer ${RESEND_API_KEY}` },
-    });
-    if (response.ok) {
-      const payload = await response.json();
-      const domain = Array.isArray(payload?.data)
-        ? payload.data.find((item: any) => item?.status === 'verified' && item?.name)?.name
-        : '';
-      if (domain) return `Kapparos Tickets <tickets@${domain}>`;
-    }
-  } catch (_) {}
-  return RESEND_FALLBACK_FROM;
-}
-
-
 const CODE128_PATTERNS = [
   '212222','222122','222221','121223','121322','131222','122213','122312',
   '132212','221213','221312','231212','112232','122132','122231','113222',
@@ -256,11 +235,8 @@ function fillTicketTemplate(template: string, values: Record<string, unknown>) {
 }
 
 async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, recipientOverride = '') {
-  if (!RESEND_API_KEY && Boolean(GMAIL_USER) !== Boolean(GMAIL_APP_PASSWORD)) {
-    throw new Error('Gmail delivery is only partly configured. Add both GMAIL_USER and GMAIL_APP_PASSWORD in Supabase secrets.');
-  }
-  if (!GMAIL_USER && !RESEND_API_KEY) {
-    throw new Error('Email delivery is not configured. Add the Gmail secrets in Supabase.');
+  if (!RESEND_API_KEY) {
+    throw new Error('Professional email delivery is not configured.');
   }
   const recipient = String(recipientOverride || sale.email || '').trim();
   if (!validEmail(recipient)) throw new Error('Add a valid email address to this sale first.');
@@ -328,8 +304,18 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
     const border = index === rows.length - 1 ? '' : 'border-bottom:1px solid #d4c6ac;';
     return `<tr><td style="padding:11px;${border}color:${muted}">${escapeEmailHtml(label)}</td><td style="padding:11px;${border}font-weight:700" dir="auto">${escapeEmailHtml(value)}</td></tr>`;
   }).join('');
-  const html = `<!doctype html><html><body style="margin:0;background:${background};font-family:Arial,sans-serif;color:${textColor};font-size:${fontSize}px">
-    <div style="max-width:620px;margin:32px auto;padding:30px;background:${card};border:2px solid ${accent};border-radius:18px">
+  const plainText = [
+    subject,
+    `${ticketLabel} #${ticketId}`,
+    `${nameLabel}: ${sale.fullName || '—'}`,
+    `${phoneLabel}: ${sale.phone || '—'}`,
+    `${quantityLabel}: ${sale.quantity || 0}`,
+    ...(showPrice ? [`${priceLabel}: ${pricePaid}`] : []),
+    `${paymentLabel}: ${payment}`,
+    emailMessage
+  ].filter(Boolean).join('\n');
+  const html = `<!doctype html><html lang="und" dir="auto"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeEmailHtml(subject)}</title></head><body style="margin:0;background:${background};font-family:Arial,sans-serif;color:${textColor};font-size:${fontSize}px">
+    <div lang="und" dir="auto" style="max-width:620px;margin:32px auto;padding:30px;background:${card};border:2px solid ${accent};border-radius:18px">
       <h1 dir="auto" style="margin:0 0 6px;text-align:center;color:${accent};font-size:${headingSize}px">${escapeEmailHtml(heading)}</h1>
       ${showSubtitle && subheading ? `<div dir="auto" style="margin:0 0 10px;text-align:center;font-size:${Math.max(16, Math.round(headingSize * .72))}px;font-weight:800;color:${accent}">${escapeEmailHtml(subheading)}</div>` : ''}
       <p dir="auto" style="margin:0 0 26px;text-align:center;font-weight:700">${escapeEmailHtml(ticketLabel)} #${escapeEmailHtml(ticketId)}</p>
@@ -342,65 +328,29 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
     </div>
   </body></html>`;
 
-  let resendError = '';
-  if (RESEND_API_KEY) {
-    const configuredFrom = await getResendSender();
-    const addressMatch = configuredFrom.match(/<([^>]+)>/);
-    const safeSenderName = senderName.replace(/[<>\r\n]/g, '').trim() || 'Kapparos Tickets';
-    const from = addressMatch ? `${safeSenderName} <${addressMatch[1]}>` : configuredFrom;
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from,
-        to: [recipient],
-        subject,
-        html,
-        attachments: [{ filename: `kapparos-ticket-${ticketId}.pdf`, content: pdfBase64 }],
-      }),
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (response.ok) return { ...payload, provider: 'resend' };
-    resendError = String(payload?.message || payload?.error || 'The ticket email could not be sent.');
-  }
-
-  if (GMAIL_USER && GMAIL_APP_PASSWORD) {
-    try {
-      const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
-        auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
-      });
-      const info = await transporter.sendMail({
-        from: { name: senderName, address: GMAIL_USER },
-        to: recipient,
-        subject,
-        html,
-        attachments: [{
-          filename: `kapparos-ticket-${ticketId}.pdf`,
-          content: pdfBase64,
-          encoding: 'base64',
-          contentType: 'application/pdf',
-        }],
-      });
-      return { id: String(info?.messageId || ''), provider: 'gmail' };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error || '');
-      if (/535|credentials|username and password not accepted|invalid login/i.test(message)) {
-        throw new Error('Gmail rejected the connection. Create a new Google App Password and update GMAIL_APP_PASSWORD in Supabase secrets.');
-      }
-      throw new Error('Gmail could not send the ticket email. ' + message.slice(0, 300));
-    }
-  }
-
+  const safeSenderName = senderName.replace(/[<>\r\n]/g, '').trim() || 'Cappores Tickets';
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: `${safeSenderName} <${RESEND_FROM_ADDRESS}>`,
+      to: [recipient],
+      subject,
+      html,
+      text: plainText,
+      attachments: [{ filename: `cappores-ticket-${ticketId}.pdf`, content: pdfBase64 }],
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (response.ok) return { ...payload, provider: 'resend' };
+  const resendError = String(payload?.message || payload?.error || 'The ticket email could not be sent.');
   if (/domain|sender|from/i.test(resendError)) {
-      throw new Error('Verify a sending domain in Resend before emailing customers.');
+    throw new Error('The Cappores email domain is not ready for sending.');
   }
-  throw new Error(resendError || 'The ticket email could not be sent.');
+  throw new Error(resendError);
 }
 
 function mergeConcurrentSales(currentValue: unknown, incomingValue: unknown, knownValue: unknown) {

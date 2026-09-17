@@ -17,11 +17,11 @@
     "group": "Heading",
     "label": "Page subtitle",
     "yi": "כפרות",
-    "en": "Kaparos",
+    "en": "Kapures",
     "max": 120,
     "root": "root",
     "aliases": {
-      "ערב יום כיפור כפרות": "Erev Yom Kippur Kaparos"
+      "ערב יום כיפור כפרות": "Erev Yom Kippur Kapures"
     },
     "required": true
   },
@@ -30,7 +30,7 @@
     "group": "Heading",
     "label": "Order button",
     "yi": "באשטעלט יעצט אייער כפרה",
-    "en": "Order your kaparos now",
+    "en": "Order your Kapures now",
     "max": 160,
     "root": "root",
     "required": true
@@ -40,10 +40,10 @@
     "group": "Heading",
     "label": "Introduction",
     "yi": "באשטעלט אייערע כפרות גרינג און זיכער. פילט אויס אייערע פרטים און באקומט אייער טיקעט דורך טעקסט און אימעיל.",
-    "en": "Order your kaparos simply and securely. Complete your information below and receive your ticket by text and email.",
+    "en": "Order your Kapures simply and securely. Complete your information below and receive your ticket by text and email.",
     "max": 1200,
     "aliases": {
-      "באשטעלט אייער כפרות גרינג און באקוועם": "Order your kaparos easily and conveniently."
+      "באשטעלט אייער כפרות גרינג און באקוועם": "Order your Kapures easily and conveniently."
     }
   },
   {
@@ -182,10 +182,10 @@
     "group": "Notices and ordering phone",
     "label": "Advance-booking notice",
     "yi": "עס איז כדאי צו באשטעלן פאראויס, כדי צו זיין פארזיכערט מיט א כפרה.",
-    "en": "Please order in advance to ensure a kaparah is available for you.",
+    "en": "Please order in advance to ensure a Kapureh is available for you.",
     "max": 1200,
     "aliases": {
-      "ווען איר באשטעלט א כפרה וועט דאס ווערן אוועקגעלייגט ביז 8:00": "When you order a kaparah, it will be set aside for you until 8:00."
+      "ווען איר באשטעלט א כפרה וועט דאס ווערן אוועקגעלייגט ביז 8:00": "When you order a Kapureh, it will be set aside for you until 8:00."
     }
   },
   {
@@ -193,7 +193,7 @@
     "group": "Notices and ordering phone",
     "label": "Advance-payment notice",
     "yi": "א באשטעלטע כפרה מוז זיין באצאלט פון פארויס.",
-    "en": "Preordered kaparos must be paid for in advance.",
+    "en": "Preordered Kapures must be paid for in advance.",
     "max": 1200
   },
   {
@@ -201,7 +201,7 @@
     "group": "Order form",
     "label": "Order heading",
     "yi": "באשטעלט אייערע כפרות",
-    "en": "Order your kaparos",
+    "en": "Order your Kapures",
     "max": 200
   },
   {
@@ -267,10 +267,10 @@
     "group": "Order form",
     "label": "Quantity label",
     "yi": "וויפיל כפרות",
-    "en": "Number of kaparos",
+    "en": "Number of Kapures",
     "max": 160,
     "required": true,
-    "ui": "Number of kaparos"
+    "ui": "Number of Kapures"
   },
   {
     "key": "paymentHeading",
@@ -326,10 +326,10 @@
     "group": "Order summary",
     "label": "Chickens label",
     "yi": "כפרות",
-    "en": "Kaparos",
+    "en": "Kapures",
     "max": 120,
     "required": true,
-    "ui": "Kaparos"
+    "ui": "Kapures"
   },
   {
     "key": "totalLabel",

@@ -623,7 +623,7 @@
       box-shadow: 0 0 0 3px rgba(182,59,49,.14);
     }
     .completion-payment-error { margin: -12px 0 18px; }
-    .kapparah-pill {
+    .kaparah-pill {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -2345,7 +2345,7 @@
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
                       <div class="ticket-phone-sender">
                         <span class="ticket-phone-avatar" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h14v16l-3-2-4 2-4-2-3 2V4Z"/><path d="M8 8h8M8 12h6"/></svg></span>
-                        <span class="ticket-phone-sender-name" id="ticketSmsPreviewSender" dir="auto">Kapparos Tickets</span>
+                        <span class="ticket-phone-sender-name" id="ticketSmsPreviewSender" dir="auto">Kapures Tickets</span>
                       </div>
                       <span></span>
                     </div>
@@ -2798,7 +2798,7 @@
     const CHANGE_CONFIRMATION = 'ביסטו זיכער אז דו ווילסט מאכן דעם טויש?';
     const DELETE_CONFIRMATION = 'דו ביסט באקאנט אז די נאמען גייט יעצט ווערן אינגאנצן אויסגעמעקט?';
     const DEFAULT_TICKET_DELIVERY = {
-      emailSubject: 'Your Kapparos Ticket — #{ticket_id}',
+      emailSubject: 'Your Kapures Ticket — #{ticket_id}',
       emailSender: '{brand}',
       heading: '{title}',
       subheading: '{subtitle}',
@@ -2833,7 +2833,7 @@
       pdfMutedColor: '#626b63',
       pdfHeadingSize: 64,
       pdfValueSize: 43,
-      smsMessage: '{title}\n{subtitle}\n\nHello {name},\n\nThank you for choosing {brand} for your kapparos.\n\nOrder details:\nName: {name}\nPhone: {phone}\nNumber of kapparos: {quantity}\nPayment method: {payment_method}\n\nPlease present this ticket number when picking up your kapparos:\n#{ticket_id}\n\nגמר חתימה טובה'
+      smsMessage: '{title}\n{subtitle}\n\nHello {name},\n\nThank you for choosing {brand} for your Kapures.\n\nOrder details:\nName: {name}\nPhone: {phone}\nNumber of Kapures: {quantity}\nPayment method: {payment_method}\n\nPlease present this ticket number when picking up your Kapures:\n#{ticket_id}\n\nגמר חתימה טובה'
     };
     const DEFAULT_BUYING_WEBSITE = {
       orderingEnabled: true,
@@ -3612,7 +3612,7 @@
       const design = designOverride || getTicketDeliverySettings();
       const priceNumber = Number(sale.price);
       const values = {
-        title: state.settings.title || 'Kapparos',
+        title: state.settings.title || 'Kapures',
         subtitle: state.settings.subtitle || '',
         brand: [state.settings.title, state.settings.subtitle].filter(Boolean).join(' '),
         name: sale.fullName || '—',
@@ -3679,7 +3679,7 @@
         const url = URL.createObjectURL(pdf);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `kapparos-ticket-${getSaleTicketId(sale)}.pdf`;
+        link.download = `Kapures-ticket-${getSaleTicketId(sale)}.pdf`;
         document.body.appendChild(link);
         link.click();
         link.remove();
@@ -3831,8 +3831,8 @@
       try {
         const image = await renderTicketToJpeg(sale);
         const ticketId = getSaleTicketId(sale);
-        const file = new File([image.bytes], `kapparos-ticket-${ticketId}.jpg`, { type: 'image/jpeg' });
-        const shareData = { title: `Kapparos Ticket #${ticketId}`, text: `Kapparos Ticket #${ticketId}`, files: [file] };
+        const file = new File([image.bytes], `Kapures-ticket-${ticketId}.jpg`, { type: 'image/jpeg' });
+        const shareData = { title: `Kapures Ticket #${ticketId}`, text: `Kapures Ticket #${ticketId}`, files: [file] };
         const canSharePicture = typeof navigator.share === 'function'
           && (typeof navigator.canShare !== 'function' || navigator.canShare(shareData));
         if (canSharePicture) {
@@ -4523,7 +4523,7 @@
       const ticketLabel = fillTicketPreviewTemplate(draft.ticketNumberLabel, sample);
       const emailMessage = fillTicketPreviewTemplate(draft.emailMessage, sample)
         .replace(/^\s*גמר חתימה טובה\s*$/gim, '').trim();
-      const pickupMessage = 'Please present the attached PDF ticket when picking up your cappores.';
+      const pickupMessage = 'Please present the attached PDF ticket when picking up your Kapures.';
       const pickupAlternative = "If you do not have the ticket, you may use your name or order ID instead.";
       document.getElementById('ticketEmailPreview').innerHTML = `
         <div style="padding:0 0 9px;font:12px Arial,sans-serif;color:#5f6368"><strong>From:</strong> ${escapeHtml(fillTicketPreviewTemplate(draft.emailSender, sample))}<br><strong>Subject:</strong> ${escapeHtml(fillTicketPreviewTemplate(draft.emailSubject, sample))}</div>
@@ -4900,7 +4900,7 @@
               <td class="sale-name"><span class="sale-name-content"><span>${escapeHtml(sale.fullName)}</span></span></td>
               <td><span class="sale-contact"><span>${escapeHtml(sale.phone || '')}</span>${sale.email ? `<span class="sale-contact-email" title="${escapeHtml(sale.email)}">${escapeHtml(sale.email)}</span>` : ''}</span></td>
               <td><span class="status-pill ${onlinePaid ? 'online' : escapeHtml(sale.status || 'paid')}">${onlinePaid ? 'Online' : getStatusLabel(sale.status || 'paid')}</span></td>
-              <td><span class="kapparah-pill">${sale.quantity}</span></td>
+              <td><span class="kaparah-pill">${sale.quantity}</span></td>
               <td class="note-cell" title="${escapeHtml(notes)}"><span class="sale-note-content">${sale.isDemoSale ? '<span class="demo-sale-badge">Demo</span>' : ''}<span class="note-preview" dir="auto">${escapeHtml(previewText(notes, 110))}</span></span></td>
               <td>${sale.geschlagen ? '<span class="status-pill geschlagen">געשלאגן</span>' : ''}</td>
             </tr>`;
@@ -5664,7 +5664,7 @@
       const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = `kapparos-all-data-${new Date().toISOString().slice(0, 10)}.xls`;
+      link.download = `Kapures-all-data-${new Date().toISOString().slice(0, 10)}.xls`;
       document.body.appendChild(link);
       link.click();
       link.remove();

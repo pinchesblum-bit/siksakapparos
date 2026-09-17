@@ -85,18 +85,18 @@ Deno.serve(async (req: Request) => {
     const methods = Array.isArray(settings.paymentMethods) ? settings.paymentMethods : [];
     const payment = methods.find((item: any) => String(item?.id) === String(sale.paymentType))?.label || sale.paymentType || 'Not selected';
     const title = 'Punim Meiros Siksa';
-    const subtitle = 'Kaparos';
+    const subtitle = 'Kapures';
     const brand = [title, subtitle].filter(Boolean).join(' ');
     const defaultMessage = [
       title, subtitle, '',
       `Hello ${sale.fullName || '—'},`, '',
-      `Thank you for choosing ${brand} for your kapparos.`, '',
+      `Thank you for choosing ${brand} for your Kapures.`, '',
       'Order details:',
       `Name: ${sale.fullName || '—'}`,
       `Phone: ${displayPhone}`,
-      `Number of kapparos: ${sale.quantity || 0}`,
+      `Number of Kapures: ${sale.quantity || 0}`,
       `Payment method: ${payment}`, '',
-      'Please present this ticket number when picking up your kapparos:',
+      'Please present this ticket number when picking up your Kapures:',
       `#${ticketId}`, '',
       'גמר חתימה טובה'
     ].join('\n');

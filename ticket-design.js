@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
 const DEFAULT_TICKET_DELIVERY = {
-      emailSubject: 'Your Kapparos Ticket — #{ticket_id}',
+      emailSubject: 'Your Kapures Ticket — #{ticket_id}',
       emailSender: '{brand}',
       heading: '{title}',
       subheading: '{subtitle}',
@@ -37,7 +37,7 @@ const DEFAULT_TICKET_DELIVERY = {
       pdfMutedColor: '#626b63',
       pdfHeadingSize: 64,
       pdfValueSize: 43,
-      smsMessage: '{title}\n{subtitle}\n\nHello {name},\n\nThank you for choosing {brand} for your kapparos.\n\nOrder details:\nName: {name}\nPhone: {phone}\nNumber of kapparos: {quantity}\nPayment method: {payment_method}\n\nPlease present this ticket number when picking up your kapparos:\n#{ticket_id}\n\nגמר חתימה טובה'
+      smsMessage: '{title}\n{subtitle}\n\nHello {name},\n\nThank you for choosing {brand} for your Kapures.\n\nOrder details:\nName: {name}\nPhone: {phone}\nNumber of Kapures: {quantity}\nPayment method: {payment_method}\n\nPlease present this ticket number when picking up your Kapures:\n#{ticket_id}\n\nגמר חתימה טובה'
     };
 
   const safeTicketColor = (value, fallback) => /^#[0-9a-f]{6}$/i.test(value || '') ? value : fallback;
@@ -130,7 +130,7 @@ const DEFAULT_TICKET_DELIVERY = {
       const configuredHeading = fill(design.heading).trim();
       const configuredSubheading = fill(design.subheading).trim();
       const configuredFooter = fill(design.footer).trim();
-      const heading = String(design.heading || '').trim() === '{title}' ? 'Cappores Center' : configuredHeading;
+      const heading = String(design.heading || '').trim() === '{title}' ? 'Kapures Center' : configuredHeading;
       const subheading = String(design.subheading || '').trim() === '{subtitle}' ? 'Cong. Punim Meiros Siksa' : configuredSubheading;
       const footer = /^please keep this ticket\.?$/i.test(configuredFooter)
         ? 'If you do not have the ticket, you may use your name or order ID instead.'

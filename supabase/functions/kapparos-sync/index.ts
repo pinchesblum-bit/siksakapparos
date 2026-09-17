@@ -247,9 +247,9 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
     brand: brandName,
   };
 
-  const subjectTemplate = ticketText(delivery, 'emailSubject', 'Your Cappores order confirmation — #{ticket_id}', 200);
+  const subjectTemplate = ticketText(delivery, 'emailSubject', 'Your Kapures order confirmation — #{ticket_id}', 200);
   const subject = fillTicketTemplate(subjectTemplate, values).replace(/[\r\n]+/g, ' ').trim();
-  const senderName = fillTicketTemplate(ticketText(delivery, 'emailSender', 'Cappores Tickets', 120), values).replace(/[\r\n]+/g, ' ').trim() || 'Cappores Tickets';
+  const senderName = fillTicketTemplate(ticketText(delivery, 'emailSender', 'Kapures Tickets', 120), values).replace(/[\r\n]+/g, ' ').trim() || 'Kapures Tickets';
   const savedEmailMessage = fillTicketTemplate(
     ticketText(delivery, 'emailMessage', 'Hello {name},\n\nHere are the details of your order.'),
     values
@@ -266,7 +266,7 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
   const fontSize = ticketSize(delivery, 'emailFontSize', 16, 12, 24);
   const showDetails = ticketBoolean(delivery, 'emailShowDetails', true);
   const showMessage = ticketBoolean(delivery, 'emailShowMessage', true);
-  const pickupMessage = 'Please present the attached PDF ticket when picking up your cappores.';
+  const pickupMessage = 'Please present the attached PDF ticket when picking up your Kapures.';
   const pickupAlternative = "If you do not have the ticket, you may use your name or order ID instead.";
 
   const orderNumberLabel = fillTicketTemplate(ticketText(delivery, 'orderNumberLabel', 'Order number', 80), values);
@@ -295,7 +295,7 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
   }).join('');
 
   const plainText = [
-    'Cappores Center',
+    'Kapures Center',
     'Cong. Punim Meiros Siksa',
     '',
     emailMessage,
@@ -326,7 +326,7 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
       <title>${escapeEmailHtml(subject)}</title>
     </head>
     <body style="margin:0;padding:0;background:${background};font-family:Arial,'Noto Sans Hebrew',sans-serif;color:${textColor};font-size:${fontSize}px">
-      <div style="display:none;max-height:0;overflow:hidden;opacity:0">Your Cappores order is confirmed. Ticket #${escapeEmailHtml(ticketId)}.</div>
+      <div style="display:none;max-height:0;overflow:hidden;opacity:0">Your Kapures order is confirmed. Ticket #${escapeEmailHtml(ticketId)}.</div>
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;background:${background};border-collapse:collapse">
         <tr>
           <td align="center" style="padding:24px 10px">
@@ -336,7 +336,7 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
               </tr>
               <tr>
                 <td align="center" style="padding:0 30px">
-                  <h1 style="margin:4px 0 8px;color:${accent};font-size:46px;line-height:1.08;font-weight:800;text-align:center">Cappores Center</h1>
+                  <h1 style="margin:4px 0 8px;color:${accent};font-size:46px;line-height:1.08;font-weight:800;text-align:center">Kapures Center</h1>
                   <div style="color:${accent};font-size:23px;line-height:1.4;font-weight:600;text-align:center">Cong. Punim Meiros Siksa</div>
                   ${showMessage && emailMessage ? `<div dir="auto" style="margin:22px 4px 24px;text-align:center;color:${muted};line-height:1.6;white-space:pre-wrap">${escapeEmailHtml(emailMessage)}</div>` : '<div style="height:24px;line-height:24px">&nbsp;</div>'}
                 </td>
@@ -369,7 +369,7 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
                   <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto;border-collapse:collapse">
                     <tr>
                       <td style="padding:0 12px 0 0;vertical-align:middle">
-                        <img src="https://siksakapparos.org/favicon.png" width="48" height="48" alt="Cappores chicken" style="display:block;width:48px;height:48px;border:0">
+                        <img src="https://siksakapparos.org/favicon.png" width="48" height="48" alt="Kapures chicken" style="display:block;width:48px;height:48px;border:0">
                       </td>
                       <td dir="rtl" style="vertical-align:middle;color:#ffffff;text-align:center;font-size:23px;line-height:1.2;font-weight:800;white-space:nowrap">גמר חתימה טובה</td>
                     </tr>
@@ -383,7 +383,7 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
     </body>
   </html>`;
 
-  const safeSenderName = senderName.replace(/[<>\r\n]/g, '').trim() || 'Cappores Tickets';
+  const safeSenderName = senderName.replace(/[<>\r\n]/g, '').trim() || 'Kapures Tickets';
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -396,14 +396,14 @@ async function deliverTicketEmail(sale: any, settings: any, pdfBase64: string, r
       subject,
       html,
       text: plainText,
-      attachments: [{ filename: `cappores-ticket-${ticketId}.pdf`, content: pdfBase64 }],
+      attachments: [{ filename: `Kapures-ticket-${ticketId}.pdf`, content: pdfBase64 }],
     }),
   });
   const payload = await response.json().catch(() => ({}));
   if (response.ok) return { ...payload, provider: 'resend' };
   const resendError = String(payload?.message || payload?.error || 'The ticket email could not be sent.');
   if (/domain|sender|from/i.test(resendError)) {
-    throw new Error('The Cappores email domain is not ready for sending.');
+    throw new Error('The Kapures email domain is not ready for sending.');
   }
   throw new Error(resendError);
 }

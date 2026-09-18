@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Siksa Kapures Admin</title>
+  <rect width="512" height="512" rx="112" fill="#203c36"/>
+  <rect x="28" y="28" width="456" height="456" rx="92" fill="none" stroke="#d4b06a" stroke-width="10"/>
+  <circle cx="256" cy="244" r="150" fill="#fffdf8"/>
+  <path d="M183 178c-16-25-9-55 16-69 19 8 33 23 38 43 3-27 20-50 45-61 26 17 34 51 17 78 25-15 54-14 76 4-1 31-24 57-55 61-30 4-54-10-64-27-13 20-42 31-73 20-27-9-44-34-42-62 12-2 29 2 42 13z" fill="#b5473f"/>
+  <path d="M169 256c0-61 39-108 96-108 64 0 111 53 101 117-6 40-31 67-64 79v54h-92v-54c-25-10-41-26-51-48-14 4-35 1-53-15 22-3 43-12 63-25z" fill="#f8f4e9" stroke="#203c36" stroke-width="10" stroke-linejoin="round"/>
+  <circle cx="290" cy="230" r="12" fill="#203c36"/>
+  <circle cx="294" cy="226" r="3" fill="#fff"/>
+  <path d="M353 251l66 24-66 25z" fill="#d4a242" stroke="#203c36" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M245 398h114" stroke="#d4b06a" stroke-width="10" stroke-linecap="round"/>
+</svg>

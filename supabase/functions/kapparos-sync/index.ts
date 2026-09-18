@@ -123,30 +123,9 @@ function publicState(row: any) {
   return { sales: Array.isArray(row.sales) ? row.sales : [], settings, updatedAt: row.updated_at };
 }
 
-function mergeSales(remote: any[], local: any[]) {
-  const merged = new Map<string, any>();
-  for (const sale of [...remote, ...local]) {
-    if (!sale || !sale.id) continue;
-    const existing = merged.get(String(sale.id));
-    const existingTime = Date.parse(existing?.updatedAt || existing?.createdAt || '') || 0;
-    const saleTime = Date.parse(sale.updatedAt || sale.createdAt || '') || 0;
-    if (!existing || saleTime >= existingTime) merged.set(String(sale.id), sale);
-  }
-  return Array.from(merged.values());
-}
-
 async function getState() {
   const rows = await db('kapparos_app_state?id=eq.main&select=*');
   return Array.isArray(rows) && rows[0] ? rows[0] : null;
-}
-
-async function saveState(sales: any[], settings: Record<string, unknown>) {
-  const rows = await db('kapparos_app_state?on_conflict=id', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify({ id: 'main', sales, settings, updated_at: new Date().toISOString() }),
-  });
-  return rows[0];
 }
 
 async function requireSession(req: Request) {
@@ -434,27 +413,17 @@ Deno.serve(async (req: Request) => {
     const action = String(body.action || '');
 
     if (action === 'login') {
-      let row = await getState();
-      if (!row) {
-        const initial = defaultSettings();
-        const localSettings = body.localSettings && typeof body.localSettings === 'object' ? body.localSettings : {};
-        const { password, _legacyPassword, ...safeLocal } = localSettings;
-        Object.assign(initial, safeLocal);
-        initial.passwordHash = typeof localSettings.passwordHash === 'string' ? localSettings.passwordHash : DEFAULT_PASSWORD_HASH;
-        row = await saveState(Array.isArray(body.localSales) ? body.localSales : [], initial);
-      }
+      const row = await getState();
+      // Cloud state is authoritative. Never rebuild it from an old browser copy.
+      if (!row) return json(req, { error: 'Sales data is unavailable. Please contact support; no changes were made.' }, 503);
       const enteredHash = await sha256(String(body.password || ''));
       const settings = row.settings || defaultSettings();
       const passwordMatches = enteredHash === settings.passwordHash || String(body.password || '') === settings._legacyPassword;
       if (String(body.username || '').trim() !== String(settings.username || '') || !passwordMatches) {
         return json(req, { error: 'Incorrect username or password.' }, 401);
       }
-      if (body.importLocal && Array.isArray(body.localSales) && body.localSales.length) {
-        const merged = mergeSales(Array.isArray(row.sales) ? row.sales : [], body.localSales);
-        if (merged.length !== (row.sales || []).length) row = await db('rpc/kapparos_save_admin_state', {
-          method: 'POST', body: JSON.stringify({ p_sales: merged, p_settings: settings, p_deleted_sale_ids: [] })
-        });
-      }
+      // Initial migration is complete. Ignore legacy importLocal/localSales so
+      // logging in on an older device cannot restore deliberately deleted sales.
       const token = randomToken();
       const tokenHash = await sha256(token);
       const expires = new Date(Date.now() + SESSION_DAYS * 86400000).toISOString();
@@ -504,18 +473,19 @@ Deno.serve(async (req: Request) => {
     if (action === 'save') {
       const current = await getState();
       if (!current) return json(req, { error: 'No data found' }, 404);
+      const write = body.settings?._kapparosWrite;
+      if (write?.version !== 1 || !write.saleBases || typeof write.saleBases !== 'object' || Array.isArray(write.saleBases)
+          || !write.settingsBases || typeof write.settingsBases !== 'object' || Array.isArray(write.settingsBases)) {
+        return json(req, { error: 'This admin page is out of date. Please refresh it before saving. No changes were made.' }, 409);
+      }
       const settings = sanitizeIncomingSettings(body.settings, current.settings || defaultSettings());
       const incomingSales = Array.isArray(body.sales) ? body.sales : [];
-      const incomingIds = new Set(incomingSales.map((sale: any) => String(sale?.id || '')).filter(Boolean));
-      const legacyDeletedIds = Array.isArray(body.knownSaleIds)
-        ? body.knownSaleIds.map(String).filter((id: string) => id && !incomingIds.has(id))
-        : [];
       const saved = await db('rpc/kapparos_save_admin_state', {
         method: 'POST',
         body: JSON.stringify({
           p_sales: incomingSales,
           p_settings: settings,
-          p_deleted_sale_ids: Array.isArray(body.deletedSaleIds) ? body.deletedSaleIds : legacyDeletedIds
+          p_deleted_sale_ids: Array.isArray(body.deletedSaleIds) ? body.deletedSaleIds : []
         })
       });
       return json(req, publicState(saved));
@@ -534,7 +504,9 @@ Deno.serve(async (req: Request) => {
       if (body.newPassword) settings.passwordHash = await sha256(String(body.newPassword));
       delete settings._legacyPassword;
       const row = await db('rpc/kapparos_save_admin_state', {
-        method: 'POST', body: JSON.stringify({ p_sales: current.sales || [], p_settings: settings, p_deleted_sale_ids: [] })
+        // The RPC preserves current sales when no sale changes are submitted.
+        // A credential change must not replay a snapshot taken before a deletion.
+        method: 'POST', body: JSON.stringify({ p_sales: [], p_settings: settings, p_deleted_sale_ids: [] })
       });
       await db(`kapparos_sessions?token_hash=neq.${session.hash}`, { method: 'DELETE' });
       return json(req, publicState(row));

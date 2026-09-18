@@ -11,3 +11,35 @@ The live `kapparos-access` v8 and `kapparos-sync` v25 functions pass this payloa
 Visible devices poll every 2.5 seconds, with overlapping requests prevented. While a form or settings editor is open, only sales and stock are refreshed; entered fields and payment selections are preserved. Actual delivery time still depends on the connection. Server stock enforcement does not depend on polling speed. Refresh already-open admin tabs after deployment to load the new save protocol.
 
 Verification uses synthetic local data only. PGlite tests the SQL function, competing submitted saves, admin/online ordering in both sequences, idempotent retries, stale edits/deletes, settings conflicts, free/completed/expired counts, and unchanged state on rejection. PGlite serializes requests and does not independently test multi-connection row-lock timing. The shared production row-lock definition is inspected separately. Full admin DOM fixtures check two devices, stock rejection, preserving open forms, delayed-save ticket gating, Online/Demo badges, and purchase-cost normalization. Existing accounting and buying regressions also run.
+
+## September 18: prevent deleted sales returning from old browsers
+
+The server now treats existing cloud state as authoritative at login. Legacy
+`importLocal`, `localSales`, and `localSettings` payloads cannot import old records
+or overwrite sales/settings. If the cloud state row is missing, login fails
+closed instead of recreating it from a browser copy.
+
+The `save` action requires the current version-1 `_kapparosWrite` protocol, including
+original sale and setting values. Old full-snapshot clients receive a refresh
+message and cannot write. Deletions must be explicit; `knownSaleIds` no longer
+implies deletion. The existing locked database conflict and stock checks remain
+unchanged.
+
+Credential changes submit no sale changes to the existing merge RPC. This
+preserves the sales present under the database lock, including online sales
+arriving after the credential action's initial read, and avoids replaying a sale
+deleted during that interval.
+
+Only `kapparos-sync` is redeployed, retaining its existing `verify_jwt = false`
+and custom session/password authentication. There is no data migration, cleanup,
+database definition change, public-checkout change, or UI change. Orders already
+present are intentionally left untouched; this fix does not try to identify
+historical fake orders. Refresh older admin pages before saving.
+
+Run `cd tests/deleted-sales && npm ci --ignore-scripts && npm test` on Node 24+.
+The regression suite runs the actual Edge Function in an isolated VM with all
+network requests intercepted and the existing PostgreSQL save function in local
+PGlite. It checks stale login imports, empty/missing state, authentication,
+legacy saves, current creation/edit/deletion/retry, stock rejection, settings
+preservation, and credential-change races using synthetic records only.
+

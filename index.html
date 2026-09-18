@@ -5893,12 +5893,27 @@
         const customerName = String(sale.fullName || '').trim();
         const confirmationName = customerName || 'דעם פארקויף';
         if (!(await askConfirmation('', confirmationName))) return;
-        sale.geschlagen = true;
-        sale.updatedAt = new Date().toISOString();
+        // A background refresh can replace state.sales while the confirmation
+        // dialog is open. Re-find the current record instead of mutating the
+        // stale object that was captured before the dialog appeared.
+        const currentIndex = state.sales.findIndex(item => item.id === sale.id);
+        if (currentIndex === -1) throw new Error('This sale was deleted on another device.');
+        const currentSale = state.sales[currentIndex];
+        if (currentSale.geschlagen) {
+          showToast('This sale is already געשלאגן', 'error');
+          return;
+        }
+        cloudSaleBases[String(currentSale.id)] = KapparosAdminSync.clone(currentSale);
+        state.sales[currentIndex] = {
+          ...currentSale,
+          geschlagen: true,
+          updatedAt: new Date().toISOString()
+        };
         saveSales();
-        renderSales();
-        renderReports();
+        await flushCloudSave();
         showToast('Sale marked געשלאגן');
+      } catch (error) {
+        showToast(error.message || 'The sale could not be completed.', 'error');
       } finally {
         ticketScannerBusy = false;
         ticketScanner.value = '';

@@ -26,7 +26,7 @@ async function device(){
  };
  for(const el of w.document.querySelectorAll('script')){
   if(el.src){const name=new URL(el.src).pathname.split('/').pop();if(name!=='ticket-design.js')w.eval(fs.readFileSync('siksakapparos/'+name,'utf8'));}
-  else w.eval(el.textContent+(el.textContent.includes('initializeCloudSession();')?`\nwindow.fixture={state,openModal,showSaleEditor,refreshCloudStateSilently,flushCloudSave,queueCloudSave,cloudSnapshot,canUseSaleTicket,saveSettings,showSaleView,renderSales,get dirty(){return cloudSaveDirty},get submitting(){return saleSubmitting},get baseline(){return cloudBaselineRaw},get baselineUi(){return cloudBaselineUi},get ready(){return cloudReady}};`:''));
+  else w.eval(el.textContent+(el.textContent.includes('initializeCloudSession();')?`\nwindow.fixture={state,openModal,showSaleEditor,refreshCloudStateSilently,flushCloudSave,queueCloudSave,cloudSnapshot,canUseSaleTicket,saveSettings,showSaleView,renderSales,scanTicket,finishConfirmation,get dirty(){return cloudSaveDirty},get submitting(){return saleSubmitting},get baseline(){return cloudBaselineRaw},get baselineUi(){return cloudBaselineUi},get ready(){return cloudReady}};`:''));
  }
  await until(()=>w.fixture?.ready);assert.deepEqual(errors,[]);
  return {w,doc:w.document,calls,errors,delay(){let release;delayed=new Promise(r=>release=r);return()=>{delayed=null;release();};}};
@@ -51,6 +51,19 @@ function submit(d){d.doc.getElementById('saleForm').dispatchEvent(new d.w.Event(
  assert.equal(b.doc.querySelector('.sale-row td:nth-child(3) .status-pill.online').textContent,'Online');assert.equal(b.doc.querySelector('.note-cell .demo-sale-badge').textContent,'Demo');assert.equal(b.doc.querySelector('.sale-name .online-sale-badge,.sale-name .demo-sale-badge'),null);assert.equal(b.doc.querySelector('.sale-row td:nth-child(3) .paid'),null);
  b.w.fixture.openModal(remote.id);assert.equal(b.doc.getElementById('saleDemoBadge').hidden,false);assert.equal(b.doc.getElementById('saleOnlineBadge').hidden,false);assert.equal(b.doc.getElementById('geschlagen').disabled,false);
  console.log('PASS form-open polling updates stock without resetting fields; Online/Demo visible in list and view; switch usable');
+ // Scanning must update the current record even if polling replaces the sales
+ // array while the confirmation dialog is open.
+ b.w.fixture.state.editingSaleId=null;b.doc.getElementById('saleModal').classList.remove('open');
+ b.doc.getElementById('ticketScanner').value=remote.ticketId;
+ const scanned=b.w.fixture.scanTicket();
+ await until(()=>b.doc.getElementById('confirmModal').classList.contains('open'));
+ await b.w.fixture.refreshCloudStateSilently();
+ b.w.fixture.finishConfirmation(true);
+ await scanned;
+ assert.equal((await get()).sales.find(sale=>sale.id===remote.id).geschlagen,true);
+ assert.equal(b.w.fixture.state.sales.find(sale=>sale.id===remote.id).geschlagen,true);
+ assert.match(b.doc.getElementById('toast').textContent,/marked געשלאגן/);
+ console.log('PASS scanned ticket survives a two-device refresh and waits for the server save');
  // Source badges must not hide a reservation/expiry or overwrite existing notes.
  b.w.fixture.state.settings.customFields=[{id:'fixture-notes',label:'Notes',required:false}];
  b.w.fixture.state.sales=[{...remote,customFields:{'fixture-notes':'Keep this note'}},{...remote,id:'fixture-reserved',status:'reserved',isDemoSale:false},{...remote,id:'fixture-expired',status:'expired',isDemoSale:false}];

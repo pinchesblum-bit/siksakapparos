@@ -565,7 +565,7 @@
     .status-pill.reserved { color: #80581e; background: #f6e8c8; }
     .status-pill.expired { color: #8b2e26; background: #f7d7d2; }
     .status-pill.dead { color: #6f3f3a; background: #eadbd8; direction: rtl; }
-    .status-pill.invalid-shechita { color: #8b2e26; background: #f7d7d2; direction: rtl; }
+    .status-pill.treifa { color: #8b2e26; background: #f7d7d2; direction: rtl; }
     .status-pill.geschlagen { color: #285c35; background: #dceddf; direction: rtl; }
     .note-cell {
       overflow: hidden;
@@ -1985,7 +1985,7 @@
               <small id="accountingKosherCost">$0.00 expense</small>
             </div>
             <div class="accounting-summary-card expenses">
-              <span>פסול געשחטן</span>
+              <span>טריפה</span>
               <strong id="accountingInvalidCount">0</strong>
               <small id="accountingInvalidCost">$0.00 expense</small>
             </div>
@@ -2493,7 +2493,7 @@
                   <div class="price-wrap"><span>$</span><input id="settingChickenPurchaseCost" type="number" min="0" step="0.01" required /></div>
                 </div>
                 <div class="field">
-                  <label for="settingInvalidShechitaCost">פסול געשחטן</label>
+                  <label for="settingInvalidShechitaCost">טריפה</label>
                   <div class="price-wrap"><span>$</span><input id="settingInvalidShechitaCost" type="number" min="0" step="0.01" required /></div>
                 </div>
                 <div class="field">
@@ -2510,7 +2510,7 @@
                 <p id="chickenPurchaseSummary" class="settings-card-note"></p>
                 <strong id="chickenPurchaseTotal" style="font-size:22px;font-variant-numeric:tabular-nums">$0.00</strong>
               </div>
-              <p class="settings-card-note">The linked chicken expense is recalculated from regular kosher, פסול געשחטן, unsold, and טויטע counts. Customer payments remain income, including פסול געשחטן sales.</p>
+              <p class="settings-card-note">The linked chicken expense is recalculated from Paid, טריפה, unsold, and טויטע counts. Customer payments remain income for Paid and טריפה.</p>
             </div>
             <p class="settings-message" id="accountingSettingsMessage" role="alert"></p>
             <div class="settings-actions" data-settings-actions="accounting" hidden>
@@ -2575,16 +2575,9 @@
             <label for="saleStatus">Status <span class="required-mark">*</span></label>
             <select id="saleStatus" name="status" required>
               <option value="paid">Paid</option>
+              <option value="treifa">טריפה</option>
               <option value="reserved">Reserved</option>
               <option value="dead">טויטע</option>
-            </select>
-          </div>
-
-          <div class="field full" id="chickenOutcomeWrap">
-            <label for="chickenOutcome">Chicken result</label>
-            <select id="chickenOutcome" name="chickenOutcome">
-              <option value="kosher">Regular kosher</option>
-              <option value="invalid">פסול געשחטן</option>
             </select>
           </div>
 
@@ -2995,8 +2988,6 @@
     const paymentType = document.getElementById('paymentType');
     const paymentTypeWrap = document.getElementById('paymentTypeWrap');
     const saleStatus = document.getElementById('saleStatus');
-    const chickenOutcomeWrap = document.getElementById('chickenOutcomeWrap');
-    const chickenOutcome = document.getElementById('chickenOutcome');
     const saleNameWrap = document.getElementById('saleNameWrap');
     const salePhoneWrap = document.getElementById('salePhoneWrap');
     const saleEmailWrap = document.getElementById('saleEmailWrap');
@@ -4141,22 +4132,26 @@
     });
 
     function saveSales() {
-      syncChickenPurchaseExpense();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sales));
       const { _legacyPassword, ...safeSettings } = state.settings;
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(safeSettings));
       queueCloudSave();
     }
 
+    function getSaleStatus(sale) {
+      if ((sale?.status || 'paid') === 'paid' && sale?.chickenOutcome === 'invalid') return 'treifa';
+      return sale?.status || 'paid';
+    }
+
     function getChickenAccountingBreakdown(settings = state.settings, sales = state.sales, rateOverrides = {}) {
       const inventory = Math.max(0, Math.floor(Number(settings.inventory) || 0));
-      const dead = sales.reduce((sum, sale) => sale.status === 'dead' ? sum + Math.max(0, Number(sale.quantity || 0)) : sum, 0);
-      const invalid = sales.reduce((sum, sale) => (sale.status || 'paid') === 'paid' && sale.chickenOutcome === 'invalid'
+      const dead = sales.reduce((sum, sale) => getSaleStatus(sale) === 'dead' ? sum + Math.max(0, Number(sale.quantity || 0)) : sum, 0);
+      const invalid = sales.reduce((sum, sale) => getSaleStatus(sale) === 'treifa'
         ? sum + Math.max(0, Number(sale.quantity || 0)) : sum, 0);
-      const paid = sales.reduce((sum, sale) => (sale.status || 'paid') === 'paid'
+      const paid = sales.reduce((sum, sale) => getSaleStatus(sale) === 'paid'
         ? sum + Math.max(0, Number(sale.quantity || 0)) : sum, 0);
-      const kosher = Math.max(0, paid - invalid);
-      const used = Math.min(inventory, paid + dead);
+      const kosher = paid;
+      const used = Math.min(inventory, paid + invalid + dead);
       const unsold = Math.max(0, inventory - used);
       const kosherRate = Math.max(0, Number(rateOverrides.kosher ?? settings.chickenPurchaseCost) || 0);
       const invalidRate = Math.max(0, Number(rateOverrides.invalid ?? settings.invalidShechitaCost) || 0);
@@ -4184,7 +4179,7 @@
       settings.chickenCostModelVersion = 1;
       settings.chickenInventoryRecorded = breakdown.inventory;
       const name = String(settings.chickenExpenseName || 'Chickens').trim() || 'Chickens';
-      const note = `${breakdown.kosher} regular kosher, ${breakdown.invalid} פסול געשחטן, ${breakdown.unsold} unsold, ${breakdown.dead} טויטע`;
+      const note = `${breakdown.kosher} paid, ${breakdown.invalid} טריפה, ${breakdown.unsold} unsold, ${breakdown.dead} טויטע`;
       if (existing) {
         if (existing.name !== name || existing.amount !== amount || existing.note !== note) {
           existing.name = name;
@@ -4215,12 +4210,11 @@
         invalid: Number(settingInvalidShechitaCost.value || 0),
         unsold: Number(settingUnsoldChickenCost.value || 0)
       });
-      chickenPurchaseSummary.textContent = `${breakdown.kosher} regular × ${money(breakdown.kosherRate)} + ${breakdown.invalid} פסול געשחטן × ${money(breakdown.invalidRate)} + ${breakdown.unsold} unsold × ${money(breakdown.unsoldRate)} + ${breakdown.dead} טויטע × $0.00`;
+      chickenPurchaseSummary.textContent = `${breakdown.kosher} Paid × ${money(breakdown.kosherRate)} + ${breakdown.invalid} טריפה × ${money(breakdown.invalidRate)} + ${breakdown.unsold} unsold × ${money(breakdown.unsoldRate)} + ${breakdown.dead} טויטע × $0.00`;
       chickenPurchaseTotal.textContent = money(breakdown.totalExpense);
     }
 
     function saveSettings() {
-      syncChickenPurchaseExpense();
       const { _legacyPassword, ...safeSettings } = state.settings;
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(safeSettings));
       queueCloudSave();
@@ -4234,14 +4228,14 @@
 
     function getKapparosSold(excludeSaleId = null) {
       return state.sales.reduce((sum, sale) => {
-        if (sale.id === excludeSaleId || (sale.status || 'paid') !== 'paid') return sum;
+        if (sale.id === excludeSaleId || !['paid', 'treifa'].includes(getSaleStatus(sale))) return sum;
         return sum + Number(sale.quantity || 0);
       }, 0);
     }
 
     function getInventoryUsedTotal(excludeSaleId = null) {
       return state.sales.reduce((sum, sale) => {
-        if (sale.id === excludeSaleId || !['paid', 'dead'].includes(sale.status || 'paid')) return sum;
+        if (sale.id === excludeSaleId || !['paid', 'treifa', 'dead'].includes(getSaleStatus(sale))) return sum;
         return sum + Number(sale.quantity || 0);
       }, 0);
     }
@@ -4288,6 +4282,7 @@
     }
 
     function getStatusLabel(status) {
+      if (status === 'treifa') return 'טריפה';
       if (status === 'reserved') return 'Reserved';
       if (status === 'expired') return 'Expired';
       if (status === 'dead') return 'טויטע';
@@ -4311,14 +4306,14 @@
 
     function getNeedsReservedTotal() {
       return state.sales.reduce((sum, sale) => {
-        const isCountedStatus = ['paid', 'reserved'].includes(sale.status || 'paid');
+        const isCountedStatus = ['paid', 'reserved'].includes(getSaleStatus(sale));
         return isCountedStatus ? sum + Number(sale.quantity || 0) : sum;
       }, 0);
     }
 
     function getNeedsSavedTotal() {
       return state.sales.reduce((sum, sale) => {
-        const isPaid = (sale.status || 'paid') === 'paid';
+        const isPaid = getSaleStatus(sale) === 'paid';
         return isPaid ? sum + Number(sale.quantity || 0) : sum;
       }, 0);
     }
@@ -4427,6 +4422,7 @@
 
     function updatePaymentFieldsForStatus() {
       const isDead = saleStatus.value === 'dead';
+      const isTreifa = saleStatus.value === 'treifa';
       const usesPlan = !isDead && (saleStatus.value === 'reserved' || (Boolean(state.editingSaleId) && saleStatus.value === 'expired'));
       saleNameWrap.hidden = isDead;
       salePhoneWrap.hidden = isDead;
@@ -4438,11 +4434,11 @@
       phoneInput.required = !isDead && state.settings.phoneRequired !== false;
       saleEmailInput.disabled = isDead;
       saleEmailInput.required = !isDead && Boolean(state.settings.emailRequired);
-      chickenOutcomeWrap.hidden = saleStatus.value !== 'paid';
-      chickenOutcome.disabled = saleStatus.value !== 'paid';
-      geschlagenControl.hidden = isDead;
-      if (isDead) {
+      geschlagenControl.hidden = isDead || isTreifa;
+      if (isDead || isTreifa) {
         geschlagenInput.checked = false;
+      }
+      if (isDead) {
         priceInput.value = '0.00';
       } else if (!Number(priceInput.value)) {
         priceInput.value = (Math.max(1, Number(quantityInput.value || 1)) * Number(state.settings.defaultPrice || 0)).toFixed(2);
@@ -5026,7 +5022,8 @@
       const rows = sortedSales
         .map((sale, index) => {
           const notes = getNotesValue(sale);
-          const onlinePaid = sale.isOnlineSale && (sale.status || 'paid') === 'paid';
+          const effectiveStatus = getSaleStatus(sale);
+          const onlinePaid = sale.isOnlineSale && effectiveStatus === 'paid';
           const startsGeschlagenGroup = index > 0
             && Boolean(sale.geschlagen)
             && !Boolean(sortedSales[index - 1].geschlagen);
@@ -5037,12 +5034,10 @@
             <tr class="sale-row" data-sale-id="${escapeHtml(sale.id)}" tabindex="0" title="Click to open this sale">
               <td class="sale-name"><span class="sale-name-content"><span>${escapeHtml(sale.fullName)}</span></span></td>
               <td><span class="sale-contact"><span>${escapeHtml(sale.phone || '')}</span>${sale.email ? `<span class="sale-contact-email" title="${escapeHtml(sale.email)}">${escapeHtml(sale.email)}</span>` : ''}</span></td>
-              <td><span class="status-pill ${onlinePaid ? 'online' : escapeHtml(sale.status || 'paid')}">${onlinePaid ? 'Online' : getStatusLabel(sale.status || 'paid')}</span></td>
+              <td><span class="status-pill ${onlinePaid ? 'online' : escapeHtml(effectiveStatus)}">${onlinePaid ? 'Online' : getStatusLabel(effectiveStatus)}</span></td>
               <td><span class="kaparah-pill">${sale.quantity}</span></td>
               <td class="note-cell" title="${escapeHtml(notes)}"><span class="sale-note-content">${sale.isDemoSale ? '<span class="demo-sale-badge">Demo</span>' : ''}<span class="note-preview" dir="auto">${escapeHtml(previewText(notes, 110))}</span></span></td>
-              <td>${sale.chickenOutcome === 'invalid'
-                ? '<span class="status-pill invalid-shechita">פסול געשחטן</span>'
-                : sale.geschlagen ? '<span class="status-pill geschlagen">געשלאגן</span>' : ''}</td>
+              <td>${sale.geschlagen ? '<span class="status-pill geschlagen">געשלאגן</span>' : ''}</td>
             </tr>`;
         }).join('');
 
@@ -5271,14 +5266,14 @@
           groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
         }
         if (sale.isOnlineSale !== true) groups[sale.paymentType].count += 1;
-        if ((sale.status || 'paid') === 'paid' && sale.isOnlineSale !== true && !isBanshakPayment(sale.paymentType)) {
+        if (['paid', 'treifa'].includes(getSaleStatus(sale)) && sale.isOnlineSale !== true && !isBanshakPayment(sale.paymentType)) {
           groups[sale.paymentType].money += Number(sale.price || 0);
         }
       });
 
       const onlineOrderMoney = state.sales.reduce((sum, sale) => (
         sale.isOnlineSale === true
-        && (sale.status || 'paid') === 'paid'
+        && ['paid', 'treifa'].includes(getSaleStatus(sale))
         && !isBanshakPayment(sale.paymentType)
       ) ? sum + Number(sale.price || 0) : sum, 0);
       const groupValues = Object.values(groups);
@@ -5454,14 +5449,13 @@
     }
 
     function renderAccounting() {
-      syncChickenPurchaseExpense();
       const month = getAccountingMonth();
       const isAllTime = state.accountingRange !== 'month';
       accountingRange.value = isAllTime ? 'all' : 'month';
       accountingMonthWrap.hidden = isAllTime;
       accountingCalendarSection.hidden = isAllTime;
       const paidSales = state.sales.filter(sale =>
-        (sale.status || 'paid') === 'paid'
+        ['paid', 'treifa'].includes(getSaleStatus(sale))
         && !isBanshakPayment(sale.paymentType)
         && (isAllTime || getAccountingSaleDate(sale).startsWith(month))
       );
@@ -5658,7 +5652,6 @@
 
     function exportAllData() {
       expirePastReservations();
-      syncChickenPurchaseExpense();
       const groups = {};
       state.settings.paymentMethods.forEach(method => {
         groups[method.id] = { id: method.id, label: method.label, count: 0, money: 0 };
@@ -5669,7 +5662,7 @@
           groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
         }
         if (sale.isOnlineSale !== true) groups[sale.paymentType].count += 1;
-        if ((sale.status || 'paid') === 'paid' && !isBanshakPayment(sale.paymentType)) groups[sale.paymentType].money += Number(sale.price || 0);
+        if (['paid', 'treifa'].includes(getSaleStatus(sale)) && !isBanshakPayment(sale.paymentType)) groups[sale.paymentType].money += Number(sale.price || 0);
       });
 
       const sold = getKapparosSold();
@@ -5678,8 +5671,8 @@
       const onlineSalesCount = state.sales.filter(sale => sale.isOnlineSale && (sale.status || 'paid') === 'paid').length;
       const needsReserved = getNeedsReservedTotal();
       const needsSaved = getNeedsSavedTotal();
-      const banshakUnpaid = state.sales.reduce((sum, sale) => (sale.status || 'paid') === 'paid' && isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
-      const totalMoney = state.sales.reduce((sum, sale) => (sale.status || 'paid') === 'paid' && !isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
+      const banshakUnpaid = state.sales.reduce((sum, sale) => ['paid', 'treifa'].includes(getSaleStatus(sale)) && isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
+      const totalMoney = state.sales.reduce((sum, sale) => ['paid', 'treifa'].includes(getSaleStatus(sale)) && !isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
       const salesRows = [
         excelRow(['Ticket ID', 'Created', 'Full Name', 'Phone Number', 'Email Address', 'Status', 'כפרות', 'Price', 'Payment method', 'Payment details', 'Planned payment', 'Planned date', ...state.settings.customFields.map(field => field.label), 'געשלאגן'].map(value => ({ value, style: 'Header' }))),
         ...state.sales.map(sale => excelRow([
@@ -5688,7 +5681,7 @@
           sale.fullName,
           sale.phone,
           sale.email || '',
-          getStatusLabel(sale.status || 'paid'),
+          getStatusLabel(getSaleStatus(sale)),
           { value: Number(sale.quantity || 0), type: 'Number', style: 'Integer' },
           { value: Number(sale.price || 0), type: 'Number', style: 'Currency' },
           getPaymentMethod(sale.paymentType)?.label || sale.paymentType,
@@ -5741,7 +5734,7 @@
         .slice()
         .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
       const accountingIncomeTotal = state.sales.reduce((sum, sale) =>
-        (sale.status || 'paid') === 'paid' && !isBanshakPayment(sale.paymentType)
+        ['paid', 'treifa'].includes(getSaleStatus(sale)) && !isBanshakPayment(sale.paymentType)
           ? sum + Number(sale.price || 0)
           : sum, 0);
       const accountingExpenseTotal = accountingExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
@@ -5938,7 +5931,6 @@
       otherDetails.required = false;
       renderPlannedPaymentSelect('');
       plannedPaymentDate.value = '';
-      chickenOutcome.value = 'kosher';
 
       if (saleId) {
         const sale = state.sales.find(item => item.id === saleId);
@@ -5953,8 +5945,7 @@
         if (sale.status === 'expired') {
           saleStatus.insertAdjacentHTML('beforeend', '<option value="expired">Expired</option>');
         }
-        saleStatus.value = sale.status || 'paid';
-        chickenOutcome.value = sale.chickenOutcome === 'invalid' ? 'invalid' : 'kosher';
+        saleStatus.value = getSaleStatus(sale);
         quantityInput.value = sale.quantity || 1;
         priceInput.value = Number(sale.price || 0).toFixed(2);
         renderPaymentSelect(sale.paymentType || '');
@@ -5970,7 +5961,6 @@
         deleteSaleBtn.hidden = true;
         geschlagenInput.checked = false;
         saleStatus.value = 'paid';
-        chickenOutcome.value = 'kosher';
         quantityInput.value = 1;
         priceInput.value = Number(state.settings.defaultPrice).toFixed(2);
         renderPaymentSelect('');
@@ -6919,6 +6909,7 @@
       const fd = new FormData(saleForm);
       const status = String(fd.get('status') || 'paid');
       const isDead = status === 'dead';
+      const isIncomeStatus = ['paid', 'treifa'].includes(status);
       const fullName = isDead ? 'טויטע' : String(fd.get('fullName') || '').trim();
       const phone = isDead ? '' : String(fd.get('phone') || '').replace(/\D/g, '');
       const email = isDead ? '' : String(fd.get('email') || '').trim();
@@ -6928,11 +6919,10 @@
       const otherPaymentDetails = String(fd.get('otherDetails') || '').trim();
       const selectedPaymentPlan = String(fd.get('plannedPaymentType') || '').trim();
       const selectedPaymentDate = String(fd.get('plannedPaymentDate') || '').trim();
-      const geschlagen = !isDead && geschlagenInput.checked;
-      const chickenOutcomeValue = status === 'paid' && chickenOutcome.value === 'invalid' ? 'invalid' : 'kosher';
+      const geschlagen = status === 'paid' && geschlagenInput.checked;
       const usesPlan = !isDead && (status === 'reserved' || (Boolean(state.editingSaleId) && status === 'expired'));
 
-      if ((!isDead && !fullName) || (!isDead && state.settings.phoneRequired !== false && !phone) || (!isDead && state.settings.emailRequired && !email) || !['paid', 'reserved', 'expired', 'dead'].includes(status) || !Number.isFinite(qty) || qty < 1 || !Number.isFinite(price) || price < 0 || (!isDead && !usesPlan && !selectedPaymentType) || (usesPlan && !selectedPaymentPlan)) {
+      if ((!isDead && !fullName) || (!isDead && state.settings.phoneRequired !== false && !phone) || (!isDead && state.settings.emailRequired && !email) || !['paid', 'treifa', 'reserved', 'expired', 'dead'].includes(status) || !Number.isFinite(qty) || qty < 1 || !Number.isFinite(price) || price < 0 || (!isDead && !usesPlan && !selectedPaymentType) || (usesPlan && !selectedPaymentPlan)) {
         showToast('Please fill out every required field');
         return;
       }
@@ -6980,7 +6970,7 @@
         const saleUnchanged = String(currentSale.fullName || '').trim() === fullName
           && String(currentSale.phone || '').replace(/\D/g, '') === phone
           && String(currentSale.email || '').trim() === email
-          && (currentSale.status || 'paid') === status
+          && getSaleStatus(currentSale) === status
           && Number(currentSale.quantity || 0) === qty
           && Number(currentSale.price || 0) === price
           && String(currentSale.paymentType || '') === normalizedPaymentType
@@ -6988,7 +6978,6 @@
           && String(currentSale.plannedPaymentType || '') === normalizedPaymentPlan
           && String(currentSale.plannedPaymentDate || '') === normalizedPaymentDate
           && Boolean(currentSale.geschlagen) === geschlagen
-          && (currentSale.chickenOutcome === 'invalid' ? 'invalid' : 'kosher') === chickenOutcomeValue
           && customFieldsUnchanged;
         if (saleUnchanged) {
           closeModal();
@@ -6998,8 +6987,8 @@
         if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
         const changedSale = {
           ...currentSale,
-          paidAt: status === 'paid' ? ((currentSale.status || 'paid') === 'paid' ? currentSale.paidAt : new Date().toISOString()) : null,
-          paidOn: status === 'paid' ? ((currentSale.status || 'paid') === 'paid' ? currentSale.paidOn : getLocalDateValue()) : null,
+          paidAt: isIncomeStatus ? (['paid', 'treifa'].includes(getSaleStatus(currentSale)) ? currentSale.paidAt : new Date().toISOString()) : null,
+          paidOn: isIncomeStatus ? (['paid', 'treifa'].includes(getSaleStatus(currentSale)) ? currentSale.paidOn : getLocalDateValue()) : null,
           fullName,
           phone,
           email,
@@ -7011,10 +7000,10 @@
           plannedPaymentType: normalizedPaymentPlan,
           plannedPaymentDate: normalizedPaymentDate,
           geschlagen,
-          chickenOutcome: chickenOutcomeValue,
           customFields: customFieldValues,
           updatedAt: new Date().toISOString()
         };
+        delete changedSale.chickenOutcome;
         const latestIndex = state.sales.findIndex(item => item.id === changedSale.id);
         if (latestIndex === -1) throw new Error('This sale was deleted on another device.');
         cloudSaleBases[String(changedSale.id)] = KapparosAdminSync.clone(currentSale);
@@ -7032,8 +7021,8 @@
       const sale = {
         id: newSaleId,
         ticketId: createTicketId(newSaleId, usedTicketIds),
-        paidAt: status === 'paid' ? new Date().toISOString() : null,
-        paidOn: status === 'paid' ? getLocalDateValue() : null,
+        paidAt: isIncomeStatus ? new Date().toISOString() : null,
+        paidOn: isIncomeStatus ? getLocalDateValue() : null,
         createdAt: new Date().toISOString(),
         fullName,
         phone,
@@ -7046,7 +7035,6 @@
         plannedPaymentType: usesPlan ? selectedPaymentPlan : '',
         plannedPaymentDate: selectedPlanNeedsDate ? selectedPaymentDate : '',
         geschlagen,
-        chickenOutcome: chickenOutcomeValue,
         customFields: customFieldValues
       };
 

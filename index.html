@@ -8,9 +8,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Kapures Admin" />
   <title>פנים מאירות סיקסא - כפרות</title>
-  <link rel="manifest" href="manifest.webmanifest?v=20260918-1" />
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/app-icon-192.png?v=20260918-1" />
-  <link rel="apple-touch-icon" sizes="180x180" href="icons/app-icon-180.png?v=20260918-1" />
+  <link rel="manifest" href="manifest.webmanifest?v=20260920-1" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/app-icon-192.png?v=20260920-1" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/app-icon-180.png?v=20260920-1" />
   <style>
     :root {
       --bg: #fcfaf5;
@@ -564,6 +564,8 @@
     .status-pill.online { color:#6f512a; background:#eee3cf; }
     .status-pill.reserved { color: #80581e; background: #f6e8c8; }
     .status-pill.expired { color: #8b2e26; background: #f7d7d2; }
+    .status-pill.dead { color: #6f3f3a; background: #eadbd8; direction: rtl; }
+    .status-pill.invalid-shechita { color: #8b2e26; background: #f7d7d2; direction: rtl; }
     .status-pill.geschlagen { color: #285c35; background: #dceddf; direction: rtl; }
     .note-cell {
       overflow: hidden;
@@ -930,8 +932,10 @@
     }
     .accounting-tab.active { border-bottom-color: var(--accent); color: var(--accent); }
     #accountingOverview,
+    #accountingSalesOverview,
     #accountingExpensesView { padding: 22px 24px 26px; }
     #accountingOverview[hidden],
+    #accountingSalesOverview[hidden],
     #accountingExpensesView[hidden] { display: none; }
     .accounting-summary-grid {
       display: grid;
@@ -1617,7 +1621,7 @@
       .accounting-filters { width: 100%; display: grid; grid-template-columns: 1fr; }
       .accounting-period { width: 100%; }
       .accounting-tabs { padding-inline: 18px; }
-      #accountingOverview, #accountingExpensesView { padding: 18px; }
+      #accountingOverview, #accountingSalesOverview, #accountingExpensesView { padding: 18px; }
       .accounting-summary-grid { grid-template-columns: 1fr; }
       .accounting-section-head { align-items: stretch; flex-direction: column; }
       .accounting-section-head .primary-btn { width: 100%; }
@@ -1931,7 +1935,8 @@
         </div>
 
         <div class="accounting-tabs" role="tablist" aria-label="Accounting sections">
-          <button type="button" class="accounting-tab active" data-accounting-tab="overview" role="tab" aria-selected="true">Overview</button>
+          <button type="button" class="accounting-tab active" data-accounting-tab="overview" role="tab" aria-selected="true">Money Overview</button>
+          <button type="button" class="accounting-tab" data-accounting-tab="sales" role="tab" aria-selected="false">Sales Overview</button>
           <button type="button" class="accounting-tab" data-accounting-tab="expenses" role="tab" aria-selected="false">Expenses</button>
         </div>
 
@@ -1963,6 +1968,36 @@
             </div>
             <div class="accounting-calendar-wrap">
               <div class="accounting-calendar" id="accountingCalendar"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="accountingSalesOverview" hidden>
+          <div class="accounting-summary-grid">
+            <div class="accounting-summary-card">
+              <span>Total chickens</span>
+              <strong id="accountingChickenTotal">0</strong>
+              <small>Starting inventory</small>
+            </div>
+            <div class="accounting-summary-card income">
+              <span>Regular kosher</span>
+              <strong id="accountingKosherCount">0</strong>
+              <small id="accountingKosherCost">$0.00 expense</small>
+            </div>
+            <div class="accounting-summary-card expenses">
+              <span>פסול געשחטן</span>
+              <strong id="accountingInvalidCount">0</strong>
+              <small id="accountingInvalidCost">$0.00 expense</small>
+            </div>
+            <div class="accounting-summary-card">
+              <span>טויטע</span>
+              <strong id="accountingDeadCount">0</strong>
+              <small>$0.00 expense</small>
+            </div>
+            <div class="accounting-summary-card">
+              <span>Unsold</span>
+              <strong id="accountingUnsoldCount">0</strong>
+              <small id="accountingUnsoldCost">$0.00 expense</small>
             </div>
           </div>
         </div>
@@ -2450,12 +2485,20 @@
           </div>
           <form id="accountingSettingsForm">
             <div class="settings-section">
-              <h3>Chicken Purchase Cost</h3>
-              <p class="settings-card-note">What you pay for each chicken. The selling price is separate, in Sales Settings.</p>
+              <h3>Chicken Cost Categories</h3>
+              <p class="settings-card-note">Set what you owe for each final chicken outcome. טויטע always costs $0.</p>
               <div class="settings-grid sales-basics-grid">
                 <div class="field">
-                  <label for="settingChickenPurchaseCost">Your cost per chicken</label>
+                  <label for="settingChickenPurchaseCost">Regular kosher chicken</label>
                   <div class="price-wrap"><span>$</span><input id="settingChickenPurchaseCost" type="number" min="0" step="0.01" required /></div>
+                </div>
+                <div class="field">
+                  <label for="settingInvalidShechitaCost">פסול געשחטן</label>
+                  <div class="price-wrap"><span>$</span><input id="settingInvalidShechitaCost" type="number" min="0" step="0.01" required /></div>
+                </div>
+                <div class="field">
+                  <label for="settingUnsoldChickenCost">Unsold chicken</label>
+                  <div class="price-wrap"><span>$</span><input id="settingUnsoldChickenCost" type="number" min="0" step="0.01" required /></div>
                 </div>
                 <div class="field">
                   <label for="settingChickenExpenseName">Expense name</label>
@@ -2467,7 +2510,7 @@
                 <p id="chickenPurchaseSummary" class="settings-card-note"></p>
                 <strong id="chickenPurchaseTotal" style="font-size:22px;font-variant-numeric:tabular-nums">$0.00</strong>
               </div>
-              <p class="settings-card-note">Total inventory from Sales Settings × your cost per chicken. The calculation updates as you type; select Save to apply it. Selling chickens does not reduce this expense. Each paid sale adds its full selling amount to income.</p>
+              <p class="settings-card-note">The linked chicken expense is recalculated from regular kosher, פסול געשחטן, unsold, and טויטע counts. Customer payments remain income, including פסול געשחטן sales.</p>
             </div>
             <p class="settings-message" id="accountingSettingsMessage" role="alert"></p>
             <div class="settings-actions" data-settings-actions="accounting" hidden>
@@ -2512,18 +2555,18 @@
         </label>
         <div class="inventory-error completion-payment-error" id="geschlagenPaymentError" role="alert" hidden>אנטשולדיגט מען ברויכט קודם באצאלן</div>
         <div class="form-grid">
-          <div class="field full">
+          <div class="field full" id="saleNameWrap">
             <label for="fullName">Full Name <span class="required-mark">*</span></label>
             <input id="fullName" name="fullName" autocomplete="name" required />
           </div>
 
-          <div class="field full">
+          <div class="field full" id="salePhoneWrap">
             <label for="phone">Phone Number <span class="required-mark" id="phoneRequiredMark">*</span></label>
             <input id="phone" name="phone" inputmode="numeric" autocomplete="tel" pattern="[0-9]{10}" maxlength="10" required />
             <div class="helper">Enter exactly 10 digits.</div>
           </div>
 
-          <div class="field full">
+          <div class="field full" id="saleEmailWrap">
             <label for="saleEmail">Email Address <span class="required-mark" id="emailRequiredMark" hidden>*</span></label>
             <input id="saleEmail" name="email" type="email" autocomplete="email" placeholder="name@example.com" />
           </div>
@@ -2533,16 +2576,25 @@
             <select id="saleStatus" name="status" required>
               <option value="paid">Paid</option>
               <option value="reserved">Reserved</option>
+              <option value="dead">טויטע</option>
             </select>
           </div>
 
-          <div class="field quantity-price-field">
+          <div class="field full" id="chickenOutcomeWrap">
+            <label for="chickenOutcome">Chicken result</label>
+            <select id="chickenOutcome" name="chickenOutcome">
+              <option value="kosher">Regular kosher</option>
+              <option value="invalid">פסול געשחטן</option>
+            </select>
+          </div>
+
+          <div class="field quantity-price-field" id="saleQuantityWrap">
             <label for="quantity">כפרה <span class="required-mark">*</span></label>
             <input id="quantity" name="quantity" type="number" min="1" step="1" value="1" aria-describedby="quantityInventoryError" required />
             <div class="inventory-error" id="quantityInventoryError" role="alert" hidden>עס איז נישט דא גענוג כפרות</div>
           </div>
 
-          <div class="field quantity-price-field">
+          <div class="field quantity-price-field" id="salePriceWrap">
             <label for="price">Price <span class="required-mark">*</span></label>
             <div class="price-wrap">
               <span>$</span>
@@ -2869,7 +2921,10 @@
       todoSortMode: 'manual',
       todoTasks: [],
       accountingExpenses: [],
-      chickenPurchaseCost: 0,
+      chickenCostModelVersion: 1,
+      chickenPurchaseCost: 13,
+      invalidShechitaCost: 0,
+      unsoldChickenCost: 8,
       chickenExpenseName: 'Chickens',
       chickenPurchaseBatches: [],
       chickenInventoryRecorded: null,
@@ -2909,7 +2964,8 @@
       editingTodoId: null,
       editingExpenseId: null,
       accountingRange: sessionStorage.getItem('kapparos_accounting_range') === 'month' ? 'month' : 'all',
-      accountingTab: sessionStorage.getItem('kapparos_accounting_tab') === 'expenses' ? 'expenses' : 'overview',
+      accountingTab: ['overview', 'sales', 'expenses'].includes(sessionStorage.getItem('kapparos_accounting_tab'))
+        ? sessionStorage.getItem('kapparos_accounting_tab') : 'overview',
       todoSortMode: 'manual',
       expenseSearchQuery: '',
       ticketSaleId: sessionStorage.getItem('kapparos_ticket_sale_id') || '',
@@ -2939,6 +2995,12 @@
     const paymentType = document.getElementById('paymentType');
     const paymentTypeWrap = document.getElementById('paymentTypeWrap');
     const saleStatus = document.getElementById('saleStatus');
+    const chickenOutcomeWrap = document.getElementById('chickenOutcomeWrap');
+    const chickenOutcome = document.getElementById('chickenOutcome');
+    const saleNameWrap = document.getElementById('saleNameWrap');
+    const salePhoneWrap = document.getElementById('salePhoneWrap');
+    const saleEmailWrap = document.getElementById('saleEmailWrap');
+    const salePriceWrap = document.getElementById('salePriceWrap');
     const plannedPaymentWrap = document.getElementById('plannedPaymentWrap');
     const plannedPaymentType = document.getElementById('plannedPaymentType');
     const plannedPaymentDateWrap = document.getElementById('plannedPaymentDateWrap');
@@ -3003,12 +3065,21 @@
     const accountingCalendarSection = document.getElementById('accountingCalendarSection');
     const accountingTabs = document.querySelectorAll('[data-accounting-tab]');
     const accountingOverview = document.getElementById('accountingOverview');
+    const accountingSalesOverview = document.getElementById('accountingSalesOverview');
     const accountingExpensesView = document.getElementById('accountingExpensesView');
     const accountingIncome = document.getElementById('accountingIncome');
     const accountingExpenseTotal = document.getElementById('accountingExpenseTotal');
     const accountingNetCard = document.getElementById('accountingNetCard');
     const accountingNetLabel = document.getElementById('accountingNetLabel');
     const accountingNet = document.getElementById('accountingNet');
+    const accountingChickenTotal = document.getElementById('accountingChickenTotal');
+    const accountingKosherCount = document.getElementById('accountingKosherCount');
+    const accountingKosherCost = document.getElementById('accountingKosherCost');
+    const accountingInvalidCount = document.getElementById('accountingInvalidCount');
+    const accountingInvalidCost = document.getElementById('accountingInvalidCost');
+    const accountingDeadCount = document.getElementById('accountingDeadCount');
+    const accountingUnsoldCount = document.getElementById('accountingUnsoldCount');
+    const accountingUnsoldCost = document.getElementById('accountingUnsoldCost');
     const accountingCalendar = document.getElementById('accountingCalendar');
     const accountingExpensePeriodLabel = document.getElementById('accountingExpensePeriodLabel');
     const expenseSearch = document.getElementById('expenseSearch');
@@ -3045,6 +3116,8 @@
     const salesSettingsForm = document.getElementById('salesSettingsForm');
     const accountingSettingsForm = document.getElementById('accountingSettingsForm');
     const settingChickenPurchaseCost = document.getElementById('settingChickenPurchaseCost');
+    const settingInvalidShechitaCost = document.getElementById('settingInvalidShechitaCost');
+    const settingUnsoldChickenCost = document.getElementById('settingUnsoldChickenCost');
     const settingChickenExpenseName = document.getElementById('settingChickenExpenseName');
     const accountingSettingsMessage = document.getElementById('accountingSettingsMessage');
     const chickenPurchaseSummary = document.getElementById('chickenPurchaseSummary');
@@ -3426,7 +3499,13 @@
           phoneRequired: saved.phoneRequired !== false,
           emailRequired: Boolean(saved.emailRequired),
           todoSortMode: ['manual', 'name', 'due'].includes(saved.todoSortMode) ? saved.todoSortMode : DEFAULT_SETTINGS.todoSortMode,
-          chickenPurchaseCost: Number.isFinite(Number(saved.chickenPurchaseCost)) ? Math.max(0, Math.round(Number(saved.chickenPurchaseCost) * 100) / 100) : 0,
+          chickenCostModelVersion: 1,
+          chickenPurchaseCost: saved.chickenCostModelVersion === 1 && Number.isFinite(Number(saved.chickenPurchaseCost))
+            ? Math.max(0, Math.round(Number(saved.chickenPurchaseCost) * 100) / 100) : 13,
+          invalidShechitaCost: Number.isFinite(Number(saved.invalidShechitaCost))
+            ? Math.max(0, Math.round(Number(saved.invalidShechitaCost) * 100) / 100) : 0,
+          unsoldChickenCost: Number.isFinite(Number(saved.unsoldChickenCost))
+            ? Math.max(0, Math.round(Number(saved.unsoldChickenCost) * 100) / 100) : 8,
           chickenExpenseName: String(saved.chickenExpenseName || 'Chickens').trim().slice(0, 120) || 'Chickens',
           chickenInventoryRecorded: saved.chickenInventoryRecorded != null && Number.isFinite(Number(saved.chickenInventoryRecorded)) ? Math.max(0, Math.floor(Number(saved.chickenInventoryRecorded))) : null,
           chickenPurchaseBatches: Array.isArray(saved.chickenPurchaseBatches) ? saved.chickenPurchaseBatches.filter(batch => batch && Number(batch.quantity) > 0 && Number(batch.unitCost) >= 0).map(batch => ({
@@ -4062,53 +4141,64 @@
     });
 
     function saveSales() {
+      syncChickenPurchaseExpense();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.sales));
+      const { _legacyPassword, ...safeSettings } = state.settings;
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(safeSettings));
       queueCloudSave();
     }
 
-    function getChickenPurchaseTotal() {
-      const inventory = Math.max(0, Math.floor(Number(state.settings.inventory) || 0));
-      const costCents = Math.max(0, Math.round((Number(state.settings.chickenPurchaseCost) || 0) * 100));
-      return inventory * costCents / 100;
+    function getChickenAccountingBreakdown(settings = state.settings, sales = state.sales, rateOverrides = {}) {
+      const inventory = Math.max(0, Math.floor(Number(settings.inventory) || 0));
+      const dead = sales.reduce((sum, sale) => sale.status === 'dead' ? sum + Math.max(0, Number(sale.quantity || 0)) : sum, 0);
+      const invalid = sales.reduce((sum, sale) => (sale.status || 'paid') === 'paid' && sale.chickenOutcome === 'invalid'
+        ? sum + Math.max(0, Number(sale.quantity || 0)) : sum, 0);
+      const paid = sales.reduce((sum, sale) => (sale.status || 'paid') === 'paid'
+        ? sum + Math.max(0, Number(sale.quantity || 0)) : sum, 0);
+      const kosher = Math.max(0, paid - invalid);
+      const used = Math.min(inventory, paid + dead);
+      const unsold = Math.max(0, inventory - used);
+      const kosherRate = Math.max(0, Number(rateOverrides.kosher ?? settings.chickenPurchaseCost) || 0);
+      const invalidRate = Math.max(0, Number(rateOverrides.invalid ?? settings.invalidShechitaCost) || 0);
+      const unsoldRate = Math.max(0, Number(rateOverrides.unsold ?? settings.unsoldChickenCost) || 0);
+      const kosherExpense = Math.round(kosher * Math.round(kosherRate * 100)) / 100;
+      const invalidExpense = Math.round(invalid * Math.round(invalidRate * 100)) / 100;
+      const unsoldExpense = Math.round(unsold * Math.round(unsoldRate * 100)) / 100;
+      return { inventory, paid, kosher, invalid, dead, unsold, used,
+        kosherRate, invalidRate, unsoldRate,
+        kosherExpense, invalidExpense, unsoldExpense,
+        totalExpense: Math.round((kosherExpense + invalidExpense + unsoldExpense) * 100) / 100 };
     }
 
-    function normalizeChickenPurchaseSettings(settings, date, now) {
+    function getChickenPurchaseTotal() {
+      return getChickenAccountingBreakdown().totalExpense;
+    }
+
+    function normalizeChickenPurchaseSettings(settings, date, now, sales = []) {
       const expenseId = 'auto-chicken-inventory-cost';
-      const inventory = Math.max(0, Math.floor(Number(settings.inventory) || 0));
-      const costCents = Math.max(0, Math.round((Number(settings.chickenPurchaseCost) || 0) * 100));
-      const cost = costCents / 100;
-      const amount = inventory * costCents / 100;
+      const breakdown = getChickenAccountingBreakdown(settings, sales);
+      const amount = breakdown.totalExpense;
       const expenses = Array.isArray(settings.accountingExpenses) ? settings.accountingExpenses : [];
       const existing = expenses.find(expense => expense.id === expenseId);
       if (!existing && !(amount > 0)) return settings;
-
-      // Dates remain available for the calendar; quantities and rates match Settings.
-      let remaining = inventory;
-      const batches = [];
-      for (const batch of (Array.isArray(settings.chickenPurchaseBatches) ? settings.chickenPurchaseBatches : [])) {
-        if (!batch) continue;
-        const quantity = Math.min(remaining, Math.max(0, Math.floor(Number(batch.quantity) || 0)));
-        if (!quantity) continue;
-        batches.push({ ...batch, quantity, unitCost: cost });
-        remaining -= quantity;
-      }
-      if (remaining > 0) batches.push({ quantity: remaining, unitCost: cost, date, createdAt: now });
-      settings.chickenPurchaseBatches = batches;
-      settings.chickenInventoryRecorded = inventory;
+      settings.chickenCostModelVersion = 1;
+      settings.chickenInventoryRecorded = breakdown.inventory;
       const name = String(settings.chickenExpenseName || 'Chickens').trim() || 'Chickens';
+      const note = `${breakdown.kosher} regular kosher, ${breakdown.invalid} פסול געשחטן, ${breakdown.unsold} unsold, ${breakdown.dead} טויטע`;
       if (existing) {
-        if (existing.name !== name || existing.amount !== amount) {
+        if (existing.name !== name || existing.amount !== amount || existing.note !== note) {
           existing.name = name;
           existing.amount = amount;
+          existing.note = note;
           existing.updatedAt = now;
         }
       } else {
         expenses.push({
           id: expenseId, name, amount,
-          date: batches[0]?.date || date, category: 'Inventory', note: '',
+          date, category: 'Inventory', note,
           paid: false,
           order: expenses.reduce((maximum, item) => Math.max(maximum, Number(item.order || 0)), -1) + 1,
-          createdAt: batches[0]?.createdAt || now, updatedAt: ''
+          createdAt: now, updatedAt: ''
         });
       }
       settings.accountingExpenses = expenses;
@@ -4116,16 +4206,17 @@
     }
 
     function syncChickenPurchaseExpense() {
-      normalizeChickenPurchaseSettings(state.settings, getLocalDateValue(), new Date().toISOString());
+      normalizeChickenPurchaseSettings(state.settings, getLocalDateValue(), new Date().toISOString(), state.sales);
     }
 
     function updateChickenPurchasePreview() {
-      const enteredCost = Number(settingChickenPurchaseCost.value || 0);
-      const costCents = Number.isFinite(enteredCost) ? Math.max(0, Math.round(enteredCost * 100)) : 0;
-      const inventory = Math.max(0, Math.floor(Number(state.settings.inventory || 0)));
-      const total = inventory * costCents / 100;
-      chickenPurchaseSummary.textContent = inventory.toLocaleString() + ' chickens × ' + money(costCents / 100) + ' = ' + money(total);
-      chickenPurchaseTotal.textContent = money(total);
+      const breakdown = getChickenAccountingBreakdown(state.settings, state.sales, {
+        kosher: Number(settingChickenPurchaseCost.value || 0),
+        invalid: Number(settingInvalidShechitaCost.value || 0),
+        unsold: Number(settingUnsoldChickenCost.value || 0)
+      });
+      chickenPurchaseSummary.textContent = `${breakdown.kosher} regular × ${money(breakdown.kosherRate)} + ${breakdown.invalid} פסול געשחטן × ${money(breakdown.invalidRate)} + ${breakdown.unsold} unsold × ${money(breakdown.unsoldRate)} + ${breakdown.dead} טויטע × $0.00`;
+      chickenPurchaseTotal.textContent = money(breakdown.totalExpense);
     }
 
     function saveSettings() {
@@ -4148,9 +4239,16 @@
       }, 0);
     }
 
+    function getInventoryUsedTotal(excludeSaleId = null) {
+      return state.sales.reduce((sum, sale) => {
+        if (sale.id === excludeSaleId || !['paid', 'dead'].includes(sale.status || 'paid')) return sum;
+        return sum + Number(sale.quantity || 0);
+      }, 0);
+    }
+
     function validateQuantityAvailability() {
       const quantity = Number(quantityInput.value);
-      const available = (cloudInventory ?? state.settings.inventory) - getKapparosSold(state.editingSaleId || saleDraftId);
+      const available = (cloudInventory ?? state.settings.inventory) - getInventoryUsedTotal(state.editingSaleId || saleDraftId);
       const insufficient = saleStatus.value !== 'expired' && Number.isFinite(quantity) && quantity >= 1 && quantity > available;
       quantityInput.setCustomValidity(insufficient ? 'עס איז נישט דא גענוג כפרות' : '');
       quantityInput.classList.toggle('inventory-invalid', insufficient);
@@ -4192,6 +4290,7 @@
     function getStatusLabel(status) {
       if (status === 'reserved') return 'Reserved';
       if (status === 'expired') return 'Expired';
+      if (status === 'dead') return 'טויטע';
       return 'Paid';
     }
 
@@ -4225,7 +4324,7 @@
     }
 
     function getHomeSummaryTotal() {
-      return Math.max(0, Number(state.settings.inventory || 0) - getNeedsSavedTotal());
+      return Math.max(0, Number(state.settings.inventory || 0) - getInventoryUsedTotal());
     }
 
     function getCompletedTotal() {
@@ -4289,8 +4388,9 @@
         : 'name';
       const phoneRequired = state.settings.phoneRequired !== false;
       const emailRequired = Boolean(state.settings.emailRequired);
-      phoneInput.required = phoneRequired;
-      saleEmailInput.required = emailRequired;
+      const isDead = saleStatus.value === 'dead';
+      phoneInput.required = !isDead && phoneRequired;
+      saleEmailInput.required = !isDead && emailRequired;
       phoneRequiredMark.hidden = !phoneRequired;
       emailRequiredMark.hidden = !emailRequired;
       applyReservationAvailability();
@@ -4326,10 +4426,32 @@
     }
 
     function updatePaymentFieldsForStatus() {
-      const usesPlan = saleStatus.value === 'reserved' || (Boolean(state.editingSaleId) && saleStatus.value === 'expired');
-      paymentTypeWrap.hidden = usesPlan;
-      paymentType.disabled = usesPlan;
-      paymentType.required = !usesPlan;
+      const isDead = saleStatus.value === 'dead';
+      const usesPlan = !isDead && (saleStatus.value === 'reserved' || (Boolean(state.editingSaleId) && saleStatus.value === 'expired'));
+      saleNameWrap.hidden = isDead;
+      salePhoneWrap.hidden = isDead;
+      saleEmailWrap.hidden = isDead;
+      salePriceWrap.hidden = isDead;
+      fullNameInput.disabled = isDead;
+      fullNameInput.required = !isDead;
+      phoneInput.disabled = isDead;
+      phoneInput.required = !isDead && state.settings.phoneRequired !== false;
+      saleEmailInput.disabled = isDead;
+      saleEmailInput.required = !isDead && Boolean(state.settings.emailRequired);
+      chickenOutcomeWrap.hidden = saleStatus.value !== 'paid';
+      chickenOutcome.disabled = saleStatus.value !== 'paid';
+      geschlagenControl.hidden = isDead;
+      if (isDead) {
+        geschlagenInput.checked = false;
+        priceInput.value = '0.00';
+      } else if (!Number(priceInput.value)) {
+        priceInput.value = (Math.max(1, Number(quantityInput.value || 1)) * Number(state.settings.defaultPrice || 0)).toFixed(2);
+      }
+      priceInput.disabled = isDead;
+      priceInput.required = !isDead;
+      paymentTypeWrap.hidden = usesPlan || isDead;
+      paymentType.disabled = usesPlan || isDead;
+      paymentType.required = !usesPlan && !isDead;
       plannedPaymentWrap.hidden = !usesPlan;
       plannedPaymentType.disabled = !usesPlan;
       plannedPaymentType.required = usesPlan;
@@ -4339,10 +4461,16 @@
       plannedPaymentDate.disabled = !needsDate;
       plannedPaymentDate.required = needsDate;
 
-      const isOther = !usesPlan && Boolean(getPaymentMethod(paymentType.value)?.needsDetails);
+      const isOther = !usesPlan && !isDead && Boolean(getPaymentMethod(paymentType.value)?.needsDetails);
       otherDetailsWrap.classList.toggle('show', isOther);
-      otherDetails.disabled = usesPlan || !isOther;
+      otherDetails.disabled = usesPlan || isDead || !isOther;
       otherDetails.required = isOther;
+      customSaleFields.hidden = isDead || !state.settings.customFields.length;
+      customSaleFields.querySelectorAll('[data-custom-sale-field]').forEach(input => {
+        const field = state.settings.customFields.find(item => item.id === input.dataset.customSaleField);
+        input.disabled = isDead;
+        input.required = !isDead && Boolean(field?.required);
+      });
       validateSaleCompletionStatus();
     }
 
@@ -4405,12 +4533,13 @@
     }
 
     function renderCustomSaleFields(values = {}) {
+      const isDead = saleStatus.value === 'dead';
       customSaleFields.innerHTML = state.settings.customFields.map((field, index) => `
         <div class="field full">
           <label for="saleCustomField${index}">${escapeHtml(field.label)}${field.required ? ' <span class="required-mark">*</span>' : ''}</label>
-          <input id="saleCustomField${index}" data-custom-sale-field="${escapeHtml(field.id)}" value="${escapeHtml(values[field.id] || '')}" ${field.required ? 'required' : ''} />
+          <input id="saleCustomField${index}" data-custom-sale-field="${escapeHtml(field.id)}" value="${escapeHtml(values[field.id] || '')}" ${field.required && !isDead ? 'required' : ''} ${isDead ? 'disabled' : ''} />
         </div>`).join('');
-      customSaleFields.hidden = !state.settings.customFields.length;
+      customSaleFields.hidden = isDead || !state.settings.customFields.length;
     }
 
     const TICKET_DESIGNER_FIELD_MAP = {
@@ -4725,6 +4854,8 @@
     function resetSettingsSection(section) {
       if (section === 'accounting') {
         settingChickenPurchaseCost.value = Number(state.settings.chickenPurchaseCost || 0).toFixed(2);
+        settingInvalidShechitaCost.value = Number(state.settings.invalidShechitaCost || 0).toFixed(2);
+        settingUnsoldChickenCost.value = Number(state.settings.unsoldChickenCost || 0).toFixed(2);
         settingChickenExpenseName.value = state.settings.chickenExpenseName || 'Chickens';
         accountingSettingsMessage.textContent = '';
         updateChickenPurchasePreview();
@@ -4909,7 +5040,9 @@
               <td><span class="status-pill ${onlinePaid ? 'online' : escapeHtml(sale.status || 'paid')}">${onlinePaid ? 'Online' : getStatusLabel(sale.status || 'paid')}</span></td>
               <td><span class="kaparah-pill">${sale.quantity}</span></td>
               <td class="note-cell" title="${escapeHtml(notes)}"><span class="sale-note-content">${sale.isDemoSale ? '<span class="demo-sale-badge">Demo</span>' : ''}<span class="note-preview" dir="auto">${escapeHtml(previewText(notes, 110))}</span></span></td>
-              <td>${sale.geschlagen ? '<span class="status-pill geschlagen">געשלאגן</span>' : ''}</td>
+              <td>${sale.chickenOutcome === 'invalid'
+                ? '<span class="status-pill invalid-shechita">פסול געשחטן</span>'
+                : sale.geschlagen ? '<span class="status-pill geschlagen">געשלאגן</span>' : ''}</td>
             </tr>`;
         }).join('');
 
@@ -5204,9 +5337,10 @@
     }
 
     function setAccountingTab(tab) {
-      state.accountingTab = tab === 'expenses' ? 'expenses' : 'overview';
+      state.accountingTab = ['overview', 'sales', 'expenses'].includes(tab) ? tab : 'overview';
       sessionStorage.setItem('kapparos_accounting_tab', state.accountingTab);
       accountingOverview.hidden = state.accountingTab !== 'overview';
+      accountingSalesOverview.hidden = state.accountingTab !== 'sales';
       accountingExpensesView.hidden = state.accountingTab !== 'expenses';
       accountingTabs.forEach(button => {
         const active = button.dataset.accountingTab === state.accountingTab;
@@ -5315,14 +5449,8 @@
     }
 
     function getAccountingExpenses(period = '') {
-      return (state.settings.accountingExpenses || []).flatMap(expense => {
-        if (expense.id !== CHICKEN_EXPENSE_ID || !period) {
-          return !period || String(expense.date || '').startsWith(period) ? [expense] : [];
-        }
-        const purchases = (state.settings.chickenPurchaseBatches || []).filter(batch => String(batch.date || '').startsWith(period));
-        const cents = purchases.reduce((sum, batch) => sum + batch.quantity * Math.round(batch.unitCost * 100), 0);
-        return cents > 0 ? [{ ...expense, amount: cents / 100, date: purchases[0].date }] : [];
-      });
+      return (state.settings.accountingExpenses || [])
+        .filter(expense => !period || String(expense.date || '').startsWith(period));
     }
 
     function renderAccounting() {
@@ -5350,6 +5478,16 @@
       accountingNetCard.classList.toggle('profit', hasProfit);
       accountingNetCard.classList.toggle('deficit', !hasProfit);
 
+      const chickenAccounting = getChickenAccountingBreakdown();
+      accountingChickenTotal.textContent = chickenAccounting.inventory;
+      accountingKosherCount.textContent = chickenAccounting.kosher;
+      accountingKosherCost.textContent = `${money(chickenAccounting.kosherExpense)} expense`;
+      accountingInvalidCount.textContent = chickenAccounting.invalid;
+      accountingInvalidCost.textContent = `${money(chickenAccounting.invalidExpense)} expense`;
+      accountingDeadCount.textContent = chickenAccounting.dead;
+      accountingUnsoldCount.textContent = chickenAccounting.unsold;
+      accountingUnsoldCost.textContent = `${money(chickenAccounting.unsoldExpense)} expense`;
+
       const dailyTotals = {};
       paidSales.forEach(sale => {
         const date = getAccountingSaleDate(sale);
@@ -5357,13 +5495,8 @@
         dailyTotals[date].income += Number(sale.price || 0);
       });
       expenses.forEach(expense => {
-        const entries = expense.id === CHICKEN_EXPENSE_ID
-          ? (state.settings.chickenPurchaseBatches || []).filter(batch => isAllTime || String(batch.date || '').startsWith(month)).map(batch => ({ date: batch.date, amount: batch.quantity * Math.round(batch.unitCost * 100) / 100 }))
-          : [expense];
-        entries.forEach(entry => {
-          dailyTotals[entry.date] ||= { income: 0, expenses: 0 };
-          dailyTotals[entry.date].expenses += Number(entry.amount || 0);
-        });
+        dailyTotals[expense.date] ||= { income: 0, expenses: 0 };
+        dailyTotals[expense.date].expenses += Number(expense.amount || 0);
       });
 
       if (isAllTime) accountingCalendar.innerHTML = '';
@@ -5805,6 +5938,7 @@
       otherDetails.required = false;
       renderPlannedPaymentSelect('');
       plannedPaymentDate.value = '';
+      chickenOutcome.value = 'kosher';
 
       if (saleId) {
         const sale = state.sales.find(item => item.id === saleId);
@@ -5820,6 +5954,7 @@
           saleStatus.insertAdjacentHTML('beforeend', '<option value="expired">Expired</option>');
         }
         saleStatus.value = sale.status || 'paid';
+        chickenOutcome.value = sale.chickenOutcome === 'invalid' ? 'invalid' : 'kosher';
         quantityInput.value = sale.quantity || 1;
         priceInput.value = Number(sale.price || 0).toFixed(2);
         renderPaymentSelect(sale.paymentType || '');
@@ -5835,6 +5970,7 @@
         deleteSaleBtn.hidden = true;
         geschlagenInput.checked = false;
         saleStatus.value = 'paid';
+        chickenOutcome.value = 'kosher';
         quantityInput.value = 1;
         priceInput.value = Number(state.settings.defaultPrice).toFixed(2);
         renderPaymentSelect('');
@@ -6713,7 +6849,9 @@
 
     quantityInput.addEventListener('input', () => {
       const qty = Math.max(0, Number(quantityInput.value || 0));
-      priceInput.value = (qty * state.settings.defaultPrice).toFixed(2);
+      priceInput.value = saleStatus.value === 'dead'
+        ? '0.00'
+        : (qty * state.settings.defaultPrice).toFixed(2);
       validateQuantityAvailability();
     });
 
@@ -6779,20 +6917,22 @@
       if (!saleForm.reportValidity()) return;
 
       const fd = new FormData(saleForm);
-      const fullName = String(fd.get('fullName') || '').trim();
-      const phone = String(fd.get('phone') || '').replace(/\D/g, '');
-      const email = String(fd.get('email') || '').trim();
       const status = String(fd.get('status') || 'paid');
+      const isDead = status === 'dead';
+      const fullName = isDead ? 'טויטע' : String(fd.get('fullName') || '').trim();
+      const phone = isDead ? '' : String(fd.get('phone') || '').replace(/\D/g, '');
+      const email = isDead ? '' : String(fd.get('email') || '').trim();
       const qty = Number(fd.get('quantity'));
-      const price = Number(fd.get('price'));
+      const price = isDead ? 0 : Number(fd.get('price'));
       const selectedPaymentType = String(fd.get('paymentType') || '').trim();
       const otherPaymentDetails = String(fd.get('otherDetails') || '').trim();
       const selectedPaymentPlan = String(fd.get('plannedPaymentType') || '').trim();
       const selectedPaymentDate = String(fd.get('plannedPaymentDate') || '').trim();
-      const geschlagen = geschlagenInput.checked;
-      const usesPlan = status === 'reserved' || (Boolean(state.editingSaleId) && status === 'expired');
+      const geschlagen = !isDead && geschlagenInput.checked;
+      const chickenOutcomeValue = status === 'paid' && chickenOutcome.value === 'invalid' ? 'invalid' : 'kosher';
+      const usesPlan = !isDead && (status === 'reserved' || (Boolean(state.editingSaleId) && status === 'expired'));
 
-      if (!fullName || (state.settings.phoneRequired !== false && !phone) || (state.settings.emailRequired && !email) || !['paid', 'reserved', 'expired'].includes(status) || !Number.isFinite(qty) || qty < 1 || !Number.isFinite(price) || price < 0 || (!usesPlan && !selectedPaymentType) || (usesPlan && !selectedPaymentPlan)) {
+      if ((!isDead && !fullName) || (!isDead && state.settings.phoneRequired !== false && !phone) || (!isDead && state.settings.emailRequired && !email) || !['paid', 'reserved', 'expired', 'dead'].includes(status) || !Number.isFinite(qty) || qty < 1 || !Number.isFinite(price) || price < 0 || (!isDead && !usesPlan && !selectedPaymentType) || (usesPlan && !selectedPaymentPlan)) {
         showToast('Please fill out every required field');
         return;
       }
@@ -6801,7 +6941,7 @@
         showToast('Phone Number must be exactly 10 digits');
         return;
       }
-      const selectedMethodNeedsDetails = !usesPlan && Boolean(getPaymentMethod(selectedPaymentType)?.needsDetails);
+      const selectedMethodNeedsDetails = !isDead && !usesPlan && Boolean(getPaymentMethod(selectedPaymentType)?.needsDetails);
       if (selectedMethodNeedsDetails && !otherPaymentDetails) {
         otherDetails.focus();
         showToast('Please enter the Other Payment Information');
@@ -6831,7 +6971,7 @@
         if (index === -1) throw new Error('This sale was deleted on another device.');
         const currentSale = saleEditBase || state.sales[index];
         const normalizedOtherDetails = selectedMethodNeedsDetails ? otherPaymentDetails : '';
-        const normalizedPaymentType = usesPlan ? '' : selectedPaymentType;
+        const normalizedPaymentType = usesPlan || isDead ? '' : selectedPaymentType;
         const normalizedPaymentPlan = usesPlan ? selectedPaymentPlan : '';
         const normalizedPaymentDate = selectedPlanNeedsDate ? selectedPaymentDate : '';
         const customFieldsUnchanged = state.settings.customFields.every(field =>
@@ -6848,6 +6988,7 @@
           && String(currentSale.plannedPaymentType || '') === normalizedPaymentPlan
           && String(currentSale.plannedPaymentDate || '') === normalizedPaymentDate
           && Boolean(currentSale.geschlagen) === geschlagen
+          && (currentSale.chickenOutcome === 'invalid' ? 'invalid' : 'kosher') === chickenOutcomeValue
           && customFieldsUnchanged;
         if (saleUnchanged) {
           closeModal();
@@ -6870,6 +7011,7 @@
           plannedPaymentType: normalizedPaymentPlan,
           plannedPaymentDate: normalizedPaymentDate,
           geschlagen,
+          chickenOutcome: chickenOutcomeValue,
           customFields: customFieldValues,
           updatedAt: new Date().toISOString()
         };
@@ -6899,11 +7041,12 @@
         status,
         quantity: qty,
         price,
-        paymentType: usesPlan ? '' : selectedPaymentType,
+        paymentType: usesPlan || isDead ? '' : selectedPaymentType,
         otherDetails: selectedMethodNeedsDetails ? otherPaymentDetails : '',
         plannedPaymentType: usesPlan ? selectedPaymentPlan : '',
         plannedPaymentDate: selectedPlanNeedsDate ? selectedPaymentDate : '',
         geschlagen,
+        chickenOutcome: chickenOutcomeValue,
         customFields: customFieldValues
       };
 
@@ -7040,20 +7183,29 @@
       customFieldsList.querySelector('.custom-field-row:last-child input')?.select();
     });
 
-    settingChickenPurchaseCost.addEventListener('input', updateChickenPurchasePreview);
+    [settingChickenPurchaseCost, settingInvalidShechitaCost, settingUnsoldChickenCost]
+      .forEach(input => input.addEventListener('input', updateChickenPurchasePreview));
     accountingSettingsForm.addEventListener('submit', async event => {
       event.preventDefault();
       if (!accountingSettingsForm.reportValidity()) return;
       const cost = Number(settingChickenPurchaseCost.value);
-      if (!Number.isFinite(cost) || cost < 0) return;
+      const invalidCost = Number(settingInvalidShechitaCost.value);
+      const unsoldCost = Number(settingUnsoldChickenCost.value);
+      if (![cost, invalidCost, unsoldCost].every(value => Number.isFinite(value) && value >= 0)) return;
       const name = settingChickenExpenseName.value.trim() || 'Chickens';
-      if (cost === Number(state.settings.chickenPurchaseCost || 0) && name === state.settings.chickenExpenseName) {
+      if (cost === Number(state.settings.chickenPurchaseCost || 0)
+        && invalidCost === Number(state.settings.invalidShechitaCost || 0)
+        && unsoldCost === Number(state.settings.unsoldChickenCost || 0)
+        && name === state.settings.chickenExpenseName) {
         accountingSettingsMessage.textContent = 'No changes to save.';
         setSettingsEditMode('accounting', false);
         return;
       }
       if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+      state.settings.chickenCostModelVersion = 1;
       state.settings.chickenPurchaseCost = Math.round(cost * 100) / 100;
+      state.settings.invalidShechitaCost = Math.round(invalidCost * 100) / 100;
+      state.settings.unsoldChickenCost = Math.round(unsoldCost * 100) / 100;
       state.settings.chickenExpenseName = name;
       saveSettings();
       renderAccounting();
@@ -7061,9 +7213,9 @@
       try {
         await flushCloudSave();
         accountingSettingsMessage.style.color = '#426447';
-        accountingSettingsMessage.textContent = 'Purchase cost and linked expense saved.';
+        accountingSettingsMessage.textContent = 'Chicken category costs and linked expense saved.';
         setSettingsEditMode('accounting', false);
-        showToast('Chicken purchase cost saved');
+        showToast('Chicken category costs saved');
       } catch (error) {
         accountingSettingsMessage.style.color = '#a23939';
         accountingSettingsMessage.textContent = error.message || 'The settings are waiting to save.';
@@ -7208,7 +7360,7 @@
       const reservationsEnabled = settingReservationsEnabled.checked;
       const phoneRequired = settingPhoneRequired.checked;
       const emailRequired = settingEmailRequired.checked;
-      const sold = getKapparosSold();
+      const sold = getInventoryUsedTotal();
       const methodNames = settingsDraftMethods.map(method => method.label.trim());
       const normalizedMethodNames = methodNames.map(name => name.toLocaleLowerCase());
       const planNames = settingsDraftPlans.map(plan => plan.label.trim());
@@ -7221,7 +7373,7 @@
         return;
       }
       if (inventory < sold) {
-        salesSettingsMessage.textContent = `Inventory cannot be lower than ${sold}, because that many כפרות are already sold.`;
+        salesSettingsMessage.textContent = `Inventory cannot be lower than ${sold}, because that many chickens are already sold or marked טויטע.`;
         settingInventory.focus();
         return;
       }

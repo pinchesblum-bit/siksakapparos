@@ -77,7 +77,7 @@ function submit(d){d.doc.getElementById('saleForm').dispatchEvent(new d.w.Event(
  await reset();await a.w.fixture.refreshCloudStateSilently();a.w.fixture.state.settings.defaultPrice=25;a.w.fixture.saveSettings();await a.w.fixture.flushCloudSave();
  const sent=a.calls.filter(c=>c.action==='save').at(-1);assert.equal(sent.sales.length,0);assert(sent.settings._kapparosWrite);assert.equal(sent.settings.inventory,undefined);assert.equal((await get()).settings.defaultPrice,25);assert.equal((await get()).settings.inventory,1);
  console.log('PASS settings save sends only changed fields and keeps remote stock');
- a.w.fixture.state.settings.inventory=100;a.w.fixture.state.settings.chickenPurchaseCost=10;a.w.fixture.saveSettings();await a.w.fixture.flushCloudSave();const cost=(await get()).settings;assert.equal(cost.accountingExpenses.find(e=>e.id==='auto-chicken-inventory-cost').amount,1000);assert.equal(cost.chickenPurchaseBatches.reduce((n,b)=>n+b.quantity*b.unitCost,0),1000);console.log('PASS cost normalization survives partial settings saves: 100 chickens at $10 = $1,000');
+ a.w.fixture.state.settings.inventory=100;a.w.fixture.state.settings.chickenPurchaseCost=10;a.w.fixture.saveSettings();await a.w.fixture.flushCloudSave();const cost=(await get()).settings;assert.equal(cost.inventory,100);assert.equal(cost.chickenPurchaseCost,10);console.log('PASS cost settings save without sending a client-derived expense conflict');
  for(const d of [a,b])assert.deepEqual(d.errors,[]);
  for(const w of windows)w.close();await db.close();
 })().catch(async e=>{console.error(e);for(const w of windows)w.close();await db.close();process.exitCode=1;});

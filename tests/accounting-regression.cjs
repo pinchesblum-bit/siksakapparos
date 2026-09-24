@@ -7,6 +7,10 @@ const html = fs.readFileSync(__dirname + '/../index.html', 'utf8');
 const edge = stripTypeScriptTypes(fs.readFileSync(__dirname + '/../supabase/functions/kapparos-sync/index.ts', 'utf8'));
 const expenseId = 'auto-chicken-inventory-cost';
 
+assert.match(html, /<option value="paid">Paid<\/option>\s*<option value="treifa">טריפה<\/option>/);
+assert.doesNotMatch(html, /id="chickenOutcome"/);
+assert.match(fs.readFileSync(__dirname + '/../supabase/admin-save-stock.sql', 'utf8'), /\('paid', 'treifa', 'dead'\)/);
+
 function source(name) {
   const start = html.search(new RegExp('    (?:async )?function ' + name + '\\('));
   assert.ok(start >= 0, name);
@@ -27,18 +31,19 @@ function fixture() {
 
 function salesFixture() {
   return [
-    { id: 'kosher', status: 'paid', chickenOutcome: 'kosher', quantity: 10, price: 230, paymentType: 'cash', paidOn: '2026-09-11' },
-    { id: 'invalid', status: 'paid', chickenOutcome: 'invalid', quantity: 2, price: 46, paymentType: 'credit', paidOn: '2026-09-11' },
+    { id: 'kosher', status: 'paid', quantity: 10, price: 230, paymentType: 'cash', paidOn: '2026-09-11' },
+    { id: 'treifa', status: 'treifa', quantity: 2, price: 46, paymentType: 'credit', paidOn: '2026-09-11' },
     { id: 'dead', status: 'dead', quantity: 3, price: 0 },
     { id: 'reserved', status: 'reserved', quantity: 4, price: 92 }
   ];
 }
 
 const browserEnv = vm.createContext({ state: { settings: fixture(), sales: salesFixture() } });
-vm.runInContext(source('getChickenAccountingBreakdown') + source('normalizeChickenPurchaseSettings'), browserEnv);
+vm.runInContext(source('getSaleStatus') + source('getChickenAccountingBreakdown') + source('normalizeChickenPurchaseSettings'), browserEnv);
+assert.equal(vm.runInContext("getSaleStatus({status:'paid',chickenOutcome:'invalid'})", browserEnv), 'treifa', 'Legacy outcome records remain טריפה');
 const breakdown = vm.runInContext('getChickenAccountingBreakdown()', browserEnv);
 assert.deepEqual(JSON.parse(JSON.stringify(breakdown)), {
-  inventory: 100, paid: 12, kosher: 10, invalid: 2, dead: 3, unsold: 85, used: 15,
+  inventory: 100, paid: 10, kosher: 10, invalid: 2, dead: 3, unsold: 85, used: 15,
   kosherRate: 13, invalidRate: 5, unsoldRate: 8,
   kosherExpense: 130, invalidExpense: 10, unsoldExpense: 680, totalExpense: 820
 });
@@ -47,7 +52,7 @@ assert.equal(browserEnv.state.settings.accountingExpenses[1].amount, 820);
 assert.equal(browserEnv.state.settings.accountingExpenses[1].paid, false);
 assert.equal(browserEnv.state.settings.accountingExpenses[1].date, '2026-09-11');
 assert.equal(browserEnv.state.settings.accountingExpenses[1].createdAt, 'original');
-assert.match(browserEnv.state.settings.accountingExpenses[1].note, /10 regular kosher/);
+assert.match(browserEnv.state.settings.accountingExpenses[1].note, /10 paid/);
 assert.match(browserEnv.state.settings.accountingExpenses[1].note, /3 טויטע/);
 const stable = JSON.stringify(browserEnv.state.settings);
 vm.runInContext("normalizeChickenPurchaseSettings(state.settings, '2026-09-11', 'later', state.sales)", browserEnv);
@@ -64,7 +69,7 @@ const env = vm.createContext({
   expensePaymentEntryPending: false,
   document: { getElementById: () => ({ hidden: false }) },
   sessionStorage: { getItem: () => null, setItem() {} },
-  state: { settings: fixture(), sales: salesFixture(), accountingRange: 'all', accountingTab: 'overview' },
+  state: { settings: JSON.parse(JSON.stringify(browserEnv.state.settings)), sales: salesFixture(), accountingRange: 'all', accountingTab: 'overview' },
   CHICKEN_EXPENSE_ID: expenseId,
   getLocalDateValue: () => '2026-09-11',
   money: value => '$' + Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -72,7 +77,7 @@ const env = vm.createContext({
   settingUnsoldChickenCost: { value: '8' }, chickenPurchaseSummary: {}, chickenPurchaseTotal: {}
 });
 vm.runInContext([
-  'getChickenAccountingBreakdown', 'normalizeChickenPurchaseSettings', 'getChickenPurchaseTotal',
+  'getSaleStatus', 'getChickenAccountingBreakdown', 'normalizeChickenPurchaseSettings', 'getChickenPurchaseTotal',
   'syncChickenPurchaseExpense', 'getAccountingExpenses', 'updateChickenPurchasePreview'
 ].map(source).join('\n'), env);
 env.updateChickenPurchasePreview();

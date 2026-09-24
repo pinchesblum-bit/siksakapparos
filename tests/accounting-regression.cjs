@@ -9,6 +9,9 @@ const expenseId = 'auto-chicken-inventory-cost';
 
 assert.match(html, /<option value="paid">Paid<\/option>\s*<option value="treifa">טריפה<\/option>/);
 assert.doesNotMatch(html, /id="chickenOutcome"/);
+assert.match(html, /const isOutcomeOnly = \['treifa', 'dead'\]\.includes\(status\)/);
+assert.match(html, /const isIncomeStatus = status === 'paid'/);
+assert.match(html, /id="salesSearchCount"/);
 assert.match(fs.readFileSync(__dirname + '/../supabase/admin-save-stock.sql', 'utf8'), /\('paid', 'treifa', 'dead'\)/);
 
 function source(name) {
@@ -32,7 +35,7 @@ function fixture() {
 function salesFixture() {
   return [
     { id: 'kosher', status: 'paid', quantity: 10, price: 230, paymentType: 'cash', paidOn: '2026-09-11' },
-    { id: 'treifa', status: 'treifa', quantity: 2, price: 46, paymentType: 'credit', paidOn: '2026-09-11' },
+    { id: 'treifa', status: 'treifa', quantity: 2, price: 0 },
     { id: 'dead', status: 'dead', quantity: 3, price: 0 },
     { id: 'reserved', status: 'reserved', quantity: 4, price: 92 }
   ];
@@ -97,10 +100,10 @@ Object.assign(env, {
 });
 vm.runInContext(['isBanshakPayment', 'getAccountingMonth', 'getAccountingSaleDate', 'renderAccounting'].map(source).join('\n'), env);
 env.renderAccounting();
-assert.equal(env.accountingIncome.textContent, '$276.00');
+assert.equal(env.accountingIncome.textContent, '$230.00');
 assert.equal(env.accountingExpenseTotal.textContent, '$846.00');
 assert.equal(env.accountingNetLabel.textContent, 'Deficit');
-assert.equal(env.accountingNet.textContent, '$570.00');
+assert.equal(env.accountingNet.textContent, '$616.00');
 assert.equal(env.accountingChickenTotal.textContent, 100);
 assert.equal(env.accountingKosherCount.textContent, 10);
 assert.equal(env.accountingInvalidCount.textContent, 2);

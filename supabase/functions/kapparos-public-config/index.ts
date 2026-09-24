@@ -49,7 +49,7 @@ async function sanitize(value: any, sales: any[] = [], admin: any = {}, homepage
     buttonText: String(source.buttonText || DEFAULTS.buttonText).trim().slice(0, 160),
     inventory: (() => {
       const allocation = Number.isFinite(Number(admin.inventory)) ? Math.max(0, Math.floor(Number(admin.inventory))) : 0;
-      const sold = sales.reduce((sum, sale) => String(sale.status || 'paid') === 'paid'
+      const sold = sales.reduce((sum, sale) => ['paid', 'treifa', 'dead'].includes(String(sale.status || 'paid'))
         ? sum + Math.max(0, Number(sale.quantity || 0)) : sum, 0);
       return Math.max(0, allocation - sold);
     })()

@@ -90,14 +90,21 @@ function normalizeChickenPurchaseSettings(settings: any, date: string, now: stri
   const invalid = count(sale => status(sale) === 'treifa');
   const kosher = paid;
   const unsold = Math.max(0, inventory - Math.min(inventory, paid + invalid + dead));
-  const kosherCost = Math.max(0, Math.round((Number(settings.chickenPurchaseCost) || 0) * 100));
-  const invalidCost = Math.max(0, Math.round((Number(settings.invalidShechitaCost) || 0) * 100));
-  const unsoldCost = Math.max(0, Math.round((Number(settings.unsoldChickenCost) || 0) * 100));
+  const costInCents = (value: unknown, fallback: number) => {
+    const numeric = Number(value);
+    return Math.max(0, Math.round((value != null && Number.isFinite(numeric) ? numeric : fallback) * 100));
+  };
+  const kosherCost = costInCents(settings.chickenPurchaseCost, 13);
+  const invalidCost = costInCents(settings.invalidShechitaCost, 0);
+  const unsoldCost = costInCents(settings.unsoldChickenCost, 8);
   const amount = (kosher * kosherCost + invalid * invalidCost + unsold * unsoldCost) / 100;
   const expenses = Array.isArray(settings.accountingExpenses) ? settings.accountingExpenses : [];
   const existing = expenses.find((expense: any) => expense.id === expenseId);
   if (!existing && !(amount > 0)) return settings;
   settings.chickenCostModelVersion = 1;
+  settings.chickenPurchaseCost = kosherCost / 100;
+  settings.invalidShechitaCost = invalidCost / 100;
+  settings.unsoldChickenCost = unsoldCost / 100;
   settings.chickenInventoryRecorded = inventory;
   const name = String(settings.chickenExpenseName || 'Chickens').trim() || 'Chickens';
   const note = `${kosher} paid, ${invalid} טריפה, ${unsold} unsold, ${dead} טויטע`;

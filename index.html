@@ -377,6 +377,7 @@
       .designer-grid,.designer-color-grid,.designer-checks,.ticket-designer-previews { grid-template-columns:minmax(0,1fr); }
     }
     .sales-search { position: relative; width: 100%; }
+    .sales-search-count { display:block; min-height:18px; margin-top:5px; }
     .sales-search label {
       position: absolute;
       width: 1px;
@@ -1826,6 +1827,7 @@
             <div class="sales-search">
               <label for="salesSearch" class="small-note">Search Sales</label>
               <input id="salesSearch" type="search" placeholder="Name, phone, ticket ID, or notes" autocomplete="off" />
+              <span id="salesSearchCount" class="small-note sales-search-count" aria-live="polite" hidden></span>
             </div>
             <div id="salesSortStorage" hidden>
               <label class="name-sort-control" id="salesSortControl" title="Order sales">
@@ -3011,6 +3013,7 @@
     const printSaleTicketBtn = document.getElementById('printSaleTicketBtn');
     const emailSaleTicketBtn = document.getElementById('emailSaleTicketBtn');
     const salesSearch = document.getElementById('salesSearch');
+    const salesSearchCount = document.getElementById('salesSearchCount');
     const ticketScanner = document.getElementById('ticketScanner');
     const salesSort = document.getElementById('salesSort');
     const salesSortControl = document.getElementById('salesSortControl');
@@ -4228,7 +4231,7 @@
 
     function getKapparosSold(excludeSaleId = null) {
       return state.sales.reduce((sum, sale) => {
-        if (sale.id === excludeSaleId || !['paid', 'treifa'].includes(getSaleStatus(sale))) return sum;
+        if (sale.id === excludeSaleId || getSaleStatus(sale) !== 'paid') return sum;
         return sum + Number(sale.quantity || 0);
       }, 0);
     }
@@ -4383,9 +4386,9 @@
         : 'name';
       const phoneRequired = state.settings.phoneRequired !== false;
       const emailRequired = Boolean(state.settings.emailRequired);
-      const isDead = saleStatus.value === 'dead';
-      phoneInput.required = !isDead && phoneRequired;
-      saleEmailInput.required = !isDead && emailRequired;
+      const isOutcomeOnly = ['treifa', 'dead'].includes(saleStatus.value);
+      phoneInput.required = !isOutcomeOnly && phoneRequired;
+      saleEmailInput.required = !isOutcomeOnly && emailRequired;
       phoneRequiredMark.hidden = !phoneRequired;
       emailRequiredMark.hidden = !emailRequired;
       applyReservationAvailability();
@@ -4421,33 +4424,32 @@
     }
 
     function updatePaymentFieldsForStatus() {
-      const isDead = saleStatus.value === 'dead';
-      const isTreifa = saleStatus.value === 'treifa';
-      const usesPlan = !isDead && (saleStatus.value === 'reserved' || (Boolean(state.editingSaleId) && saleStatus.value === 'expired'));
-      saleNameWrap.hidden = isDead;
-      salePhoneWrap.hidden = isDead;
-      saleEmailWrap.hidden = isDead;
-      salePriceWrap.hidden = isDead;
-      fullNameInput.disabled = isDead;
-      fullNameInput.required = !isDead;
-      phoneInput.disabled = isDead;
-      phoneInput.required = !isDead && state.settings.phoneRequired !== false;
-      saleEmailInput.disabled = isDead;
-      saleEmailInput.required = !isDead && Boolean(state.settings.emailRequired);
-      geschlagenControl.hidden = isDead || isTreifa;
-      if (isDead || isTreifa) {
+      const isOutcomeOnly = ['treifa', 'dead'].includes(saleStatus.value);
+      const usesPlan = !isOutcomeOnly && (saleStatus.value === 'reserved' || (Boolean(state.editingSaleId) && saleStatus.value === 'expired'));
+      saleNameWrap.hidden = isOutcomeOnly;
+      salePhoneWrap.hidden = isOutcomeOnly;
+      saleEmailWrap.hidden = isOutcomeOnly;
+      salePriceWrap.hidden = isOutcomeOnly;
+      fullNameInput.disabled = isOutcomeOnly;
+      fullNameInput.required = !isOutcomeOnly;
+      phoneInput.disabled = isOutcomeOnly;
+      phoneInput.required = !isOutcomeOnly && state.settings.phoneRequired !== false;
+      saleEmailInput.disabled = isOutcomeOnly;
+      saleEmailInput.required = !isOutcomeOnly && Boolean(state.settings.emailRequired);
+      geschlagenControl.hidden = isOutcomeOnly;
+      if (isOutcomeOnly) {
         geschlagenInput.checked = false;
       }
-      if (isDead) {
+      if (isOutcomeOnly) {
         priceInput.value = '0.00';
       } else if (!Number(priceInput.value)) {
         priceInput.value = (Math.max(1, Number(quantityInput.value || 1)) * Number(state.settings.defaultPrice || 0)).toFixed(2);
       }
-      priceInput.disabled = isDead;
-      priceInput.required = !isDead;
-      paymentTypeWrap.hidden = usesPlan || isDead;
-      paymentType.disabled = usesPlan || isDead;
-      paymentType.required = !usesPlan && !isDead;
+      priceInput.disabled = isOutcomeOnly;
+      priceInput.required = !isOutcomeOnly;
+      paymentTypeWrap.hidden = usesPlan || isOutcomeOnly;
+      paymentType.disabled = usesPlan || isOutcomeOnly;
+      paymentType.required = !usesPlan && !isOutcomeOnly;
       plannedPaymentWrap.hidden = !usesPlan;
       plannedPaymentType.disabled = !usesPlan;
       plannedPaymentType.required = usesPlan;
@@ -4457,15 +4459,15 @@
       plannedPaymentDate.disabled = !needsDate;
       plannedPaymentDate.required = needsDate;
 
-      const isOther = !usesPlan && !isDead && Boolean(getPaymentMethod(paymentType.value)?.needsDetails);
+      const isOther = !usesPlan && !isOutcomeOnly && Boolean(getPaymentMethod(paymentType.value)?.needsDetails);
       otherDetailsWrap.classList.toggle('show', isOther);
-      otherDetails.disabled = usesPlan || isDead || !isOther;
+      otherDetails.disabled = usesPlan || isOutcomeOnly || !isOther;
       otherDetails.required = isOther;
-      customSaleFields.hidden = isDead || !state.settings.customFields.length;
+      customSaleFields.hidden = isOutcomeOnly || !state.settings.customFields.length;
       customSaleFields.querySelectorAll('[data-custom-sale-field]').forEach(input => {
         const field = state.settings.customFields.find(item => item.id === input.dataset.customSaleField);
-        input.disabled = isDead;
-        input.required = !isDead && Boolean(field?.required);
+        input.disabled = isOutcomeOnly;
+        input.required = !isOutcomeOnly && Boolean(field?.required);
       });
       validateSaleCompletionStatus();
     }
@@ -4529,13 +4531,13 @@
     }
 
     function renderCustomSaleFields(values = {}) {
-      const isDead = saleStatus.value === 'dead';
+      const isOutcomeOnly = ['treifa', 'dead'].includes(saleStatus.value);
       customSaleFields.innerHTML = state.settings.customFields.map((field, index) => `
         <div class="field full">
           <label for="saleCustomField${index}">${escapeHtml(field.label)}${field.required ? ' <span class="required-mark">*</span>' : ''}</label>
-          <input id="saleCustomField${index}" data-custom-sale-field="${escapeHtml(field.id)}" value="${escapeHtml(values[field.id] || '')}" ${field.required && !isDead ? 'required' : ''} ${isDead ? 'disabled' : ''} />
+          <input id="saleCustomField${index}" data-custom-sale-field="${escapeHtml(field.id)}" value="${escapeHtml(values[field.id] || '')}" ${field.required && !isOutcomeOnly ? 'required' : ''} ${isOutcomeOnly ? 'disabled' : ''} />
         </div>`).join('');
-      customSaleFields.hidden = isDead || !state.settings.customFields.length;
+      customSaleFields.hidden = isOutcomeOnly || !state.settings.customFields.length;
     }
 
     const TICKET_DESIGNER_FIELD_MAP = {
@@ -4995,15 +4997,21 @@
       const wrap = document.getElementById('salesTableWrap');
       expirePastReservations();
       updateHomeSummary();
+      const query = state.searchQuery.trim().toLocaleLowerCase();
       if (!state.sales.length) {
+        salesSearchCount.hidden = !query;
+        salesSearchCount.textContent = query ? '0 sales found' : '';
         wrap.innerHTML = '<div class="empty-state">No sales yet. Click <strong>Add Sale</strong> to add the first one.</div>';
         return;
       }
 
-      const query = state.searchQuery.trim().toLocaleLowerCase();
       const matchingSales = query
         ? state.sales.filter(sale => Number.isFinite(getSaleSearchRank(sale, query)))
         : state.sales;
+      salesSearchCount.hidden = !query;
+      salesSearchCount.textContent = query
+        ? `${matchingSales.length} ${matchingSales.length === 1 ? 'sale' : 'sales'} found`
+        : '';
 
       if (!matchingSales.length) {
         wrap.innerHTML = '<div class="empty-state">No sales match your search.</div>';
@@ -5266,14 +5274,14 @@
           groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
         }
         if (sale.isOnlineSale !== true) groups[sale.paymentType].count += 1;
-        if (['paid', 'treifa'].includes(getSaleStatus(sale)) && sale.isOnlineSale !== true && !isBanshakPayment(sale.paymentType)) {
+        if (getSaleStatus(sale) === 'paid' && sale.isOnlineSale !== true && !isBanshakPayment(sale.paymentType)) {
           groups[sale.paymentType].money += Number(sale.price || 0);
         }
       });
 
       const onlineOrderMoney = state.sales.reduce((sum, sale) => (
         sale.isOnlineSale === true
-        && ['paid', 'treifa'].includes(getSaleStatus(sale))
+        && getSaleStatus(sale) === 'paid'
         && !isBanshakPayment(sale.paymentType)
       ) ? sum + Number(sale.price || 0) : sum, 0);
       const groupValues = Object.values(groups);
@@ -5455,7 +5463,7 @@
       accountingMonthWrap.hidden = isAllTime;
       accountingCalendarSection.hidden = isAllTime;
       const paidSales = state.sales.filter(sale =>
-        ['paid', 'treifa'].includes(getSaleStatus(sale))
+        getSaleStatus(sale) === 'paid'
         && !isBanshakPayment(sale.paymentType)
         && (isAllTime || getAccountingSaleDate(sale).startsWith(month))
       );
@@ -5662,7 +5670,7 @@
           groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
         }
         if (sale.isOnlineSale !== true) groups[sale.paymentType].count += 1;
-        if (['paid', 'treifa'].includes(getSaleStatus(sale)) && !isBanshakPayment(sale.paymentType)) groups[sale.paymentType].money += Number(sale.price || 0);
+        if (getSaleStatus(sale) === 'paid' && !isBanshakPayment(sale.paymentType)) groups[sale.paymentType].money += Number(sale.price || 0);
       });
 
       const sold = getKapparosSold();
@@ -5671,8 +5679,8 @@
       const onlineSalesCount = state.sales.filter(sale => sale.isOnlineSale && (sale.status || 'paid') === 'paid').length;
       const needsReserved = getNeedsReservedTotal();
       const needsSaved = getNeedsSavedTotal();
-      const banshakUnpaid = state.sales.reduce((sum, sale) => ['paid', 'treifa'].includes(getSaleStatus(sale)) && isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
-      const totalMoney = state.sales.reduce((sum, sale) => ['paid', 'treifa'].includes(getSaleStatus(sale)) && !isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
+      const banshakUnpaid = state.sales.reduce((sum, sale) => getSaleStatus(sale) === 'paid' && isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
+      const totalMoney = state.sales.reduce((sum, sale) => getSaleStatus(sale) === 'paid' && !isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
       const salesRows = [
         excelRow(['Ticket ID', 'Created', 'Full Name', 'Phone Number', 'Email Address', 'Status', 'כפרות', 'Price', 'Payment method', 'Payment details', 'Planned payment', 'Planned date', ...state.settings.customFields.map(field => field.label), 'געשלאגן'].map(value => ({ value, style: 'Header' }))),
         ...state.sales.map(sale => excelRow([
@@ -5734,7 +5742,7 @@
         .slice()
         .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
       const accountingIncomeTotal = state.sales.reduce((sum, sale) =>
-        ['paid', 'treifa'].includes(getSaleStatus(sale)) && !isBanshakPayment(sale.paymentType)
+        getSaleStatus(sale) === 'paid' && !isBanshakPayment(sale.paymentType)
           ? sum + Number(sale.price || 0)
           : sum, 0);
       const accountingExpenseTotal = accountingExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
@@ -6839,7 +6847,7 @@
 
     quantityInput.addEventListener('input', () => {
       const qty = Math.max(0, Number(quantityInput.value || 0));
-      priceInput.value = saleStatus.value === 'dead'
+      priceInput.value = ['treifa', 'dead'].includes(saleStatus.value)
         ? '0.00'
         : (qty * state.settings.defaultPrice).toFixed(2);
       validateQuantityAvailability();
@@ -6908,21 +6916,21 @@
 
       const fd = new FormData(saleForm);
       const status = String(fd.get('status') || 'paid');
-      const isDead = status === 'dead';
-      const isIncomeStatus = ['paid', 'treifa'].includes(status);
-      const fullName = isDead ? 'טויטע' : String(fd.get('fullName') || '').trim();
-      const phone = isDead ? '' : String(fd.get('phone') || '').replace(/\D/g, '');
-      const email = isDead ? '' : String(fd.get('email') || '').trim();
+      const isOutcomeOnly = ['treifa', 'dead'].includes(status);
+      const isIncomeStatus = status === 'paid';
+      const fullName = status === 'treifa' ? 'טריפה' : status === 'dead' ? 'טויטע' : String(fd.get('fullName') || '').trim();
+      const phone = isOutcomeOnly ? '' : String(fd.get('phone') || '').replace(/\D/g, '');
+      const email = isOutcomeOnly ? '' : String(fd.get('email') || '').trim();
       const qty = Number(fd.get('quantity'));
-      const price = isDead ? 0 : Number(fd.get('price'));
+      const price = isOutcomeOnly ? 0 : Number(fd.get('price'));
       const selectedPaymentType = String(fd.get('paymentType') || '').trim();
       const otherPaymentDetails = String(fd.get('otherDetails') || '').trim();
       const selectedPaymentPlan = String(fd.get('plannedPaymentType') || '').trim();
       const selectedPaymentDate = String(fd.get('plannedPaymentDate') || '').trim();
       const geschlagen = status === 'paid' && geschlagenInput.checked;
-      const usesPlan = !isDead && (status === 'reserved' || (Boolean(state.editingSaleId) && status === 'expired'));
+      const usesPlan = !isOutcomeOnly && (status === 'reserved' || (Boolean(state.editingSaleId) && status === 'expired'));
 
-      if ((!isDead && !fullName) || (!isDead && state.settings.phoneRequired !== false && !phone) || (!isDead && state.settings.emailRequired && !email) || !['paid', 'treifa', 'reserved', 'expired', 'dead'].includes(status) || !Number.isFinite(qty) || qty < 1 || !Number.isFinite(price) || price < 0 || (!isDead && !usesPlan && !selectedPaymentType) || (usesPlan && !selectedPaymentPlan)) {
+      if ((!isOutcomeOnly && !fullName) || (!isOutcomeOnly && state.settings.phoneRequired !== false && !phone) || (!isOutcomeOnly && state.settings.emailRequired && !email) || !['paid', 'treifa', 'reserved', 'expired', 'dead'].includes(status) || !Number.isFinite(qty) || qty < 1 || !Number.isFinite(price) || price < 0 || (!isOutcomeOnly && !usesPlan && !selectedPaymentType) || (usesPlan && !selectedPaymentPlan)) {
         showToast('Please fill out every required field');
         return;
       }
@@ -6931,7 +6939,7 @@
         showToast('Phone Number must be exactly 10 digits');
         return;
       }
-      const selectedMethodNeedsDetails = !isDead && !usesPlan && Boolean(getPaymentMethod(selectedPaymentType)?.needsDetails);
+      const selectedMethodNeedsDetails = !isOutcomeOnly && !usesPlan && Boolean(getPaymentMethod(selectedPaymentType)?.needsDetails);
       if (selectedMethodNeedsDetails && !otherPaymentDetails) {
         otherDetails.focus();
         showToast('Please enter the Other Payment Information');
@@ -6946,7 +6954,7 @@
 
       const customFieldValues = {};
       customSaleFields.querySelectorAll('[data-custom-sale-field]').forEach(input => {
-        customFieldValues[input.dataset.customSaleField] = input.value.trim();
+        customFieldValues[input.dataset.customSaleField] = isOutcomeOnly ? '' : input.value.trim();
       });
 
       saleSubmitting = true; saveSaleBtn.disabled = true;
@@ -6961,7 +6969,7 @@
         if (index === -1) throw new Error('This sale was deleted on another device.');
         const currentSale = saleEditBase || state.sales[index];
         const normalizedOtherDetails = selectedMethodNeedsDetails ? otherPaymentDetails : '';
-        const normalizedPaymentType = usesPlan || isDead ? '' : selectedPaymentType;
+        const normalizedPaymentType = usesPlan || isOutcomeOnly ? '' : selectedPaymentType;
         const normalizedPaymentPlan = usesPlan ? selectedPaymentPlan : '';
         const normalizedPaymentDate = selectedPlanNeedsDate ? selectedPaymentDate : '';
         const customFieldsUnchanged = state.settings.customFields.every(field =>
@@ -6987,8 +6995,8 @@
         if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
         const changedSale = {
           ...currentSale,
-          paidAt: isIncomeStatus ? (['paid', 'treifa'].includes(getSaleStatus(currentSale)) ? currentSale.paidAt : new Date().toISOString()) : null,
-          paidOn: isIncomeStatus ? (['paid', 'treifa'].includes(getSaleStatus(currentSale)) ? currentSale.paidOn : getLocalDateValue()) : null,
+          paidAt: isIncomeStatus ? (getSaleStatus(currentSale) === 'paid' ? currentSale.paidAt : new Date().toISOString()) : null,
+          paidOn: isIncomeStatus ? (getSaleStatus(currentSale) === 'paid' ? currentSale.paidOn : getLocalDateValue()) : null,
           fullName,
           phone,
           email,
@@ -7030,7 +7038,7 @@
         status,
         quantity: qty,
         price,
-        paymentType: usesPlan || isDead ? '' : selectedPaymentType,
+        paymentType: usesPlan || isOutcomeOnly ? '' : selectedPaymentType,
         otherDetails: selectedMethodNeedsDetails ? otherPaymentDetails : '',
         plannedPaymentType: usesPlan ? selectedPaymentPlan : '',
         plannedPaymentDate: selectedPlanNeedsDate ? selectedPaymentDate : '',

@@ -12,6 +12,11 @@ assert.doesNotMatch(html, /id="chickenOutcome"/);
 assert.match(html, /const isOutcomeOnly = \['treifa', 'dead'\]\.includes\(status\)/);
 assert.match(html, /const isIncomeStatus = status === 'paid'/);
 assert.match(html, /id="salesSearchCount"/);
+assert.match(html, /id="salesSearchOptionsBtn"/);
+assert.match(html, /id="salesPaymentFilter"/);
+assert.match(html, /sale\.paymentType === paymentFilter/);
+assert.match(html, /\.status-pill\.treifa \{ color: #5f3b82; background: #eadff5;/);
+assert.match(html, /\.status-pill\.dead \{ color: #8b2e26; background: #f7d7d2;/);
 assert.match(fs.readFileSync(__dirname + '/../supabase/admin-save-stock.sql', 'utf8'), /\('paid', 'treifa', 'dead'\)/);
 
 function source(name) {
@@ -50,6 +55,11 @@ assert.deepEqual(JSON.parse(JSON.stringify(breakdown)), {
   kosherRate: 13, invalidRate: 5, unsoldRate: 8,
   kosherExpense: 130, invalidExpense: 10, unsoldExpense: 680, totalExpense: 820
 });
+const missingRates = vm.runInContext("getChickenAccountingBreakdown({inventory:10}, [{status:'paid',quantity:2}])", browserEnv);
+assert.equal(missingRates.kosherRate, 13);
+assert.equal(missingRates.invalidRate, 0);
+assert.equal(missingRates.unsoldRate, 8);
+assert.equal(missingRates.totalExpense, 90, 'Missing stored rates use the Admin defaults instead of zero');
 vm.runInContext("normalizeChickenPurchaseSettings(state.settings, '2026-09-11', '2026-09-11T12:00:00Z', state.sales)", browserEnv);
 assert.equal(browserEnv.state.settings.accountingExpenses[1].amount, 820);
 assert.equal(browserEnv.state.settings.accountingExpenses[1].paid, false);

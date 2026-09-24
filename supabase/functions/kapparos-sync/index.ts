@@ -82,11 +82,14 @@ function normalizeChickenPurchaseSettings(settings: any, date: string, now: stri
   const inventory = Math.max(0, Math.floor(Number(settings.inventory) || 0));
   const count = (predicate: (sale: any) => boolean) => sales.reduce((sum, sale) =>
     predicate(sale) ? sum + Math.max(0, Number(sale?.quantity || 0)) : sum, 0);
+  const status = (sale: any) => String(sale?.status || 'paid') === 'paid' && sale?.chickenOutcome === 'invalid'
+    ? 'treifa'
+    : String(sale?.status || 'paid');
   const dead = count(sale => sale?.status === 'dead');
-  const paid = count(sale => String(sale?.status || 'paid') === 'paid');
-  const invalid = count(sale => String(sale?.status || 'paid') === 'paid' && sale?.chickenOutcome === 'invalid');
-  const kosher = Math.max(0, paid - invalid);
-  const unsold = Math.max(0, inventory - Math.min(inventory, paid + dead));
+  const paid = count(sale => status(sale) === 'paid');
+  const invalid = count(sale => status(sale) === 'treifa');
+  const kosher = paid;
+  const unsold = Math.max(0, inventory - Math.min(inventory, paid + invalid + dead));
   const kosherCost = Math.max(0, Math.round((Number(settings.chickenPurchaseCost) || 0) * 100));
   const invalidCost = Math.max(0, Math.round((Number(settings.invalidShechitaCost) || 0) * 100));
   const unsoldCost = Math.max(0, Math.round((Number(settings.unsoldChickenCost) || 0) * 100));
@@ -97,7 +100,7 @@ function normalizeChickenPurchaseSettings(settings: any, date: string, now: stri
   settings.chickenCostModelVersion = 1;
   settings.chickenInventoryRecorded = inventory;
   const name = String(settings.chickenExpenseName || 'Chickens').trim() || 'Chickens';
-  const note = `${kosher} regular kosher, ${invalid} פסול געשחטן, ${unsold} unsold, ${dead} טויטע`;
+  const note = `${kosher} paid, ${invalid} טריפה, ${unsold} unsold, ${dead} טויטע`;
   if (existing) {
     if (existing.name !== name || existing.amount !== amount || existing.note !== note) {
       existing.name = name;

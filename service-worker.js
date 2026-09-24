@@ -1,4 +1,4 @@
-const VERSION = 'kapures-admin-20260924-6';
+const VERSION = 'kapures-admin-20260924-7';
 
 self.addEventListener('install', () => self.skipWaiting());
 

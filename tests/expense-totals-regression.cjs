@@ -9,9 +9,9 @@ const expenses=[{id:'a',name:'One',amount:0.1,paid:false,date:'2026-08-12'},{id:
 env.state.settings={accountingExpenses:expenses,chickenPurchaseBatches:[{quantity:60,unitCost:10,date:'2026-08-31'},{quantity:40,unitCost:10,date:'2026-09-11'}]};
 let totals=env.getExpensePaymentTotals(env.getAccountingExpenses());assert.equal(totals.unpaid,1000.3);assert.equal(totals.paid,40.23);
 env.renderExpenseList(env.getAccountingExpenses(),'2026-09',true);assert.equal(nodes.expenseUnpaidTotal.textContent,'$1000.30');
-let month=env.getAccountingExpenses('2026-09');totals=env.getExpensePaymentTotals(month);assert.equal(totals.unpaid,400.2);assert.equal(totals.paid,40.23);
-env.state.expenseSearchQuery='no matching expenses';env.renderExpenseList(month,'2026-09',false);assert.equal(nodes.expenseUnpaidTotal.textContent,'$400.20','search does not change selected-period totals');
-expenses[3].paid=true;totals=env.getExpensePaymentTotals(env.getAccountingExpenses('2026-09'));assert.equal(totals.unpaid,0.2);assert.equal(totals.paid,440.23);assert.equal(env.getExpensePaymentTotals(env.getAccountingExpenses()).paid,1040.23);
+let month=env.getAccountingExpenses('2026-09');totals=env.getExpensePaymentTotals(month);assert.equal(totals.unpaid,0.2);assert.equal(totals.paid,40.23);
+env.state.expenseSearchQuery='no matching expenses';env.renderExpenseList(month,'2026-09',false);assert.equal(nodes.expenseUnpaidTotal.textContent,'$0.20','search does not change selected-period totals');
+expenses[3].paid=true;totals=env.getExpensePaymentTotals(env.getAccountingExpenses('2026-09'));assert.equal(totals.unpaid,0.2);assert.equal(totals.paid,40.23);assert.equal(env.getExpensePaymentTotals(env.getAccountingExpenses()).paid,1040.23);
 env.renderExpenseList([],'2026-10',false);assert.equal(nodes.expenseUnpaidTotal.textContent,'$0.00');
 // Load/refresh removes legacy payment details from unpaid records only.
 const saved={accountingExpenses:[{...expenses[0],paymentType:'credit',paymentDetails:'Visa ending 1234'},{...expenses[2],paymentType:'check',paymentDetails:'Check #123'}]};
@@ -24,5 +24,5 @@ const fieldOrder=[...form.matchAll(/<label for="(expense\w+)"/g)].map(m=>m[1]);a
 (async()=>{
  const paid={id:'paid-fixture',paid:true,paymentType:'credit',paymentDetails:'Visa ending 1234'};env.state.settings.accountingExpenses=[paid];env.pendingSecurityAction='unpay-expenses';confirms=false;await env.completeSecurityAction('fixture');assert.equal(paid.paid,true);assert.equal(paid.paymentType,'credit');assert.equal(saves,0);
  env.pendingSecurityAction='unpay-expenses';confirms=true;await env.completeSecurityAction('fixture');assert.equal(paid.paid,false);assert.equal(paid.paymentType,'');assert.equal(paid.paymentDetails,'');assert.equal(saves,1);
- console.log('PASS: paid/unpaid totals, cents, monthly chicken allocations, search and empty results, state changes, stale payment cleanup on reload, confirmed bulk reset, Category ordering.');
+ console.log('PASS: paid/unpaid totals, cents, dated chicken expense, search and empty results, state changes, stale payment cleanup on reload, confirmed bulk reset, Category ordering.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

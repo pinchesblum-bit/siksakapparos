@@ -78,7 +78,7 @@ begin
 
   allocation := greatest(0, coalesce(nullif(merged_settings->>'inventory', '')::numeric, 0));
   select coalesce(sum(greatest(0, coalesce(nullif(s->>'quantity', '')::numeric, 0))), 0)
-    into sold from jsonb_array_elements(merged_sales) s where coalesce(s->>'status', 'paid') = 'paid';
+    into sold from jsonb_array_elements(merged_sales) s where coalesce(s->>'status', 'paid') in ('paid', 'dead');
   if sold > allocation then
     error_code := 'inventory'; error_message := 'There are not enough chickens available. Another device may have sold them. Your sale was not saved.';
   end if;

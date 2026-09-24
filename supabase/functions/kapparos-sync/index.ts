@@ -54,7 +54,9 @@ function defaultSettings() {
   return {
     title: 'פנים מאירות סיקסא', subtitle: 'כפרות', showNeedsSavedOnHome: false,
     homeSummaryLabel: 'Needs to Be Saved', homeSummaryScope: 'paid', defaultPrice: 23,
-    inventory: 100, username: 'admin', passwordHash: DEFAULT_PASSWORD_HASH, customFields: [],
+    inventory: 100, chickenCostModelVersion: 1, chickenPurchaseCost: 13,
+    invalidShechitaCost: 0, unsoldChickenCost: 8, chickenExpenseName: 'Chickens',
+    username: 'admin', passwordHash: DEFAULT_PASSWORD_HASH, customFields: [],
     reportLabels: { chickens: 'Amount of Chickens', paid: 'Amount of Paid', reserved: 'Amount of Reserved', needsReserved: 'Needs to Be Reserved', needsSaved: 'Needs to Be Saved' },
     paymentMethods: [
       { id: 'cash', label: 'Cash' }, { id: 'credit', label: 'Credit card' },
@@ -67,51 +69,49 @@ function defaultSettings() {
   };
 }
 
-function sanitizeIncomingSettings(value: unknown, current: Record<string, unknown>) {
+function sanitizeIncomingSettings(value: unknown, current: Record<string, unknown>, sales: any[] = []) {
   const incoming = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const { password, passwordHash, _legacyPassword, ...safe } = incoming;
   const settings = { ...current, ...safe, username: current.username, passwordHash: current.passwordHash };
   const now = new Date().toISOString();
-  return normalizeChickenPurchaseSettings(settings, now.slice(0, 10), now);
+  return normalizeChickenPurchaseSettings(settings, now.slice(0, 10), now, sales);
 }
 
-function normalizeChickenPurchaseSettings(settings: any, date: string, now: string) {
+function normalizeChickenPurchaseSettings(settings: any, date: string, now: string, sales: any[] = []) {
   const expenseId = 'auto-chicken-inventory-cost';
   const inventory = Math.max(0, Math.floor(Number(settings.inventory) || 0));
-  const costCents = Math.max(0, Math.round((Number(settings.chickenPurchaseCost) || 0) * 100));
-  const cost = costCents / 100;
-  const amount = inventory * costCents / 100;
+  const count = (predicate: (sale: any) => boolean) => sales.reduce((sum, sale) =>
+    predicate(sale) ? sum + Math.max(0, Number(sale?.quantity || 0)) : sum, 0);
+  const dead = count(sale => sale?.status === 'dead');
+  const paid = count(sale => String(sale?.status || 'paid') === 'paid');
+  const invalid = count(sale => String(sale?.status || 'paid') === 'paid' && sale?.chickenOutcome === 'invalid');
+  const kosher = Math.max(0, paid - invalid);
+  const unsold = Math.max(0, inventory - Math.min(inventory, paid + dead));
+  const kosherCost = Math.max(0, Math.round((Number(settings.chickenPurchaseCost) || 0) * 100));
+  const invalidCost = Math.max(0, Math.round((Number(settings.invalidShechitaCost) || 0) * 100));
+  const unsoldCost = Math.max(0, Math.round((Number(settings.unsoldChickenCost) || 0) * 100));
+  const amount = (kosher * kosherCost + invalid * invalidCost + unsold * unsoldCost) / 100;
   const expenses = Array.isArray(settings.accountingExpenses) ? settings.accountingExpenses : [];
   const existing = expenses.find((expense: any) => expense.id === expenseId);
   if (!existing && !(amount > 0)) return settings;
-
-  // Dates remain available for the calendar; quantities and rates match Settings.
-  let remaining = inventory;
-  const batches: any[] = [];
-  for (const batch of (Array.isArray(settings.chickenPurchaseBatches) ? settings.chickenPurchaseBatches : [])) {
-    if (!batch) continue;
-    const quantity = Math.min(remaining, Math.max(0, Math.floor(Number(batch.quantity) || 0)));
-    if (!quantity) continue;
-    batches.push({ ...batch, quantity, unitCost: cost });
-    remaining -= quantity;
-  }
-  if (remaining > 0) batches.push({ quantity: remaining, unitCost: cost, date, createdAt: now });
-  settings.chickenPurchaseBatches = batches;
+  settings.chickenCostModelVersion = 1;
   settings.chickenInventoryRecorded = inventory;
   const name = String(settings.chickenExpenseName || 'Chickens').trim() || 'Chickens';
+  const note = `${kosher} regular kosher, ${invalid} פסול געשחטן, ${unsold} unsold, ${dead} טויטע`;
   if (existing) {
-    if (existing.name !== name || existing.amount !== amount) {
+    if (existing.name !== name || existing.amount !== amount || existing.note !== note) {
       existing.name = name;
       existing.amount = amount;
+      existing.note = note;
       existing.updatedAt = now;
     }
   } else {
     expenses.push({
       id: expenseId, name, amount,
-      date: batches[0]?.date || date, category: 'Inventory', note: '',
+      date, category: 'Inventory', note,
       paid: false,
       order: expenses.reduce((maximum: number, item: any) => Math.max(maximum, Number(item.order || 0)), -1) + 1,
-      createdAt: batches[0]?.createdAt || now, updatedAt: ''
+      createdAt: now, updatedAt: ''
     });
   }
   settings.accountingExpenses = expenses;
@@ -478,8 +478,8 @@ Deno.serve(async (req: Request) => {
           || !write.settingsBases || typeof write.settingsBases !== 'object' || Array.isArray(write.settingsBases)) {
         return json(req, { error: 'This admin page is out of date. Please refresh it before saving. No changes were made.' }, 409);
       }
-      const settings = sanitizeIncomingSettings(body.settings, current.settings || defaultSettings());
       const incomingSales = Array.isArray(body.sales) ? body.sales : [];
+      const settings = sanitizeIncomingSettings(body.settings, current.settings || defaultSettings(), incomingSales);
       const saved = await db('rpc/kapparos_save_admin_state', {
         method: 'POST',
         body: JSON.stringify({

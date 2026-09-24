@@ -99,7 +99,8 @@ begin
     end if;
     assigned_sales := assigned_sales || jsonb_build_array(jsonb_set(item, '{ticketId}', to_jsonb(ticket)));
   end loop;
-  update public.kapparos_app_state set sales = assigned_sales, settings = merged_settings, updated_at = saved_at where id = 'main';
+  update public.kapparos_app_state set sales = assigned_sales, settings = merged_settings, updated_at = saved_at where id = 'main'
+    returning settings into merged_settings;
   return jsonb_build_object('sales', assigned_sales, 'settings', merged_settings, 'updated_at', saved_at);
 end;
 $function$;

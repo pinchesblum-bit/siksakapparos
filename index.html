@@ -5383,6 +5383,11 @@
     function setAccountingTab(tab) {
       state.accountingTab = ['overview', 'sales', 'expenses'].includes(tab) ? tab : 'overview';
       sessionStorage.setItem('kapparos_accounting_tab', state.accountingTab);
+      const isInventoryView = state.accountingTab === 'sales';
+      accountingRange.disabled = isInventoryView;
+      accountingRange.value = isInventoryView || state.accountingRange !== 'month' ? 'all' : 'month';
+      accountingMonthWrap.hidden = isInventoryView || state.accountingRange !== 'month';
+      accountingMonth.disabled = isInventoryView;
       accountingOverview.hidden = state.accountingTab !== 'overview';
       accountingSalesOverview.hidden = state.accountingTab !== 'sales';
       accountingExpensesView.hidden = state.accountingTab !== 'expenses';
@@ -5497,6 +5502,23 @@
         .filter(expense => !period || String(expense.date || '').startsWith(period));
     }
 
+    function moneyToCents(value) {
+      const amount = Number(value || 0);
+      return Number.isFinite(amount) ? Math.round(amount * 100) : 0;
+    }
+
+    function getAccountingTotals(sales, expenses) {
+      const incomeCents = sales.reduce((sum, sale) =>
+        getSaleStatus(sale) === 'paid' && !isBanshakPayment(sale.paymentType)
+          ? sum + moneyToCents(sale.price) : sum, 0);
+      const expenseCents = expenses.reduce((sum, expense) => sum + moneyToCents(expense.amount), 0);
+      return {
+        income: incomeCents / 100,
+        expenses: expenseCents / 100,
+        net: (incomeCents - expenseCents) / 100
+      };
+    }
+
     function renderAccounting() {
       const month = getAccountingMonth();
       const isAllTime = state.accountingRange !== 'month';
@@ -5509,9 +5531,7 @@
         && (isAllTime || getAccountingSaleDate(sale).startsWith(month))
       );
       const expenses = getAccountingExpenses(isAllTime ? '' : month);
-      const incomeTotal = paidSales.reduce((sum, sale) => sum + Number(sale.price || 0), 0);
-      const expensesTotal = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-      const netTotal = incomeTotal - expensesTotal;
+      const { income: incomeTotal, expenses: expensesTotal, net: netTotal } = getAccountingTotals(paidSales, expenses);
       const hasProfit = netTotal >= 0;
 
       accountingIncome.textContent = money(incomeTotal);
@@ -5535,11 +5555,11 @@
       paidSales.forEach(sale => {
         const date = getAccountingSaleDate(sale);
         dailyTotals[date] ||= { income: 0, expenses: 0 };
-        dailyTotals[date].income += Number(sale.price || 0);
+        dailyTotals[date].income = (moneyToCents(dailyTotals[date].income) + moneyToCents(sale.price)) / 100;
       });
       expenses.forEach(expense => {
         dailyTotals[expense.date] ||= { income: 0, expenses: 0 };
-        dailyTotals[expense.date].expenses += Number(expense.amount || 0);
+        dailyTotals[expense.date].expenses = (moneyToCents(dailyTotals[expense.date].expenses) + moneyToCents(expense.amount)) / 100;
       });
 
       if (isAllTime) accountingCalendar.innerHTML = '';
@@ -5711,17 +5731,20 @@
           groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
         }
         if (sale.isOnlineSale !== true) groups[sale.paymentType].count += 1;
-        if (getSaleStatus(sale) === 'paid' && !isBanshakPayment(sale.paymentType)) groups[sale.paymentType].money += Number(sale.price || 0);
+        if (getSaleStatus(sale) === 'paid' && sale.isOnlineSale !== true && !isBanshakPayment(sale.paymentType)) {
+          groups[sale.paymentType].money = (moneyToCents(groups[sale.paymentType].money) + moneyToCents(sale.price)) / 100;
+        }
       });
 
       const sold = getKapparosSold();
       const paidSales = state.sales.filter(sale => (sale.status || 'paid') === 'paid');
       const reservedSales = state.sales.filter(sale => sale.status === 'reserved');
       const onlineSalesCount = state.sales.filter(sale => sale.isOnlineSale && (sale.status || 'paid') === 'paid').length;
+      const onlineOrderMoney = getAccountingTotals(state.sales.filter(sale => sale.isOnlineSale === true), []).income;
       const needsReserved = getNeedsReservedTotal();
       const needsSaved = getNeedsSavedTotal();
       const banshakUnpaid = state.sales.reduce((sum, sale) => getSaleStatus(sale) === 'paid' && isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
-      const totalMoney = state.sales.reduce((sum, sale) => getSaleStatus(sale) === 'paid' && !isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
+      const totalMoney = getAccountingTotals(state.sales, []).income;
       const salesRows = [
         excelRow(['Ticket ID', 'Created', 'Full Name', 'Phone Number', 'Email Address', 'Status', 'כפרות', 'Price', 'Payment method', 'Payment details', 'Planned payment', 'Planned date', ...state.settings.customFields.map(field => field.label), 'געשלאגן'].map(value => ({ value, style: 'Header' }))),
         ...state.sales.map(sale => excelRow([
@@ -5759,7 +5782,7 @@
           { value: group.count, type: 'Number', style: 'Integer' },
           { value: group.money, type: 'Number', style: 'Currency' }
         ])),
-        excelRow(['Online', { value: onlineSalesCount, type: 'Number', style: 'Integer' }, { value: 0, type: 'Number', style: 'Currency' }])
+        excelRow(['Online', { value: onlineSalesCount, type: 'Number', style: 'Integer' }, { value: onlineOrderMoney, type: 'Number', style: 'Currency' }])
       ].join('');
 
       const taskRows = [
@@ -5782,12 +5805,7 @@
       const accountingExpenses = (state.settings.accountingExpenses || [])
         .slice()
         .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
-      const accountingIncomeTotal = state.sales.reduce((sum, sale) =>
-        getSaleStatus(sale) === 'paid' && !isBanshakPayment(sale.paymentType)
-          ? sum + Number(sale.price || 0)
-          : sum, 0);
-      const accountingExpenseTotal = accountingExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
-      const accountingNetTotal = accountingIncomeTotal - accountingExpenseTotal;
+      const { income: accountingIncomeTotal, expenses: accountingExpenseTotal, net: accountingNetTotal } = getAccountingTotals(state.sales, accountingExpenses);
       const accountingRows = [
         excelRow([{ value: 'All Time Accounting', style: 'Title' }]),
         excelRow([{ value: 'Metric', style: 'Header' }, { value: 'Value', style: 'Header' }]),

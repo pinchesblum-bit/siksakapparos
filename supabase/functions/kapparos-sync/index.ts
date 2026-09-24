@@ -69,63 +69,11 @@ function defaultSettings() {
   };
 }
 
-function sanitizeIncomingSettings(value: unknown, current: Record<string, unknown>, sales: any[] = []) {
+function sanitizeIncomingSettings(value: unknown, current: Record<string, unknown>) {
   const incoming = value && typeof value === 'object' ? value as Record<string, unknown> : {};
   const { password, passwordHash, _legacyPassword, ...safe } = incoming;
-  const settings = { ...current, ...safe, username: current.username, passwordHash: current.passwordHash };
-  const now = new Date().toISOString();
-  return normalizeChickenPurchaseSettings(settings, now.slice(0, 10), now, sales);
-}
-
-function normalizeChickenPurchaseSettings(settings: any, date: string, now: string, sales: any[] = []) {
-  const expenseId = 'auto-chicken-inventory-cost';
-  const inventory = Math.max(0, Math.floor(Number(settings.inventory) || 0));
-  const count = (predicate: (sale: any) => boolean) => sales.reduce((sum, sale) =>
-    predicate(sale) ? sum + Math.max(0, Number(sale?.quantity || 0)) : sum, 0);
-  const status = (sale: any) => String(sale?.status || 'paid') === 'paid' && sale?.chickenOutcome === 'invalid'
-    ? 'treifa'
-    : String(sale?.status || 'paid');
-  const dead = count(sale => sale?.status === 'dead');
-  const paid = count(sale => status(sale) === 'paid');
-  const invalid = count(sale => status(sale) === 'treifa');
-  const kosher = paid;
-  const unsold = Math.max(0, inventory - Math.min(inventory, paid + invalid + dead));
-  const costInCents = (value: unknown, fallback: number) => {
-    const numeric = Number(value);
-    return Math.max(0, Math.round((value != null && Number.isFinite(numeric) ? numeric : fallback) * 100));
-  };
-  const kosherCost = costInCents(settings.chickenPurchaseCost, 13);
-  const invalidCost = costInCents(settings.invalidShechitaCost, 0);
-  const unsoldCost = costInCents(settings.unsoldChickenCost, 8);
-  const amount = (kosher * kosherCost + invalid * invalidCost + unsold * unsoldCost) / 100;
-  const expenses = Array.isArray(settings.accountingExpenses) ? settings.accountingExpenses : [];
-  const existing = expenses.find((expense: any) => expense.id === expenseId);
-  if (!existing && !(amount > 0)) return settings;
-  settings.chickenCostModelVersion = 1;
-  settings.chickenPurchaseCost = kosherCost / 100;
-  settings.invalidShechitaCost = invalidCost / 100;
-  settings.unsoldChickenCost = unsoldCost / 100;
-  settings.chickenInventoryRecorded = inventory;
-  const name = String(settings.chickenExpenseName || 'Chickens').trim() || 'Chickens';
-  const note = `${kosher} paid, ${invalid} טריפה, ${unsold} unsold, ${dead} טויטע`;
-  if (existing) {
-    if (existing.name !== name || existing.amount !== amount || existing.note !== note) {
-      existing.name = name;
-      existing.amount = amount;
-      existing.note = note;
-      existing.updatedAt = now;
-    }
-  } else {
-    expenses.push({
-      id: expenseId, name, amount,
-      date, category: 'Inventory', note,
-      paid: false,
-      order: expenses.reduce((maximum: number, item: any) => Math.max(maximum, Number(item.order || 0)), -1) + 1,
-      createdAt: now, updatedAt: ''
-    });
-  }
-  settings.accountingExpenses = expenses;
-  return settings;
+  // The database derives chicken cost after merging the complete current row.
+  return { ...current, ...safe, username: current.username, passwordHash: current.passwordHash };
 }
 
 function publicState(row: any) {
@@ -489,7 +437,7 @@ Deno.serve(async (req: Request) => {
         return json(req, { error: 'This admin page is out of date. Please refresh it before saving. No changes were made.' }, 409);
       }
       const incomingSales = Array.isArray(body.sales) ? body.sales : [];
-      const settings = sanitizeIncomingSettings(body.settings, current.settings || defaultSettings(), incomingSales);
+      const settings = sanitizeIncomingSettings(body.settings, current.settings || defaultSettings());
       const saved = await db('rpc/kapparos_save_admin_state', {
         method: 'POST',
         body: JSON.stringify({

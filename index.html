@@ -281,17 +281,19 @@
 
     .table-head {
       display: grid;
-      grid-template-columns: minmax(250px, 1fr) minmax(240px, 330px) minmax(250px, 1fr);
-      align-items: center;
-      gap: 16px;
+      grid-template-areas: "summary search actions";
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 1.3fr) minmax(230px, 1fr);
+      align-items: start;
+      gap: 12px;
       padding: 18px 20px;
       border-bottom: 1px solid var(--line);
     }
     .table-head h2 { margin: 0; font-size: 20px; }
     .small-note { color: var(--muted); font-size: 13px; }
     .sales-tools {
+      grid-area: search;
       width: 100%;
-      max-width: 330px;
+      min-width: 0;
       display: grid;
       grid-template-columns: minmax(0, 1fr);
       align-items: end;
@@ -376,8 +378,9 @@
     @media (max-width: 680px) {
       .designer-grid,.designer-color-grid,.designer-checks,.ticket-designer-previews { grid-template-columns:minmax(0,1fr); }
     }
-    .sales-search { position: relative; width: 100%; }
-    .sales-search-count { display:block; min-height:18px; margin-top:5px; }
+    .sales-search { position: relative; width: 100%; min-width: 0; }
+    .sales-search-count { display:block; min-height:18px; margin-top:5px; overflow-wrap:anywhere; }
+    .sales-search-count[hidden] { display:block; visibility:hidden; }
     .sales-search-icon {
       position:absolute; left:5px; top:5px; z-index:2;
       width:34px; height:34px; padding:0; border:0; border-radius:8px;
@@ -409,14 +412,20 @@
     .sales-sort select { min-height: 44px; padding: 10px 11px; background: #fff; font-size: 13px; }
     .table-add-sale { justify-self: end; min-height: 44px; }
     .sales-head-actions {
+      grid-area: actions;
       justify-self: end;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      width: 100%;
+      max-width: 300px;
+      min-width: 0;
       gap: 9px;
     }
+    .sales-head-actions:has(.ticket-scanner[hidden]) { grid-template-columns: minmax(0, 1fr); }
     .ticket-scanner {
-      width: 150px;
+      width: 100%;
+      min-width: 0;
       height: 44px;
       min-height: 44px;
       padding: 8px 11px;
@@ -424,7 +433,7 @@
       line-height: 1.2;
       text-align: center;
     }
-    .sales-summary { min-width: 0; justify-self: start; text-align: left; }
+    .sales-summary { grid-area: summary; min-width: 0; min-height: 44px; justify-self: start; text-align: left; }
     .sales-summary.has-totals { width: 100%; }
     .sales-summary.has-totals h2 { display: none; }
     .sales-summary-totals {
@@ -433,9 +442,9 @@
       gap: 10px;
       width: max-content;
       max-width: 100%;
-      height: 44px;
       min-height: 44px;
-      padding: 0 14px;
+      flex-wrap: wrap;
+      padding: 11px 14px;
       border: 1px solid var(--line);
       border-radius: 12px;
       box-sizing: border-box;
@@ -471,10 +480,22 @@
       align-items: center;
       justify-content: center;
       line-height: 1;
+      white-space: nowrap;
     }
     .sales-search input {
+      min-width: 0;
       padding-left: 40px;
       background:#fff;
+      text-overflow: ellipsis;
+    }
+
+    @media (max-width: 1100px) {
+      .table-head {
+        grid-template-areas: "summary summary" "search actions";
+        grid-template-columns: minmax(0, 1fr) minmax(230px, .75fr);
+      }
+      .sales-summary { justify-self: stretch; }
+      .sales-head-actions { max-width: none; }
     }
 
     table {
@@ -1610,7 +1631,7 @@
       .brand-subtitle { font-size: 21px; }
       .primary-btn { padding: 11px 13px; font-size: 13px; }
       .logout-btn { padding: 10px; font-size: 12px; }
-      .table-head { grid-template-columns: 1fr; align-items: stretch; }
+      .table-head { align-items: start; }
       .home-btn { width: 50px; min-height: 50px; font-size: 10px; }
       .home-btn svg { width: 22px; height: 22px; }
       .todo-head { align-items: stretch; flex-direction: column; padding: 18px; }
@@ -1682,9 +1703,10 @@
       }
       #salesPage .sales-head-actions {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr) auto;
         gap: 10px;
       }
+      #salesPage .sales-head-actions:has(.ticket-scanner[hidden]) { grid-template-columns: minmax(0, 1fr); }
       #salesPage .ticket-scanner,
       #salesPage .table-add-sale {
         width: 100%;
@@ -1720,6 +1742,17 @@
         bottom: max(14px, env(safe-area-inset-bottom));
         text-align: center;
       }
+    }
+
+    @media (max-width: 640px) {
+      #salesPage .table-head {
+        grid-template-areas: "summary" "search" "actions";
+        grid-template-columns: minmax(0, 1fr);
+      }
+      #salesPage .sales-head-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      #salesPage .sales-head-actions:has(.ticket-scanner[hidden]) { grid-template-columns: minmax(0, 1fr); }
+      #salesPage .sales-search input,
+      #salesPage .ticket-scanner { font-size: 16px; }
     }
 
     @media (max-width: 420px) {
@@ -1839,7 +1872,7 @@
           <div class="sales-tools">
             <div class="sales-search">
               <label for="salesSearch" class="small-note">Search Sales</label>
-              <button type="button" id="salesSearchOptionsBtn" class="sales-search-icon" aria-label="Filter sales by payment type" aria-expanded="false">
+              <button type="button" id="salesSearchOptionsBtn" class="sales-search-icon" aria-label="Filter sales by payment type" title="Filter by payment type" aria-controls="salesPaymentFilterMenu" aria-expanded="false">
                 <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
               </button>
               <input id="salesSearch" type="search" placeholder="Name, phone, ticket ID, or notes" autocomplete="off" />
@@ -1861,8 +1894,8 @@
             </div>
           </div>
           <div class="sales-head-actions">
-            <input class="ticket-scanner" id="ticketScanner" inputmode="numeric" maxlength="10" autocomplete="off" aria-label="Scan ticket" placeholder="Scan ticket" />
-            <button class="primary-btn table-add-sale" id="addSaleBtn">+ <span class="desktop-word">Add&nbsp;</span>Sale</button>
+            <input class="ticket-scanner" id="ticketScanner" dir="ltr" inputmode="numeric" maxlength="10" autocomplete="off" aria-label="Scan ticket" placeholder="Scan ticket" />
+            <button type="button" class="primary-btn table-add-sale" id="addSaleBtn">+ <span class="desktop-word">Add&nbsp;</span>Sale</button>
           </div>
         </div>
         <div class="sales-table-wrap" id="salesTableWrap"></div>
@@ -1901,6 +1934,11 @@
       </div>
 
       <div class="report-summary-grid">
+        <div class="report-summary-card">
+          <div class="stat-label">Total Sales</div>
+          <div class="stat-value" id="reportSalesTotal">0</div>
+          <div class="small-note" style="color:rgba(255,255,255,.75)">Sale records, excluding expired</div>
+        </div>
         <div class="report-summary-card">
           <div class="stat-label" id="reportChickensLabel">Amount of Chickens</div>
           <div class="stat-value" id="reportChickenTotal">0</div>
@@ -4123,6 +4161,9 @@
       try {
         const data = await cloudRequest('get');
         if (revision !== cloudSaveRevision || cloudSaveDirty) return;
+        // A poll with the same data must not rebuild open menus or controls.
+        if (KapparosAdminSync.equal(data.sales || [], cloudBaselineRaw?.sales || [])
+          && KapparosAdminSync.equal(data.settings || {}, cloudBaselineRaw?.settings || {})) return;
         if (canRefreshCloudState()) applyCloudState(data);
         else {
           // Refresh stock and the lists even while a form is open. Never replace
@@ -4411,9 +4452,10 @@
       brandSubtitle.textContent = state.settings.subtitle;
       document.title = `${state.settings.title} - ${state.settings.subtitle}`;
       priceHelper.textContent = `Default: ${money(state.settings.defaultPrice)} per כפרה. You can click and edit the amount.`;
-      salesSort.value = ['name', 'newest', 'oldest'].includes(state.settings.salesSortMode)
+      const salesSortValue = ['name', 'newest', 'oldest'].includes(state.settings.salesSortMode)
         ? state.settings.salesSortMode
         : 'name';
+      if (salesSort.value !== salesSortValue) salesSort.value = salesSortValue;
       const phoneRequired = state.settings.phoneRequired !== false;
       const emailRequired = Boolean(state.settings.emailRequired);
       const isOutcomeOnly = ['treifa', 'dead'].includes(saleStatus.value);
@@ -4423,9 +4465,10 @@
       emailRequiredMark.hidden = !emailRequired;
       applyReservationAvailability();
       ticketScanner.hidden = state.settings.printTicketsEnabled === false;
-      todoSort.value = ['due', 'name', 'manual'].includes(state.settings.todoSortMode)
+      const todoSortValue = ['due', 'name', 'manual'].includes(state.settings.todoSortMode)
         ? state.settings.todoSortMode
         : 'manual';
+      if (todoSort.value !== todoSortValue) todoSort.value = todoSortValue;
       updateHomeSummary();
     }
 
@@ -4437,16 +4480,29 @@
       const legacyOption = selectedValue && !selectedExists
         ? `<option value="${escapeHtml(selectedValue)}">${escapeHtml(selectedValue)} (previous method)</option>`
         : '';
-      paymentType.innerHTML = '<option value="" disabled>Select payment type</option>' + configuredOptions + legacyOption;
-      paymentType.value = selectedValue || '';
-      salesPaymentFilter.innerHTML = '<option value="">All payment types</option>' + configuredOptions;
-      if (state.settings.paymentMethods.some(method => method.id === state.searchPaymentType)) {
-        salesPaymentFilter.value = state.searchPaymentType;
+      setSelectOptions(paymentType, '<option value="" disabled>Select payment type</option>' + configuredOptions + legacyOption);
+      if (paymentType.value !== (selectedValue || '')) paymentType.value = selectedValue || '';
+      const filterMethods = new Map(state.settings.paymentMethods.map(method => [method.id, method.label]));
+      state.sales.forEach(sale => {
+        const id = getSalePaymentType(sale);
+        if (id && !filterMethods.has(id)) filterMethods.set(id, `${id} (previous method)`);
+      });
+      filterMethods.set('online', 'Online');
+      setSelectOptions(salesPaymentFilter, '<option value="">All payment types</option>' + [...filterMethods].map(([id, label]) =>
+        `<option value="${escapeHtml(id)}">${escapeHtml(label)}</option>`).join(''));
+      if (filterMethods.has(state.searchPaymentType)) {
+        if (salesPaymentFilter.value !== state.searchPaymentType) salesPaymentFilter.value = state.searchPaymentType;
       } else {
         state.searchPaymentType = '';
-        salesPaymentFilter.value = '';
+        if (salesPaymentFilter.value !== '') salesPaymentFilter.value = '';
       }
       salesSearchOptionsBtn.classList.toggle('active', Boolean(state.searchPaymentType));
+    }
+
+    function setSelectOptions(select, markup) {
+      if (select.dataset.optionsMarkup === markup) return;
+      select.innerHTML = markup;
+      select.dataset.optionsMarkup = markup;
     }
 
     function renderPlannedPaymentSelect(selectedValue = '') {
@@ -4457,8 +4513,8 @@
       const legacyOption = selectedValue && !selectedExists
         ? `<option value="${escapeHtml(selectedValue)}">${escapeHtml(selectedValue)} (previous plan)</option>`
         : '';
-      plannedPaymentType.innerHTML = '<option value="" disabled>Select a plan</option>' + configuredOptions + legacyOption;
-      plannedPaymentType.value = selectedValue || '';
+      setSelectOptions(plannedPaymentType, '<option value="" disabled>Select a plan</option>' + configuredOptions + legacyOption);
+      if (plannedPaymentType.value !== (selectedValue || '')) plannedPaymentType.value = selectedValue || '';
     }
 
     function updatePaymentFieldsForStatus() {
@@ -5047,7 +5103,7 @@
 
       const matchingSales = state.sales.filter(sale =>
         (!query || Number.isFinite(getSaleSearchRank(sale, query)))
-        && (!paymentFilter || sale.paymentType === paymentFilter)
+        && (!paymentFilter || getSalePaymentType(sale) === paymentFilter)
       );
       salesSearchCount.hidden = !searchActive;
       salesSearchCount.textContent = searchActive
@@ -5090,13 +5146,20 @@
             </tr>`;
         }).join('');
 
-      wrap.innerHTML = `
+      let table = wrap.querySelector('.sales-table');
+      if (!table) {
+        wrap.innerHTML = `
         <table class="sales-table" dir="${state.settings.salesTableRtl !== false ? 'rtl' : 'ltr'}">
           <colgroup><col style="width:20%"><col style="width:15%"><col style="width:13%"><col style="width:10%"><col style="width:27%"><col style="width:15%"></colgroup>
           <thead><tr><th><span class="name-sort-heading">Full Name<span id="salesSortSlot"></span></span></th><th>Phone / Email</th><th>Status</th><th>כפרה</th><th>Notes</th><th>געשלאגן</th></tr></thead>
-          <tbody>${rows}</tbody>
+          <tbody></tbody>
         </table>`;
-      document.getElementById('salesSortSlot').appendChild(salesSortControl);
+        table = wrap.querySelector('.sales-table');
+        document.getElementById('salesSortSlot').appendChild(salesSortControl);
+      }
+      table.dir = state.settings.salesTableRtl !== false ? 'rtl' : 'ltr';
+      const body = table.querySelector('tbody');
+      if (body.innerHTML !== rows) body.innerHTML = rows;
     }
 
     function compareTodoNames(a, b) {
@@ -5302,45 +5365,50 @@
       renderTodo();
     }
 
+    function getSalePaymentType(sale) {
+      return sale.isOnlineSale === true ? 'online' : String(sale.paymentType || '');
+    }
+
+    function getReportPaymentGroups() {
+      const groups = new Map();
+      state.settings.paymentMethods.forEach(method => {
+        groups.set(method.id, { id: method.id, label: method.label, count: 0, money: 0 });
+      });
+      groups.set('online', { id: 'online', label: 'Online', count: 0, money: 0 });
+      state.sales.forEach(sale => {
+        const id = getSalePaymentType(sale);
+        if (getSaleStatus(sale) === 'expired' || !id) return;
+        if (!groups.has(id)) {
+          groups.set(id, { id, label: `${id} (previous method)`, count: 0, money: 0 });
+        }
+        const group = groups.get(id);
+        group.count += 1;
+        if (getSaleStatus(sale) === 'paid' && !isBanshakPayment(sale.paymentType)) {
+          group.money = (moneyToCents(group.money) + moneyToCents(sale.price)) / 100;
+        }
+      });
+      return [...groups.values()];
+    }
+
+    function getReportSalesTotal() {
+      return state.sales.filter(sale => getSaleStatus(sale) !== 'expired').length;
+    }
+
     function renderReports() {
       expirePastReservations();
-      const groups = {};
-      state.settings.paymentMethods.forEach(method => {
-        groups[method.id] = { id: method.id, label: method.label, count: 0, money: 0 };
-      });
-
-      state.sales.forEach(sale => {
-        if (sale.status === 'expired' || !sale.paymentType) return;
-        if (!groups[sale.paymentType]) {
-          groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
-        }
-        if (sale.isOnlineSale !== true) groups[sale.paymentType].count += 1;
-        if (getSaleStatus(sale) === 'paid' && sale.isOnlineSale !== true && !isBanshakPayment(sale.paymentType)) {
-          groups[sale.paymentType].money += Number(sale.price || 0);
-        }
-      });
-
-      const onlineOrderMoney = state.sales.reduce((sum, sale) => (
-        sale.isOnlineSale === true
-        && getSaleStatus(sale) === 'paid'
-        && !isBanshakPayment(sale.paymentType)
-      ) ? sum + Number(sale.price || 0) : sum, 0);
-      const groupValues = Object.values(groups);
-      const paidGroups = groupValues.filter(group => !isBanshakPayment(group.id));
-      const onlineSalesCount = state.sales.filter(sale => sale.isOnlineSale === true && sale.status !== 'expired').length;
-      document.getElementById('salesCountGrid').innerHTML = [...paidGroups, { label: 'Total online', count: onlineSalesCount }].map(group => `
+      const paidGroups = getReportPaymentGroups().filter(group => !isBanshakPayment(group.id));
+      document.getElementById('reportSalesTotal').textContent = getReportSalesTotal();
+      document.getElementById('salesCountGrid').innerHTML = paidGroups.map(group => `
         <div class="stat-card">
           <div class="stat-label">${escapeHtml(group.label)} sales</div>
           <div class="stat-value">${group.count}</div>
         </div>`).join('');
-      document.getElementById('moneyTotalsGrid').innerHTML = [...paidGroups, { label: 'Online Orders', money: onlineOrderMoney }].map(group => `
+      document.getElementById('moneyTotalsGrid').innerHTML = paidGroups.map(group => `
         <div class="stat-card">
           <div class="stat-label">${escapeHtml(group.label)} total</div>
           <div class="stat-value">${money(group.money)}</div>
         </div>`).join('');
 
-      const paidSales = state.sales.filter(sale => (sale.status || 'paid') === 'paid');
-      const reservedSales = state.sales.filter(sale => sale.status === 'reserved');
       const needsReserved = getNeedsReservedTotal();
       const needsSaved = getNeedsSavedTotal();
       document.getElementById('reportChickensLabel').textContent = state.settings.reportLabels.chickens;
@@ -5352,7 +5420,7 @@
       document.getElementById('reportNeedsReservedTotal').textContent = needsReserved;
       document.getElementById('reportNeedsSavedTotal').textContent = needsSaved;
 
-      const subtotal = paidGroups.reduce((sum, group) => sum + group.money, onlineOrderMoney);
+      const subtotal = paidGroups.reduce((sum, group) => sum + moneyToCents(group.money), 0) / 100;
       document.getElementById('subtotalMoney').textContent = money(subtotal);
       updateHomeSummary();
     }
@@ -5721,29 +5789,10 @@
 
     function exportAllData() {
       expirePastReservations();
-      const groups = {};
-      state.settings.paymentMethods.forEach(method => {
-        groups[method.id] = { id: method.id, label: method.label, count: 0, money: 0 };
-      });
-      state.sales.forEach(sale => {
-        if (sale.status === 'expired' || !sale.paymentType) return;
-        if (!groups[sale.paymentType]) {
-          groups[sale.paymentType] = { id: sale.paymentType, label: `${sale.paymentType} (previous method)`, count: 0, money: 0 };
-        }
-        if (sale.isOnlineSale !== true) groups[sale.paymentType].count += 1;
-        if (getSaleStatus(sale) === 'paid' && sale.isOnlineSale !== true && !isBanshakPayment(sale.paymentType)) {
-          groups[sale.paymentType].money = (moneyToCents(groups[sale.paymentType].money) + moneyToCents(sale.price)) / 100;
-        }
-      });
-
-      const sold = getKapparosSold();
-      const paidSales = state.sales.filter(sale => (sale.status || 'paid') === 'paid');
-      const reservedSales = state.sales.filter(sale => sale.status === 'reserved');
-      const onlineSalesCount = state.sales.filter(sale => sale.isOnlineSale && (sale.status || 'paid') === 'paid').length;
-      const onlineOrderMoney = getAccountingTotals(state.sales.filter(sale => sale.isOnlineSale === true), []).income;
+      const groups = getReportPaymentGroups();
+      const onlineSalesCount = groups.find(group => group.id === 'online').count;
       const needsReserved = getNeedsReservedTotal();
       const needsSaved = getNeedsSavedTotal();
-      const banshakUnpaid = state.sales.reduce((sum, sale) => getSaleStatus(sale) === 'paid' && isBanshakPayment(sale.paymentType) ? sum + Number(sale.price || 0) : sum, 0);
       const totalMoney = getAccountingTotals(state.sales, []).income;
       const salesRows = [
         excelRow(['Ticket ID', 'Created', 'Full Name', 'Phone Number', 'Email Address', 'Status', 'כפרות', 'Price', 'Payment method', 'Payment details', 'Planned payment', 'Planned date', ...state.settings.customFields.map(field => field.label), 'געשלאגן'].map(value => ({ value, style: 'Header' }))),
@@ -5756,7 +5805,7 @@
           getStatusLabel(getSaleStatus(sale)),
           { value: Number(sale.quantity || 0), type: 'Number', style: 'Integer' },
           { value: Number(sale.price || 0), type: 'Number', style: 'Currency' },
-          getPaymentMethod(sale.paymentType)?.label || sale.paymentType,
+          getSalePaymentType(sale) === 'online' ? 'Online' : getPaymentMethod(sale.paymentType)?.label || sale.paymentType,
           sale.otherDetails || '',
           getPaymentPlan(sale.plannedPaymentType)?.label || sale.plannedPaymentType || '',
           sale.plannedPaymentDate || '',
@@ -5768,6 +5817,7 @@
       const reportRows = [
         excelRow([{ value: 'Report summary', style: 'Title' }]),
         excelRow([{ value: 'Metric', style: 'Header' }, { value: 'Value', style: 'Header' }]),
+        excelRow(['Total sales', { value: getReportSalesTotal(), type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.chickens, { value: state.settings.inventory, type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.paid, { value: getHomeSummaryTotal(), type: 'Number', style: 'Integer' }]),
         excelRow([state.settings.reportLabels.needsReserved, { value: needsReserved, type: 'Number', style: 'Integer' }]),
@@ -5777,12 +5827,11 @@
         excelRow(['Exported', new Date().toLocaleString('en-US')]),
         '<Row/>',
         excelRow(['Payment method', 'Number of sales', 'Money total'].map(value => ({ value, style: 'Header' }))),
-        ...Object.values(groups).map(group => excelRow([
+        ...groups.map(group => excelRow([
           group.label,
           { value: group.count, type: 'Number', style: 'Integer' },
           { value: group.money, type: 'Number', style: 'Currency' }
-        ])),
-        excelRow(['Online', { value: onlineSalesCount, type: 'Number', style: 'Integer' }, { value: onlineOrderMoney, type: 'Number', style: 'Currency' }])
+        ]))
       ].join('');
 
       const taskRows = [

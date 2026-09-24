@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "test": "node database.cjs && node admin.cjs"
+    "test": "node database.cjs && node admin.cjs && node reports.cjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",

@@ -12,7 +12,6 @@ assert.match(html, /const isIncomeStatus = status === 'paid'/);
 assert.match(html, /id="salesSearchCount"/);
 assert.match(html, /id="salesSearchOptionsBtn"/);
 assert.match(html, /id="salesPaymentFilter"/);
-assert.match(html, /sale\.paymentType === paymentFilter/);
 assert.match(html, /\.status-pill\.treifa \{ color: #5f3b82; background: #eadff5;/);
 assert.match(html, /\.status-pill\.dead \{ color: #8b2e26; background: #f7d7d2;/);
 assert.match(fs.readFileSync(__dirname + '/../supabase/admin-save-stock.sql', 'utf8'), /\('paid', 'treifa', 'dead'\)/);
@@ -233,7 +232,7 @@ env.state.sales = [
   { status: 'paid', price: 500, paymentType: 'banshak' }
 ];
 env.state.settings.accountingExpenses = [{ name: 'Delivery', amount: 13, paid: false }];
-vm.runInContext(['xmlEscape', 'excelCell', 'excelRow', 'getStatusLabel', 'exportAllData'].map(source).join('\n'), env);
+vm.runInContext(['xmlEscape', 'excelCell', 'excelRow', 'getStatusLabel', 'getSalePaymentType', 'getReportPaymentGroups', 'getReportSalesTotal', 'exportAllData'].map(source).join('\n'), env);
 env.exportAllData();
 function exportedSheet(name) {
   return env.exported.split(`<Worksheet ss:Name="${name}">`)[1].split('</Worksheet>')[0];

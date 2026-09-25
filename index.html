@@ -5910,7 +5910,117 @@
       }).join('')}</Row>`;
     }
 
-    function exportAllData() {
+    function xlsxColumnName(index) {
+      let result = '';
+      for (let value = index + 1; value; value = Math.floor((value - 1) / 26)) {
+        result = String.fromCharCode(65 + ((value - 1) % 26)) + result;
+      }
+      return result;
+    }
+
+    function xlsxZip(entries) {
+      const encoder = new TextEncoder();
+      const crcTable = new Uint32Array(256);
+      for (let index = 0; index < 256; index += 1) {
+        let value = index;
+        for (let bit = 0; bit < 8; bit += 1) value = (value & 1) ? (0xedb88320 ^ (value >>> 1)) : (value >>> 1);
+        crcTable[index] = value >>> 0;
+      }
+      const crc32 = bytes => {
+        let crc = 0xffffffff;
+        for (const byte of bytes) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+        return (crc ^ 0xffffffff) >>> 0;
+      };
+      const bytes = (length, writer) => {
+        const value = new Uint8Array(length);
+        writer(new DataView(value.buffer));
+        return value;
+      };
+      const join = chunks => {
+        const result = new Uint8Array(chunks.reduce((total, chunk) => total + chunk.length, 0));
+        let offset = 0;
+        chunks.forEach(chunk => { result.set(chunk, offset); offset += chunk.length; });
+        return result;
+      };
+      const localChunks = [];
+      const centralChunks = [];
+      let localOffset = 0;
+      entries.forEach(entry => {
+        const name = encoder.encode(entry.name);
+        const data = entry.data instanceof Uint8Array ? entry.data : encoder.encode(entry.data);
+        const crc = crc32(data);
+        const localHeader = bytes(30, view => {
+          view.setUint32(0, 0x04034b50, true); view.setUint16(4, 20, true); view.setUint16(6, 0x0800, true);
+          view.setUint32(14, crc, true); view.setUint32(18, data.length, true); view.setUint32(22, data.length, true);
+          view.setUint16(26, name.length, true);
+        });
+        localChunks.push(localHeader, name, data);
+        const centralHeader = bytes(46, view => {
+          view.setUint32(0, 0x02014b50, true); view.setUint16(4, 20, true); view.setUint16(6, 20, true);
+          view.setUint16(8, 0x0800, true); view.setUint32(16, crc, true); view.setUint32(20, data.length, true);
+          view.setUint32(24, data.length, true); view.setUint16(28, name.length, true); view.setUint32(42, localOffset, true);
+        });
+        centralChunks.push(centralHeader, name);
+        localOffset += localHeader.length + name.length + data.length;
+      });
+      const central = join(centralChunks);
+      const end = bytes(22, view => {
+        view.setUint32(0, 0x06054b50, true); view.setUint16(8, entries.length, true); view.setUint16(10, entries.length, true);
+        view.setUint32(12, central.length, true); view.setUint32(16, localOffset, true);
+      });
+      return join([...localChunks, central, end]);
+    }
+
+    function spreadsheetXmlToXlsx(workbookXml) {
+      const source = new DOMParser().parseFromString(workbookXml, 'application/xml');
+      if (source.querySelector('parsererror')) throw new Error('The Excel workbook could not be created.');
+      const worksheets = [...source.getElementsByTagNameNS('*', 'Worksheet')];
+      const entries = [];
+      const sheetEntries = worksheets.map((worksheet, sheetIndex) => {
+        const table = worksheet.getElementsByTagNameNS('*', 'Table')[0];
+        const columns = [...table.children].filter(node => node.localName === 'Column');
+        const rows = [...table.children].filter(node => node.localName === 'Row');
+        const colsXml = columns.length ? `<cols>${columns.map((column, index) => {
+          const width = Number(column.getAttributeNS('urn:schemas-microsoft-com:office:spreadsheet', 'Width') || column.getAttribute('ss:Width') || 80);
+          return `<col min="${index + 1}" max="${index + 1}" width="${Math.max(8, width / 7).toFixed(2)}" customWidth="1"/>`;
+        }).join('')}</cols>` : '';
+        const rowsXml = rows.map((row, rowIndex) => {
+          let columnIndex = 0;
+          const cells = [...row.children].filter(node => node.localName === 'Cell').map(cell => {
+            const indexedColumn = Number(cell.getAttributeNS('urn:schemas-microsoft-com:office:spreadsheet', 'Index') || cell.getAttribute('ss:Index'));
+            if (indexedColumn > 0) columnIndex = indexedColumn - 1;
+            const data = [...cell.children].find(node => node.localName === 'Data');
+            const type = data?.getAttributeNS('urn:schemas-microsoft-com:office:spreadsheet', 'Type') || data?.getAttribute('ss:Type') || 'String';
+            const styleId = cell.getAttributeNS('urn:schemas-microsoft-com:office:spreadsheet', 'StyleID') || cell.getAttribute('ss:StyleID') || '';
+            const style = ({Header:1, Title:2, Currency:3, Integer:4})[styleId] || 0;
+            const reference = `${xlsxColumnName(columnIndex)}${rowIndex + 1}`;
+            columnIndex += 1;
+            if (type === 'Number') {
+              const number = Number(data?.textContent || 0);
+              return `<c r="${reference}" s="${style}"><v>${Number.isFinite(number) ? number : 0}</v></c>`;
+            }
+            return `<c r="${reference}" s="${style}" t="inlineStr"><is><t xml:space="preserve">${xmlEscape(data?.textContent || '')}</t></is></c>`;
+          }).join('');
+          return `<row r="${rowIndex + 1}">${cells}</row>`;
+        }).join('');
+        entries.push({
+          name: `xl/worksheets/sheet${sheetIndex + 1}.xml`,
+          data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${colsXml}<sheetData>${rowsXml}</sheetData></worksheet>`
+        });
+        const name = worksheet.getAttributeNS('urn:schemas-microsoft-com:office:spreadsheet', 'Name') || worksheet.getAttribute('ss:Name') || `Sheet ${sheetIndex + 1}`;
+        return { name, id: sheetIndex + 1 };
+      });
+      entries.push(
+        { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheetEntries.map(sheet => `<Override PartName="/xl/worksheets/sheet${sheet.id}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>` },
+        { name: '_rels/.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+        { name: 'xl/workbook.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetEntries.map(sheet => `<sheet name="${xmlEscape(sheet.name)}" sheetId="${sheet.id}" r:id="rId${sheet.id}"/>`).join('')}</sheets></workbook>` },
+        { name: 'xl/_rels/workbook.xml.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetEntries.map(sheet => `<Relationship Id="rId${sheet.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${sheet.id}.xml"/>`).join('')}<Relationship Id="rId${sheetEntries.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
+        { name: 'xl/styles.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="$#,##0.00"/></numFmts><fonts count="3"><font><name val="Arial"/><sz val="11"/></font><font><b/><color rgb="FFFFFFFF"/><name val="Arial"/><sz val="11"/></font><font><b/><color rgb="FF6F4B2F"/><name val="Arial"/><sz val="16"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF6F4B2F"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>` }
+      );
+      return xlsxZip(entries);
+    }
+
+    function buildExcelSpreadsheetXml() {
       expirePastReservations();
       const groups = getReportPaymentGroups();
       const onlineSalesCount = groups.find(group => group.id === 'online').count;
@@ -6032,16 +6142,21 @@
           </Table></Worksheet>
         </Workbook>`;
 
-      const blob = new Blob(['\ufeff', workbook], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      return workbook;
+    }
+
+    function exportAllData() {
+      const workbook = buildExcelSpreadsheetXml();
+      const blob = new Blob([spreadsheetXmlToXlsx(workbook)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = `Kapures-all-data-${new Date().toISOString().slice(0, 10)}.xls`;
+      link.download = `Kapures-all-data-${new Date().toISOString().slice(0, 10)}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(downloadUrl);
-      showToast('Excel export downloaded');
+      showToast('Excel workbook downloaded');
     }
 
     function setMenuOpen(open) {

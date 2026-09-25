@@ -237,8 +237,8 @@ env.state.sales = [
   { status: 'paid', price: 500, paymentType: 'banshak' }
 ];
 env.state.settings.accountingExpenses = [{ name: 'Delivery', amount: 13, paid: false }];
-vm.runInContext(['xmlEscape', 'excelCell', 'excelRow', 'getStatusLabel', 'getSalePaymentType', 'getReportPaymentGroups', 'getReportSalesTotal', 'exportAllData'].map(source).join('\n'), env);
-env.exportAllData();
+vm.runInContext(['xmlEscape', 'excelCell', 'excelRow', 'getStatusLabel', 'getSalePaymentType', 'getReportPaymentGroups', 'getReportSalesTotal', 'buildExcelSpreadsheetXml'].map(source).join('\n'), env);
+env.exported = env.buildExcelSpreadsheetXml();
 function exportedSheet(name) {
   return env.exported.split(`<Worksheet ss:Name="${name}">`)[1].split('</Worksheet>')[0];
 }

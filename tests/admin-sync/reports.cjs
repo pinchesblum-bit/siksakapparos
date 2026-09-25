@@ -72,7 +72,7 @@ async function until(predicate) {
       if (name !== 'ticket-design.js') w.eval(fs.readFileSync(path.join(root, name), 'utf8'));
     } else {
       const expose = element.textContent.includes('initializeCloudSession();')
-        ? '\nwindow.fixture = { state, renderReports, renderSales, exportAllData, refreshCloudStateSilently, get ready() { return cloudReady; } };'
+        ? '\nwindow.fixture = { state, renderReports, renderSales, exportAllData, buildExcelSpreadsheetXml, refreshCloudStateSilently, get ready() { return cloudReady; } };'
         : '';
       w.eval(element.textContent + expose);
     }
@@ -140,12 +140,7 @@ async function until(predicate) {
   selectFilter('online');
   console.log('PASS Online and credit filters are distinct; combined text/payment searches show exact record counts');
 
-  let exported;
-  w.Blob = class { constructor(parts) { exported = parts.join(''); } };
-  w.URL.createObjectURL = () => 'blob:fixture-export';
-  w.URL.revokeObjectURL = () => {};
-  w.HTMLAnchorElement.prototype.click = () => {};
-  w.fixture.exportAllData();
+  const exported = w.fixture.buildExcelSpreadsheetXml();
   const workbook = new w.DOMParser().parseFromString(exported.replace(/^\uFEFF/, ''), 'text/xml');
   assert.equal(workbook.querySelector('parsererror'), null);
   const reportSheet = [...workbook.getElementsByTagName('Worksheet')]

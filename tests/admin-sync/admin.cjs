@@ -78,6 +78,64 @@ function submit(d){d.doc.getElementById('saleForm').dispatchEvent(new d.w.Event(
  const sent=a.calls.filter(c=>c.action==='save').at(-1);assert.equal(sent.sales.length,0);assert(sent.settings._kapparosWrite);assert.equal(sent.settings.inventory,undefined);assert.equal((await get()).settings.defaultPrice,25);assert.equal((await get()).settings.inventory,1);
  console.log('PASS settings save sends only changed fields and keeps remote stock');
  a.w.fixture.state.settings.inventory=100;a.w.fixture.state.settings.chickenPurchaseCost=10;a.w.fixture.saveSettings();await a.w.fixture.flushCloudSave();const cost=(await get()).settings;assert.equal(cost.inventory,100);assert.equal(cost.chickenPurchaseCost,10);console.log('PASS cost settings save without sending a client-derived expense conflict');
- for(const d of [a,b])assert.deepEqual(d.errors,[]);
+
+ // The public-style quantity selector must preserve Admin's editable total and
+ // existing stock rules. Every save in this test goes only to local PGlite.
+ const selectorSettings={...baseSettings,inventory:10,defaultPrice:25};
+ const selectorSales=[
+  {...remote,id:'selector-paid',ticketId:'200001',isOnlineSale:false,isDemoSale:false,quantity:3,price:75},
+  {...remote,id:'selector-treifa',ticketId:'200002',isOnlineSale:false,isDemoSale:false,status:'treifa',quantity:1,price:0},
+  {...remote,id:'selector-dead',ticketId:'200003',isOnlineSale:false,isDemoSale:false,status:'dead',quantity:2,price:0}
+ ];
+ await db.query("update kapparos_app_state set sales=$1,settings=$2,updated_at=now() where id='main'",[selectorSales,selectorSettings]);
+ const c=await device();fill(c,'Editable price fixture');
+ const field=id=>c.doc.getElementById(id);
+ const minus=field('saleQuantityDecrease'),plus=field('saleQuantityIncrease'),quantity=field('quantity'),price=field('price');
+ assert.ok(minus);assert.ok(plus);assert.equal(minus.type,'button');assert.equal(plus.type,'button');
+ assert.equal(quantity.value,'1');assert.equal(minus.disabled,true);assert.equal(plus.disabled,false);
+ minus.click();assert.equal(quantity.value,'1');
+ plus.click();assert.equal(quantity.value,'2');assert.equal(price.value,'50.00');
+ plus.click();plus.click();assert.equal(quantity.value,'4');assert.equal(price.value,'100.00');
+ assert.equal(plus.disabled,true,'Paid, treifa and dead chickens all reduce available stock');
+ plus.click();assert.equal(quantity.value,'4');
+ minus.click();assert.equal(quantity.value,'3');assert.equal(plus.disabled,false);assert.equal(price.value,'75.00');
+ assert.equal(price.disabled,false);assert.equal(price.readOnly,false);
+ price.value='42.50';price.dispatchEvent(new c.w.Event('input',{bubbles:true}));
+ submit(c);await until(()=>!c.w.fixture.submitting);
+ const customSale=(await get()).sales.find(sale=>sale.fullName==='Editable price fixture');
+ assert.ok(customSale);assert.equal(customSale.quantity,3);assert.equal(customSale.price,42.5,'Admin saves the manually edited total');
+ assert.equal(minus.disabled,true);assert.equal(plus.disabled,true);
+ minus.click();plus.click();assert.equal(quantity.value,'3');assert.equal(price.value,'42.50');
+ console.log('PASS quantity selector respects stock/minimum and saves an editable price; read-only buttons cannot change the sale');
+
+ field('editSaleBtn').click();
+ assert.equal(minus.disabled,false);assert.equal(plus.disabled,false,'Editing returns this sale\'s existing quantity to the available allowance');
+ plus.click();assert.equal(quantity.value,'4');assert.equal(quantity.getAttribute('aria-invalid'),'false');assert.equal(plus.disabled,true);
+ minus.click();price.value='42.50';
+ await db.query("update kapparos_app_state set settings=jsonb_set(settings,'{inventory}','7'),updated_at=now() where id='main'");
+ await c.w.fixture.refreshCloudStateSilently();
+ assert.equal(quantity.value,'3','A stock update must not silently reduce a draft quantity');
+ assert.equal(price.value,'42.50','A stock update must not overwrite the custom price');
+ assert.equal(quantity.getAttribute('aria-invalid'),'true');assert.equal(plus.disabled,true);assert.equal(minus.disabled,false);
+ const writesBeforeInvalid=c.calls.filter(call=>call.action==='save').length;
+ submit(c);await settle();assert.equal(c.calls.filter(call=>call.action==='save').length,writesBeforeInvalid);
+ minus.click();minus.click();assert.equal(quantity.value,'1');assert.equal(quantity.getAttribute('aria-invalid'),'false');assert.equal(minus.disabled,true);assert.equal(plus.disabled,true);
+ quantity.value='2';quantity.dispatchEvent(new c.w.Event('input',{bubbles:true}));
+ assert.equal(quantity.getAttribute('aria-invalid'),'true','Typing a number cannot bypass the stock boundary');
+ console.log('PASS edited sale keeps its stock allowance; remote stock updates refresh limits while preserving quantity and custom price');
+
+ await db.query("update kapparos_app_state set settings=jsonb_set(settings,'{inventory}','20'),updated_at=now() where id='main'");
+ await c.w.fixture.refreshCloudStateSilently();
+ for(const status of ['treifa','dead']){
+  c.w.fixture.openModal();field('saleStatus').value=status;field('saleStatus').dispatchEvent(new c.w.Event('change',{bubbles:true}));
+  assert.equal(price.value,'0.00');assert.equal(price.disabled,true);assert.equal(field('salePriceWrap').hidden,true);
+  plus.click();assert.equal(quantity.value,'2');assert.equal(price.value,'0.00');
+  assert.equal(field('fullName').disabled,true);assert.equal(field('phone').disabled,true);
+  submit(c);await until(()=>!c.w.fixture.submitting);
+  const outcome=(await get()).sales.find(sale=>sale.id===c.w.fixture.state.editingSaleId);
+  assert.ok(outcome);assert.equal(outcome.status,status);assert.equal(outcome.quantity,2);assert.equal(outcome.price,0);assert.equal(outcome.paymentType,'');
+ }
+ console.log('PASS treifa/dead quantities save without customer fields and remain zero-income records');
+ for(const d of [a,b,c])assert.deepEqual(d.errors,[]);
  for(const w of windows)w.close();await db.close();
 })().catch(async e=>{console.error(e);for(const w of windows)w.close();await db.close();process.exitCode=1;});

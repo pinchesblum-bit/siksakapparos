@@ -595,8 +595,8 @@
       font-size: 13px;
       line-height: 1;
     }
-    .status-pill.paid { color: #285c35; background: #dceddf; }
-    .status-pill.online { color:#6f512a; background:#eee3cf; }
+    .status-pill.paid, .status-pill.online, .online-sale-badge { color: #285c35; background: #dceddf; }
+    .online-sale-badge { border-color: #dceddf; }
     .status-pill.reserved { color: #80581e; background: #f6e8c8; }
     .status-pill.expired { color: #8b2e26; background: #f7d7d2; }
     .status-pill.dead { color: #8b2e26; background: #f7d7d2; direction: rtl; }
@@ -1560,6 +1560,49 @@
     .quantity-price-field > input,
     .quantity-price-field > .price-wrap,
     .quantity-price-field > .price-wrap input { height: 44px; min-height: 44px; }
+    .sale-quantity-control {
+      display: grid;
+      grid-template-columns: 44px minmax(44px, 1fr) 44px;
+      width: 100%;
+      max-width: 200px;
+      height: 44px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      overflow: hidden;
+      background: #fff;
+      direction: ltr;
+    }
+    .sale-quantity-button {
+      min-height: 42px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      font-size: 22px;
+      font-weight: 850;
+    }
+    .sale-quantity-button:hover:not(:disabled) { background: var(--accent-soft); }
+    .sale-quantity-button:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+    .sale-quantity-button:disabled { opacity: .4; cursor: default; }
+    .sale-quantity-control #quantity {
+      min-width: 0;
+      height: 42px;
+      min-height: 42px;
+      border: 0;
+      border-inline: 1px solid var(--line);
+      border-radius: 0;
+      padding: 0 4px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 850;
+      font-variant-numeric: tabular-nums;
+      appearance: textfield;
+      -moz-appearance: textfield;
+    }
+    .sale-quantity-control #quantity::-webkit-inner-spin-button,
+    .sale-quantity-control #quantity::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .sale-quantity-control:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .sale-quantity-control.inventory-invalid { outline: 2px solid #b63b31; outline-offset: 2px; }
     .helper { font-size: 12px; color: var(--muted); }
     .inventory-error {
       color: #a33b2f;
@@ -2643,7 +2686,11 @@
 
           <div class="field quantity-price-field" id="saleQuantityWrap">
             <label for="quantity">כפרה <span class="required-mark">*</span></label>
-            <input id="quantity" name="quantity" type="number" min="1" step="1" value="1" aria-describedby="quantityInventoryError" required />
+            <div class="sale-quantity-control" id="saleQuantityControl">
+              <button class="sale-quantity-button" id="saleQuantityDecrease" type="button" aria-label="Remove one Kapureh" aria-controls="quantity" disabled>−</button>
+              <input id="quantity" name="quantity" type="number" min="1" step="1" value="1" inputmode="numeric" aria-describedby="quantityInventoryError" required />
+              <button class="sale-quantity-button" id="saleQuantityIncrease" type="button" aria-label="Add one Kapureh" aria-controls="quantity">+</button>
+            </div>
             <div class="inventory-error" id="quantityInventoryError" role="alert" hidden>עס איז נישט דא גענוג כפרות</div>
           </div>
 
@@ -3044,6 +3091,9 @@
     const closeModalBtn = document.getElementById('closeModalBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const quantityInput = document.getElementById('quantity');
+    const saleQuantityControl = document.getElementById('saleQuantityControl');
+    const saleQuantityDecrease = document.getElementById('saleQuantityDecrease');
+    const saleQuantityIncrease = document.getElementById('saleQuantityIncrease');
     const quantityInventoryError = document.getElementById('quantityInventoryError');
     const priceInput = document.getElementById('price');
     const paymentType = document.getElementById('paymentType');
@@ -4314,14 +4364,37 @@
       }, 0);
     }
 
+    function getSaleQuantityAvailable() {
+      return Math.max(0, Math.floor((cloudInventory ?? state.settings.inventory) - getInventoryUsedTotal(state.editingSaleId || saleDraftId)));
+    }
+
+    function updateSaleQuantityButtons() {
+      const quantity = Number(quantityInput.value);
+      saleQuantityDecrease.disabled = quantityInput.disabled || !Number.isFinite(quantity) || quantity <= 1;
+      saleQuantityIncrease.disabled = quantityInput.disabled || (saleStatus.value !== 'expired' && Math.max(1, quantity || 1) >= getSaleQuantityAvailable());
+    }
+
+    function adjustSaleQuantity(change) {
+      if (quantityInput.disabled) return;
+      const next = Math.max(1, Math.floor(Number(quantityInput.value) || 1) + change);
+      if (change > 0 && saleStatus.value !== 'expired' && next > getSaleQuantityAvailable()) {
+        validateQuantityAvailability();
+        return;
+      }
+      quantityInput.value = next;
+      quantityInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
     function validateQuantityAvailability() {
       const quantity = Number(quantityInput.value);
-      const available = (cloudInventory ?? state.settings.inventory) - getInventoryUsedTotal(state.editingSaleId || saleDraftId);
+      const available = getSaleQuantityAvailable();
       const insufficient = saleStatus.value !== 'expired' && Number.isFinite(quantity) && quantity >= 1 && quantity > available;
       quantityInput.setCustomValidity(insufficient ? 'עס איז נישט דא גענוג כפרות' : '');
       quantityInput.classList.toggle('inventory-invalid', insufficient);
+      saleQuantityControl.classList.toggle('inventory-invalid', insufficient);
       quantityInput.setAttribute('aria-invalid', String(insufficient));
       quantityInventoryError.hidden = !insufficient;
+      updateSaleQuantityButtons();
       return !insufficient;
     }
 
@@ -4564,6 +4637,7 @@
         input.required = !isOutcomeOnly && Boolean(field?.required);
       });
       validateSaleCompletionStatus();
+      validateQuantityAvailability();
     }
 
     function validateSaleCompletionStatus() {
@@ -5988,6 +6062,7 @@
       });
       geschlagenInput.disabled = false;
       saleForm.classList.toggle('sale-readonly', readOnly);
+      updateSaleQuantityButtons();
     }
 
     function showSaleView() {
@@ -6972,6 +7047,8 @@
     });
     saleModal.addEventListener('click', e => { if (e.target === saleModal) closeModal(); });
 
+    saleQuantityDecrease.addEventListener('click', () => adjustSaleQuantity(-1));
+    saleQuantityIncrease.addEventListener('click', () => adjustSaleQuantity(1));
     quantityInput.addEventListener('input', () => {
       const qty = Math.max(0, Number(quantityInput.value || 0));
       priceInput.value = ['treifa', 'dead'].includes(saleStatus.value)

@@ -108,6 +108,13 @@ async function until(predicate) {
 
   const filter = node('salesPaymentFilter');
   const search = node('salesSearch');
+  w.fixture.renderSales();
+  assert.deepEqual(
+    [...doc.querySelectorAll('#salesTableWrap [data-sale-id]')].slice(0, 2).map(row => row.dataset.saleId),
+    ['Dead record', 'Treifa record'],
+    'טויטע stays first and טריפה stays second in Sales'
+  );
+  console.log('PASS טויטע and טריפה remain pinned first and second in the Sales list');
   const resultIds = () => [...doc.querySelectorAll('#salesTableWrap [data-sale-id]')]
     .map(row => row.dataset.saleId).sort();
   const selectFilter = value => {

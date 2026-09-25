@@ -63,6 +63,12 @@ assert.equal(browserEnv.state.settings.accountingExpenses[1].date, '2026-09-11')
 assert.equal(browserEnv.state.settings.accountingExpenses[1].createdAt, 'original');
 assert.match(browserEnv.state.settings.accountingExpenses[1].note, /10 paid/);
 assert.match(browserEnv.state.settings.accountingExpenses[1].note, /3 טויטע/);
+browserEnv.state.settings.chickenExpenseAmountOverride = 777.77;
+vm.runInContext("normalizeChickenPurchaseSettings(state.settings, '2026-09-11', 'manual', state.sales)", browserEnv);
+assert.equal(browserEnv.state.settings.accountingExpenses[1].amount, 777.77, 'Manual chicken expense total remains stable');
+browserEnv.state.settings.chickenExpenseAmountOverride = null;
+vm.runInContext("normalizeChickenPurchaseSettings(state.settings, '2026-09-11', 'calculated', state.sales)", browserEnv);
+assert.equal(browserEnv.state.settings.accountingExpenses[1].amount, 820, 'Clearing the manual total restores the category calculation');
 const stable = JSON.stringify(browserEnv.state.settings);
 vm.runInContext("normalizeChickenPurchaseSettings(state.settings, '2026-09-11', 'later', state.sales)", browserEnv);
 assert.equal(JSON.stringify(browserEnv.state.settings), stable, 'Repeated normalization is stable');

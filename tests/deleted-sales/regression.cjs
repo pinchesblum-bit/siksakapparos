@@ -344,6 +344,17 @@ async function test(name, fn) { await reset(); await fn(); console.log('PASS', n
     assert.equal(chickenExpense(after).amount, 820);
     assert.equal(profit(after), profit(base));
   });
+  await test('manual chicken expense total survives later sales and can return to category calculation', async () => {
+    await reset(accountingSales(), accountingSettings());
+    const base = await state();
+    let after = await saveOk(patch(base, base.sales, {...base.settings, chickenExpenseAmountOverride: 777.77}));
+    assert.equal(chickenExpense(after).amount, 777.77);
+    assert.equal(after.settings.chickenExpenseAmountOverride, 777.77);
+    after = await saveOk(patch(after, [...after.sales, {...sale('later-paid', '100006'), quantity: 1, price: 23, paymentType: 'cash'}]));
+    assert.equal(chickenExpense(after).amount, 777.77, 'A later sale does not erase the manual total');
+    after = await saveOk(patch(after, after.sales, {...after.settings, chickenExpenseAmountOverride: null}));
+    assert.equal(chickenExpense(after).amount, 825, 'Clearing the override restores the live category calculation');
+  });
   await test('a stale rate edit is rejected with accounting state entirely unchanged', async () => {
     await reset(accountingSales(), accountingSettings());
     const base = await state();

@@ -2797,7 +2797,7 @@
         <button type="button" class="close-btn" id="closeExpenseModalBtn" aria-label="Close">×</button>
       </div>
       <form id="expenseForm">
-        <p id="chickenExpenseSettingsNote" class="small-note" hidden>The chicken expense name and amount are managed in Accounting Settings.</p>
+        <p id="chickenExpenseSettingsNote" class="small-note" hidden>The name and category prices are managed in Accounting Settings. You can edit the total amount here.</p>
         <label class="geschlagen-check" for="expensePaid">
           <span>באצאלט</span>
           <input id="expensePaid" name="expensePaid" type="checkbox" />
@@ -3027,6 +3027,7 @@
       invalidShechitaCost: 0,
       unsoldChickenCost: 8,
       chickenExpenseName: 'Chickens',
+      chickenExpenseAmountOverride: null,
       chickenPurchaseBatches: [],
       chickenInventoryRecorded: null,
       defaultPrice: 23,
@@ -3614,6 +3615,8 @@
           unsoldChickenCost: Number.isFinite(Number(saved.unsoldChickenCost))
             ? Math.max(0, Math.round(Number(saved.unsoldChickenCost) * 100) / 100) : 8,
           chickenExpenseName: String(saved.chickenExpenseName || 'Chickens').trim().slice(0, 120) || 'Chickens',
+          chickenExpenseAmountOverride: saved.chickenExpenseAmountOverride != null && Number.isFinite(Number(saved.chickenExpenseAmountOverride))
+            ? Math.max(0, Math.round(Number(saved.chickenExpenseAmountOverride) * 100) / 100) : null,
           chickenInventoryRecorded: saved.chickenInventoryRecorded != null && Number.isFinite(Number(saved.chickenInventoryRecorded)) ? Math.max(0, Math.floor(Number(saved.chickenInventoryRecorded))) : null,
           chickenPurchaseBatches: Array.isArray(saved.chickenPurchaseBatches) ? saved.chickenPurchaseBatches.filter(batch => batch && Number(batch.quantity) > 0 && Number(batch.unitCost) >= 0).map(batch => ({
             quantity: Math.floor(Number(batch.quantity)),
@@ -4288,13 +4291,19 @@
     }
 
     function getChickenPurchaseTotal() {
-      return getChickenAccountingBreakdown().totalExpense;
+      const override = state.settings.chickenExpenseAmountOverride;
+      return override != null && Number.isFinite(Number(override))
+        ? Math.max(0, Math.round(Number(override) * 100) / 100)
+        : getChickenAccountingBreakdown().totalExpense;
     }
 
     function normalizeChickenPurchaseSettings(settings, date, now, sales = []) {
       const expenseId = 'auto-chicken-inventory-cost';
       const breakdown = getChickenAccountingBreakdown(settings, sales);
-      const amount = breakdown.totalExpense;
+      const override = settings.chickenExpenseAmountOverride;
+      const amount = override != null && Number.isFinite(Number(override))
+        ? Math.max(0, Math.round(Number(override) * 100) / 100)
+        : breakdown.totalExpense;
       const expenses = Array.isArray(settings.accountingExpenses) ? settings.accountingExpenses : [];
       const existing = expenses.find(expense => expense.id === expenseId);
       if (!existing && !(amount > 0)) return settings;
@@ -5191,6 +5200,9 @@
       }
 
       const sortedSales = matchingSales.slice().sort((a, b) => {
+        const statusRank = sale => ({dead: 0, treifa: 1})[getSaleStatus(sale)] ?? 2;
+        const specialStatusOrder = statusRank(a) - statusRank(b);
+        if (specialStatusOrder) return specialStatusOrder;
         const geschlagenOrder = Number(Boolean(a.geschlagen)) - Number(Boolean(b.geschlagen));
         if (geschlagenOrder) return geschlagenOrder;
         if (query) {
@@ -5793,14 +5805,14 @@
       setExpenseFieldMode(false);
       expenseName.disabled = expense?.id === CHICKEN_EXPENSE_ID;
       expenseName.title = expense?.id === CHICKEN_EXPENSE_ID ? 'Change the name in Accounting Settings.' : '';
-      expenseAmount.disabled = expense?.id === CHICKEN_EXPENSE_ID;
-      expenseAmount.title = expense?.id === CHICKEN_EXPENSE_ID ? 'Calculated from inventory and your cost in Accounting Settings.' : '';
+      expenseAmount.disabled = false;
+      expenseAmount.title = expense?.id === CHICKEN_EXPENSE_ID ? 'Edit the total amount paid for the chickens.' : '';
       if (expense?.id === CHICKEN_EXPENSE_ID) expenseDate.disabled = true;
       deleteExpenseBtn.hidden = !expense || expense.id === CHICKEN_EXPENSE_ID;
       cancelExpenseBtn.textContent = 'Cancel';
       editExpenseBtn.hidden = true;
       saveExpenseBtn.hidden = false;
-      setTimeout(() => (expense?.id === CHICKEN_EXPENSE_ID ? expenseCategory : expenseName).focus(), 0);
+      setTimeout(() => (expense?.id === CHICKEN_EXPENSE_ID ? expenseAmount : expenseName).focus(), 0);
     }
 
     function openExpenseModal(expenseId = null) {
@@ -6434,7 +6446,7 @@
         return;
       }
       const isChickenExpense = existingExpense?.id === CHICKEN_EXPENSE_ID;
-      const amount = isChickenExpense ? getChickenPurchaseTotal() : Number(expenseAmount.value);
+      const amount = Math.round(Number(expenseAmount.value) * 100) / 100;
       if (!Number.isFinite(amount) || (isChickenExpense ? amount < 0 : amount <= 0)) return;
 
       const values = {
@@ -6462,6 +6474,9 @@
           return;
         }
         if (!(await askConfirmation(CHANGE_CONFIRMATION))) return;
+        if (isChickenExpense && Number(existingExpense.amount || 0) !== amount) {
+          state.settings.chickenExpenseAmountOverride = amount;
+        }
         Object.assign(existingExpense, values, { updatedAt: new Date().toISOString() });
       } else {
         expenses.push({
@@ -7394,6 +7409,9 @@
       const unsoldCost = Number(settingUnsoldChickenCost.value);
       if (![cost, invalidCost, unsoldCost].every(value => Number.isFinite(value) && value >= 0)) return;
       const name = settingChickenExpenseName.value.trim() || 'Chickens';
+      const categoryPricesChanged = cost !== Number(state.settings.chickenPurchaseCost || 0)
+        || invalidCost !== Number(state.settings.invalidShechitaCost || 0)
+        || unsoldCost !== Number(state.settings.unsoldChickenCost || 0);
       if (cost === Number(state.settings.chickenPurchaseCost || 0)
         && invalidCost === Number(state.settings.invalidShechitaCost || 0)
         && unsoldCost === Number(state.settings.unsoldChickenCost || 0)
@@ -7408,6 +7426,7 @@
       state.settings.invalidShechitaCost = Math.round(invalidCost * 100) / 100;
       state.settings.unsoldChickenCost = Math.round(unsoldCost * 100) / 100;
       state.settings.chickenExpenseName = name;
+      if (categoryPricesChanged) state.settings.chickenExpenseAmountOverride = null;
       saveSettings();
       renderAccounting();
       updateChickenPurchasePreview();

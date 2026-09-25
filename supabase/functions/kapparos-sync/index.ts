@@ -56,6 +56,7 @@ function defaultSettings() {
     homeSummaryLabel: 'Needs to Be Saved', homeSummaryScope: 'paid', defaultPrice: 23,
     inventory: 100, chickenCostModelVersion: 1, chickenPurchaseCost: 13,
     invalidShechitaCost: 0, unsoldChickenCost: 8, chickenExpenseName: 'Chickens',
+    chickenExpenseAmountOverride: null,
     username: 'admin', passwordHash: DEFAULT_PASSWORD_HASH, customFields: [],
     reportLabels: { chickens: 'Amount of Chickens', paid: 'Amount of Paid', reserved: 'Amount of Reserved', needsReserved: 'Needs to Be Reserved', needsSaved: 'Needs to Be Saved' },
     paymentMethods: [

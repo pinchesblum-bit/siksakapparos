@@ -11,7 +11,7 @@ declare
   numeric_pattern constant text := '^-?[0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?$';
   rate_key text; raw_value text; fallback numeric; rate numeric;
   inventory numeric; kosher numeric := 0; invalid numeric := 0; dead numeric := 0; unsold numeric;
-  amount numeric; expense_name text; note text; stamp text; inserted boolean := false;
+  amount numeric; derived_amount numeric; expense_name text; note text; stamp text; inserted boolean := false;
 begin
   foreach rate_key in array array['chickenPurchaseCost', 'invalidShechitaCost', 'unsoldChickenCost'] loop
     fallback := case rate_key when 'chickenPurchaseCost' then 13 when 'unsoldChickenCost' then 8 else 0 end;
@@ -32,9 +32,11 @@ begin
       from jsonb_array_elements(case when jsonb_typeof(p_sales) = 'array' then p_sales else '[]'::jsonb end) s
     ) counted;
   unsold := greatest(0, inventory - kosher - invalid - dead);
-  amount := round(kosher * (result->>'chickenPurchaseCost')::numeric
+  derived_amount := round(kosher * (result->>'chickenPurchaseCost')::numeric
                 + invalid * (result->>'invalidShechitaCost')::numeric
                 + unsold * (result->>'unsoldChickenCost')::numeric, 2);
+  raw_value := btrim(result->>'chickenExpenseAmountOverride');
+  amount := case when raw_value ~ numeric_pattern then greatest(0, round(raw_value::numeric, 2)) else derived_amount end;
   result := result || jsonb_build_object('chickenCostModelVersion', 1, 'chickenInventoryRecorded', inventory);
   expenses := case when jsonb_typeof(result->'accountingExpenses') = 'array' then result->'accountingExpenses' else '[]'::jsonb end;
   select value into existing from jsonb_array_elements(expenses) where value->>'id' = expense_id limit 1;

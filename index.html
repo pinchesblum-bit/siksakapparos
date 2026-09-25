@@ -1816,6 +1816,42 @@
       .confirm-actions button,
       .security-actions button { flex: 1 1 120px; }
     }
+
+    /* Keep the complete Sales table visible across common tablet widths. */
+    @media (min-width: 641px) and (max-width: 1100px) {
+      #salesPage .sales-table-wrap { overflow-x: hidden; }
+      #salesPage .sales-table {
+        width: 100%;
+        min-width: 100%;
+        max-width: 100%;
+      }
+      #salesPage .sales-table th,
+      #salesPage .sales-table td {
+        padding: 12px 7px;
+        overflow: hidden;
+      }
+      #salesPage .sales-table th {
+        font-size: 10px;
+        letter-spacing: .045em;
+      }
+      #salesPage .sale-name-content,
+      #salesPage .sale-contact > span,
+      #salesPage .note-preview {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #salesPage .status-pill {
+        width: auto;
+        max-width: 100%;
+        min-width: 0;
+        padding-inline: 8px;
+        font-size: 12px;
+      }
+      #salesPage .kaparah-pill { max-width: 100%; }
+    }
   
     /* Match the existing chicken image to the ivory page surface. */
     .chicken img { filter:url(#admin-paper-match); }

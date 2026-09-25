@@ -12,8 +12,12 @@ const styles = [...source.window.document.styleSheets].flatMap(sheet => [...shee
 function activeCss(rules, width) {
   return rules.map(rule => {
     if (rule.type === source.window.CSSRule.MEDIA_RULE) {
-      const match = /^\(max-width:\s*(\d+)px\)$/.exec(rule.conditionText);
-      return match && width <= Number(match[1]) ? activeCss([...rule.cssRules], width) : '';
+      const min = /\(min-width:\s*(\d+)px\)/.exec(rule.conditionText);
+      const max = /\(max-width:\s*(\d+)px\)/.exec(rule.conditionText);
+      const matches = Boolean(min || max)
+        && (!min || width >= Number(min[1]))
+        && (!max || width <= Number(max[1]));
+      return matches ? activeCss([...rule.cssRules], width) : '';
     }
     return rule.cssText;
   }).join('\n');
@@ -22,7 +26,8 @@ function activeCss(rules, width) {
 function fixture(width) {
   const dom = new JSDOM('<!doctype html><html><head><style>' + activeCss(styles, width)
     + '</style></head><body><main class="app-shell"><section class="page active" id="salesPage"><div class="panel">'
-    + header + '</div></section></main></body></html>', {pretendToBeVisual: true});
+    + header + '<div class="sales-table-wrap"><table class="sales-table"><tbody><tr><td><span class="sale-contact"><span>8455551234</span></span></td></tr></tbody></table></div>'
+    + '</div></section></main></body></html>', {pretendToBeVisual: true});
   const document = dom.window.document;
   return {dom, document, style: selector => dom.window.getComputedStyle(document.querySelector(selector))};
 }
@@ -76,6 +81,13 @@ for (const width of [320, 360, 390, 640, 641, 700, 760, 768, 820, 1024, 1100, 11
   assert.equal(style('.sales-head-actions').gridTemplateColumns, 'minmax(0, 1fr)', `${width}px scanner-hidden layout`);
   assert.notEqual(style('#addSaleBtn').display, 'none');
   if (width <= 640) assert.equal(style('#salesSearch').fontSize, '16px', 'Phone inputs avoid focus zoom');
+
+  if (width >= 641 && width <= 1100) {
+    assert.equal(style('.sales-table-wrap').overflowX, 'hidden', `${width}px tablet table does not scroll sideways`);
+    assert.equal(style('.sales-table').minWidth, '100%', `${width}px tablet table fits its panel`);
+    assert.equal(style('.sales-table').maxWidth, '100%', `${width}px tablet table cannot overflow its panel`);
+    assert.equal(style('.sale-contact > span').textOverflow, 'ellipsis', `${width}px long contact text is clipped cleanly`);
+  }
 
   dom.window.close();
   console.log(`PASS ${width}px Sales toolbar: grid, controls, count, summary, RTL and scanner-hidden cascade`);
